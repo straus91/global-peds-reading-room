@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Cases - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <!-- Toast Container for Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="../assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="../index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="../assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <!-- Sidebar -->
+                <div class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="dashboard.html" class="active"> <span class="menu-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="manage-cases.html">
+                            <span class="menu-icon">📁</span>
+                            Manage Cases
+                        </a>
+                        <a href="add-case.html">
+                            <span class="menu-icon">➕</span>
+                            Add New Case
+                        </a>
+                        <a href="manage-users.html">
+                            <span class="menu-icon">👥</span>
+                            Manage Users
+                        </a>
+                        <a href="manage-templates.html">
+                            <span class="menu-icon">📋</span>
+                            Manage Templates
+                        </a>
+                        <a href="settings.html">
+                            <span class="menu-icon">⚙️</span>
+                            Settings
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Main Admin Content -->
+                <div class="admin-content">
+                    <div class="admin-header">
+                        <h1>Manage Cases</h1>
+                        <p>View, edit, and manage all cases in the Global Peds Reading Room.</p>
+                    </div>
+                    
+                    <!-- Search and Filters -->
+                    <div class="admin-controls">
+                        <div class="search-container">
+                            <input type="text" id="caseSearch" placeholder="Search cases...">
+                            <button id="searchBtn" class="btn">Search</button>
+                        </div>
+                        
+                        <div class="filter-controls">
+                            <div class="filter-group">
+                                <label for="statusFilter">Status:</label>
+                                <select id="statusFilter">
+                                    <option value="">All</option>
+                                    <option value="active">Active</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="archived">Archived</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="subspecialtyFilter">Subspecialty:</label>
+                                <select id="subspecialtyFilter">
+                                    <option value="">All</option>
+                                    <option value="neuro">Neuro</option>
+                                    <option value="head-neck">Head and Neck</option>
+                                    <option value="chest">Chest</option>
+                                    <option value="abdomen">Abdomen</option>
+                                    <option value="msk">MSK</option>
+                                    <option value="general">General Radiology</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="modalityFilter">Modality:</label>
+                                <select id="modalityFilter">
+                                    <option value="">All</option>
+                                    <option value="xray">X-Ray</option>
+                                    <option value="ct">CT</option>
+                                    <option value="mri">MRI</option>
+                                    <option value="us">Ultrasound</option>
+                                    <option value="nuclear">Nuclear Medicine</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions">
+                        <div class="selected-count">0 cases selected</div>
+                        <div class="action-buttons">
+                            <button id="bulkPublishBtn" class="btn btn-sm" disabled>Publish</button>
+                            <button id="bulkArchiveBtn" class="btn btn-sm" disabled>Archive</button>
+                            <button id="bulkDeleteBtn" class="btn btn-sm btn-danger" disabled>Delete</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Cases Table -->
+                    <div class="data-table-container">
+                        <table class="data-table" id="casesTable">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAllCases">
+                                    </th>
+                                    <th>ID</th>
+                                    <th>Case Title</th>
+                                    <th>Subspecialty</th>
+                                    <th>Modality</th>
+                                    <th>Difficulty</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminCasesTableBody"></tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <button class="pagination-btn" disabled>Previous</button>
+                        <div class="pagination-pages">
+                            <span class="pagination-page active">1</span>
+                            <span class="pagination-page">2</span>
+                            <span class="pagination-page">3</span>
+                        </div>
+                        <button class="pagination-btn">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirm Deletion</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the selected case(s)? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Admin Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="manage-cases.html">Manage Cases</a></li>
+                        <li><a href="add-case.html">Add New Case</a></li>
+                        <li><a href="manage-users.html">Manage Users</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: admin@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Files -->
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script src="../js/admin-cases.js"></script>
+</body>
+</html>

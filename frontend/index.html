@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Peds Reading Room</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="#" id="casesLink" class="active">Cases</a>
+                    <a href="#" id="myReportsLink">My Reports</a>
+
+                    <a href="admin/dashboard.html" id="adminLink" class="admin-only" style="display: none;">Admin Dashboard</a>
+
+                    <div class="user-menu">
+                        <img src="assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;">
+                        <span>User Name</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div id="mainContent" class="container">
+            <h2>Welcome to Global Peds Reading Room</h2>
+            <p>Loading content...</p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Home</a></li>
+                        <li><a href="#">Cases</a></li>
+                        <li><a href="#">My Reports</a></li>
+                        <li><a href="#">Help</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: info@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    <script src="js/api.js"></script>
+    <script src="js/template.js"></script>
+    <script src="js/main.js"></script>
+    <!-- <script src="../js/admin.js"></script>   -->
+    </body>
+</html>

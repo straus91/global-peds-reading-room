@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="../assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="../index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="../assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <div class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="dashboard.html" class="active"> <span class="menu-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="manage-cases.html">
+                            <span class="menu-icon">📁</span>
+                            Manage Cases
+                        </a>
+                        <a href="add-case.html">
+                            <span class="menu-icon">➕</span>
+                            Add New Case
+                        </a>
+                        <a href="manage-users.html">
+                            <span class="menu-icon">👥</span>
+                            Manage Users
+                        </a>
+                        <a href="manage-templates.html">
+                            <span class="menu-icon">📋</span>
+                            Manage Templates
+                        </a>
+                        <a href="settings.html">
+                            <span class="menu-icon">⚙️</span>
+                            Settings
+                        </a>
+                    </div>
+                </div>
+
+                <div class="admin-content">
+                    <div class="admin-header">
+                        <h1>Admin Dashboard</h1>
+                        <p>Welcome to the Global Peds Reading Room administration panel.</p>
+                    </div>
+
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">📁</div>
+                            <div class="stat-info">
+                                <h3>Total Cases</h3>
+                                <div class="stat-value">24</div> </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-info">
+                                <h3>Registered Users</h3>
+                                <div class="stat-value">142</div> </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon">📝</div>
+                            <div class="stat-info">
+                                <h3>Report Submissions</h3>
+                                <div class="stat-value">86</div> </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-info">
+                                <h3>New Registrations</h3>
+                                <div class="stat-value">12</div> </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Recent Activity</h2>
+                            <a href="#" class="btn btn-secondary btn-sm">View All</a> </div>
+
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <div class="activity-icon user-icon">👤</div>
+                                <div class="activity-details">
+                                    <p><strong>New User:</strong> Maria Rodriguez registered</p>
+                                    <span class="activity-time">May 1, 2025, 08:10 AM</span>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <div class="activity-icon case-icon">📁</div>
+                                <div class="activity-details">
+                                    <p><strong>New Case:</strong> Pediatric Abdominal CT added</p>
+                                    <span class="activity-time">Apr 30, 2025, 09:15 AM</span>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <div class="activity-icon report-icon">📝</div>
+                                <div class="activity-details">
+                                    <p><strong>New Report:</strong> David Kim submitted report for Brain MRI Case</p>
+                                    <span class="activity-time">Apr 30, 2025, 08:22 AM</span>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <div class="activity-icon case-icon">📁</div>
+                                <div class="activity-details">
+                                    <p><strong>Case Updated:</strong> Chest X-ray Sample Case updated</p>
+                                    <span class="activity-time">Apr 30, 2025, 07:05 AM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-columns">
+                        <div class="dashboard-column">
+                            <div class="dashboard-section">
+                                <div class="section-header">
+                                    <h2>Cases by Modality</h2>
+                                </div>
+                                <div class="chart-placeholder">
+                                    <p style="text-align: center; padding: 20px; color: #888;">(Chart visualization would go here)</p>
+                                    <div class="chart-data" style="opacity: 0.7;"> <div class="chart-item">
+                                            <span class="label">X-Ray</span>
+                                            <div class="bar" style="width: 40%; background-color: #4a86e8;">40%</div>
+                                        </div>
+                                        <div class="chart-item">
+                                            <span class="label">CT</span>
+                                            <div class="bar" style="width: 25%; background-color: #6aa84f;">25%</div>
+                                        </div>
+                                        <div class="chart-item">
+                                            <span class="label">MRI</span>
+                                            <div class="bar" style="width: 20%; background-color: #f1c232;">20%</div>
+                                        </div>
+                                        <div class="chart-item">
+                                            <span class="label">Ultrasound</span>
+                                            <div class="bar" style="width: 10%; background-color: #e06666;">10%</div>
+                                        </div>
+                                        <div class="chart-item">
+                                            <span class="label">Nuclear</span>
+                                            <div class="bar" style="width: 5%; background-color: #741b47;">5%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-column">
+                            <div class="dashboard-section">
+                                <div class="section-header">
+                                    <h2>New User Registrations</h2>
+                                     <a href="manage-users.html" class="btn btn-secondary btn-sm">Manage Users</a> </div>
+                                <div class="user-registrations">
+                                    <div class="user-item">
+                                        <img src="../assets/img/user-default.png" alt="User" style="width: 40px; height: 40px; border-radius: 50%;">
+                                        <div class="user-info">
+                                            <h4>Maria Rodriguez</h4>
+                                            <p>Resident, Hospital Infantil, Mexico</p>
+                                        </div>
+                                        <div class="user-actions">
+                                            <button class="btn btn-sm btn-secondary">Approve</button> </div>
+                                    </div>
+
+                                    <div class="user-item">
+                                         <img src="../assets/img/user-default.png" alt="User" style="width: 40px; height: 40px; border-radius: 50%;">
+                                        <div class="user-info">
+                                            <h4>John Smith</h4>
+                                            <p>Fellow, Children's Hospital Boston, USA</p>
+                                        </div>
+                                        <div class="user-actions">
+                                             <button class="btn btn-sm btn-secondary">Approve</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="user-item">
+                                        <img src="../assets/img/user-default.png" alt="User" style="width: 40px; height: 40px; border-radius: 50%;">
+                                        <div class="user-info">
+                                            <h4>Aisha Patel</h4>
+                                            <p>Attending, Great Ormond Street Hospital, UK</p>
+                                        </div>
+                                        <div class="user-actions">
+                                             <button class="btn btn-sm btn-secondary">Approve</button>
+                                        </div>
+                                    </div>
+                                     <p style="text-align: center; padding: 10px 0; color: #888;">...</p> </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Admin Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="manage-cases.html">Manage Cases</a></li>
+                        <li><a href="add-case.html">Add New Case</a></li>
+                        <li><a href="manage-users.html">Manage Users</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: admin@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/api.js"></script> 
+    <script src="../js/admin.js"></script>
+    <script src="../js/admin-users.js"></script>
+    </body>
+</html>

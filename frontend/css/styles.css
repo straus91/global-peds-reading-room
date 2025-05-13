@@ -1,0 +1,176 @@
+:root {
+    --primary: #4a86e8;
+    --secondary: #6aa84f;
+    --accent: #f1c232;
+    --dark: #333333;
+    --light: #f8f9fa;
+    --white: #ffffff;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+    --success: #27ae60;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: var(--light); color: var(--dark); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; }
+.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+/* Header */
+header { background-color: var(--white); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); position: fixed; width: 100%; top: 0; z-index: 100; }
+.navbar { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; min-height: 70px; }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo img { /* Height set inline */ }
+.logo h1 { font-size: 22px; color: var(--primary); margin: 0; }
+.nav-links { display: flex; gap: 20px; align-items: center; }
+.nav-links a { text-decoration: none; color: var(--dark); font-weight: 500; transition: color 0.3s; padding: 5px 0; }
+.nav-links a:hover, .nav-links a.active { color: var(--primary); }
+
+/* User Menu */
+.user-menu { position: relative; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 0; }
+.dropdown-content { display: none; position: absolute; right: 0; top: 95%; background-color: var(--white); min-width: 180px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 6px; z-index: 101; padding-top: 5px; opacity: 0; visibility: hidden; transform: translateY(5px); transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out; }
+.dropdown-content a { padding: 12px 16px; display: block; text-decoration: none; color: var(--dark); transition: background-color 0.3s; white-space: nowrap; }
+.dropdown-content a:hover { background-color: #f5f5f5; }
+.user-menu:hover .dropdown-content { display: block; opacity: 1; visibility: visible; transform: translateY(0); }
+
+/* Buttons */
+.btn { background-color: var(--primary); color: var(--white); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; transition: background-color 0.3s, box-shadow 0.2s; text-decoration: none; display: inline-block; text-align: center; line-height: 1.4; }
+.btn:hover { background-color: #3a76d8; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.btn-secondary { background-color: var(--white); color: var(--primary); border: 1px solid var(--primary); }
+.btn-secondary:hover { background-color: #f0f5ff; }
+
+/* Main Content */
+main { flex: 1; padding-top: 100px; padding-bottom: 50px; }
+
+/* Toast Notifications */
+.toast-container { position: fixed; top: 85px; right: 20px; z-index: 1000; width: auto; max-width: 350px; }
+.toast { background-color: var(--white); border-left: 4px solid var(--primary); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 15px 20px; border-radius: 4px; margin-bottom: 10px; display: flex; align-items: center; opacity: 0.95; animation: slideInRight 0.4s ease-out; }
+.toast.success { border-left-color: var(--success); }
+.toast.warning { border-left-color: var(--warning); }
+.toast.error { border-left-color: var(--danger); }
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 0.95; } }
+
+/* Footer */
+footer { background-color: var(--dark); color: var(--white); padding: 40px 0 20px; margin-top: auto; }
+.footer-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 30px; }
+.footer-section h3 { margin-bottom: 15px; color: var(--accent); font-size: 18px; }
+.footer-links { list-style: none; padding: 0; }
+.footer-links li { margin-bottom: 8px; }
+.footer-links a { color: #ddd; text-decoration: none; transition: color 0.3s; }
+.footer-links a:hover { color: var(--accent); }
+.footer-section p { color: #ddd; }
+.footer-bottom { text-align: center; padding-top: 20px; border-top: 1px solid #444; font-size: 14px; color: #aaa; }
+
+/* --- Case View General --- */
+#casesListView .cases-header h2 { margin: 0; }
+
+/* Filter Container */
+.filter-container { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; padding: 15px; background-color: #fdfdfd; border-radius: 6px; border: 1px solid #eee; }
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-group label { font-weight: 500; white-space: nowrap; color: #555; }
+.filter-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; min-width: 150px; background-color: var(--white); font-size: 14px; }
+.filter-container .btn { padding: 8px 20px; }
+
+/* --- Split View Layout START --- */
+.split-view-container { display: flex; gap: 25px; margin-top: 20px; }
+
+.case-grid-pane {
+    /* ***** MODIFIED: Make grid pane narrower ***** */
+    flex: 1 1 40%; /* Adjust ratio as needed (e.g., 40% for grid) */
+    min-width: 0; border: 1px solid #eee; border-radius: 6px; padding: 15px;
+}
+
+.case-table-pane {
+    /* ***** MODIFIED: Make table pane wider ***** */
+    flex: 1 1 60%; /* Adjust ratio as needed (e.g., 60% for table) */
+    min-width: 0; border: 1px solid #eee; border-radius: 6px; padding: 15px; display: flex; flex-direction: column;
+}
+.case-grid-pane h3, .case-table-pane h3 { margin-top: 0; margin-bottom: 15px; font-size: 16px; font-weight: 600; color: var(--dark); border-bottom: 1px solid #ddd; padding-bottom: 8px; flex-shrink: 0; }
+/* --- Split View Layout END --- */
+
+/* Case Grid Styles */
+.case-grid {
+    display: grid;
+    /* ***** MODIFIED: Smaller min width for thumbnails ***** */
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Smaller minimum */
+    gap: 15px; /* Slightly smaller gap */
+}
+.case-card { background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; display: flex; flex-direction: column; }
+.case-card:hover { transform: translateY(-5px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
+.case-image { height: 120px; /* ***** MODIFIED: Smaller image height ***** */ background-color: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px; overflow: hidden; }
+.case-image img { width: 100%; height: 100%; object-fit: cover; }
+.case-content { padding: 12px; /* Slightly smaller padding */ flex-grow: 1; display: flex; flex-direction: column; }
+.case-title { margin-bottom: 8px; font-size: 15px; /* Slightly smaller */ color: var(--dark); line-height: 1.3; }
+.case-info { margin-bottom: 10px; font-size: 12px; /* Slightly smaller */ color: #666; flex-grow: 1; }
+.case-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+.tag { background-color: rgba(74, 134, 232, 0.1); color: var(--primary); font-size: 10px; /* Slightly smaller */ padding: 3px 6px; border-radius: 4px; font-weight: 500; }
+.tag.beginner { background-color: rgba(106, 168, 79, 0.1); color: var(--secondary); }
+.tag.intermediate { background-color: rgba(241, 194, 50, 0.1); color: var(--accent); }
+.tag.advanced { background-color: rgba(204, 0, 0, 0.1); color: #cc0000; }
+.case-card .btn { align-self: flex-start; margin-top: auto; padding: 5px 10px; font-size: 12px; } /* Smaller button */
+
+/* --- Case Table Styles START --- */
+.case-list-table-wrapper { overflow-x: auto; flex-grow: 1; }
+.case-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    /* ***** MODIFIED: Reverted to auto layout ***** */
+    table-layout: auto;
+}
+.case-list-table th,
+.case-list-table td {
+    border: 1px solid #ddd;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 14px;
+    vertical-align: middle;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    /* ***** MODIFIED: Removed fixed widths ***** */
+    /* width: auto; */ /* Let browser handle width */
+}
+.case-list-table th { background-color: #f2f2f2; font-weight: 600; cursor: pointer; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+.case-list-table th:hover { background-color: #e8e8e8; }
+.case-list-table tbody tr:hover { background-color: #f9f9f9; }
+.case-list-table tbody td { color: #333; }
+.case-list-table .actions-cell { text-align: center; white-space: nowrap; }
+.case-list-table .actions-cell .btn { padding: 4px 8px; font-size: 12px; margin: 0 2px; }
+.case-list-table .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #ccc; border: 1px solid #bbb; }
+.case-list-table .status-indicator.yes { background-color: var(--success); border-color: var(--secondary); }
+.case-list-table .status-indicator.no { background-color: #eee; border: 1px solid #ccc; }
+/* --- Case Table Styles END --- */
+
+/* Case Detail Styles */
+.case-detail { background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); padding: 30px; margin-bottom: 30px; }
+.case-detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; gap: 20px; flex-wrap: wrap; }
+.case-detail-title { font-size: 24px; color: var(--dark); margin-bottom: 10px; }
+.case-detail-meta { color: #666; margin-bottom: 15px; font-size: 14px; }
+.case-clinical-info, .image-viewer-area, .case-report-template, .case-discussion { margin-bottom: 30px; }
+.case-section-title { font-size: 18px; color: var(--primary); margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; font-weight: 600; }
+.image-placeholder { background-color: #f5f5f5; border: 1px dashed #ccc; border-radius: 6px; padding: 40px; text-align: center; color: #777; margin-bottom: 20px; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.case-report-template { background-color: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 25px; margin-bottom: 30px; }
+.report-section { margin-bottom: 20px; }
+.report-section label { display: block; font-weight: 500; margin-bottom: 8px; font-size: 14px; color: #444; }
+.report-section textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 4px; min-height: 100px; resize: vertical; font-size: 14px; }
+.form-actions { margin-top: 30px; display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Responsive Styles */
+@media (max-width: 992px) { /* Tablet and below */
+     .split-view-container { flex-direction: column; gap: 25px; }
+     .case-grid-pane, .case-table-pane { flex-basis: auto; /* Let them stack naturally */ }
+}
+@media (max-width: 768px) { /* Mobile */
+    .navbar { flex-direction: column; padding: 10px 0; align-items: flex-start; }
+    .nav-links { margin-top: 15px; width: 100%; justify-content: space-around; }
+    .filter-container { flex-direction: column; align-items: stretch; }
+    .filter-group { width: auto; }
+    .filter-group select { width: auto; flex-grow: 1; }
+    .case-detail-header { flex-direction: column; align-items: stretch; }
+    main { padding-top: 80px; }
+}
+@media (max-width: 576px) {
+    .nav-links { gap: 10px; font-size: 14px; }
+    .filter-container { padding: 10px; }
+    .case-detail { padding: 20px; }
+    .toast-container { right: 10px; max-width: calc(100% - 20px); }
+    .case-list-table th, .case-list-table td { padding: 8px; font-size: 13px; }
+    /* Keep table layout auto on smallest screens */
+}

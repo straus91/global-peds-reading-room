@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Templates - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/admin.css">
+    <style>
+        .template-section-item {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .template-section-item .section-header h4 {
+            margin: 0;
+            font-size: 1em;
+            font-weight: 500;
+        }
+        .template-section-item .section-content { /* For placeholder display if needed */
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        .template-section-item .section-actions button {
+            background: none;
+            border: none;
+            color: #007bff;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 0.9em;
+        }
+        .template-section-item .section-actions button:hover {
+            text-decoration: underline;
+        }
+        .template-section-item .drag-handle {
+            cursor: move;
+            margin-right: 10px;
+            color: #aaa;
+        }
+        .empty-sections-message {
+            text-align: center;
+            color: #777;
+            padding: 15px;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+        }
+        .language-tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .language-tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        .language-tab.active {
+            background-color: #fff;
+            border-color: #ddd;
+            border-bottom-color: #fff;
+            position: relative;
+            top: 1px;
+        }
+        .translation-content { display: none; }
+        .translation-content.active { display: block; }
+        .translation-item { margin-bottom: 10px; }
+        .translation-original { font-weight: bold; margin-bottom: 3px; }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; color: white; font-size: 1.5em;">
+        <div class="loading-message" style="background: #333; padding: 20px; border-radius: 5px;">Loading...</div>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="../assets/img/logo.png" alt="Logo" style="height: 40px; width: auto; border-radius: 4px;" onerror="this.style.display='none'">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="../index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="../assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;" onerror="this.src='https://placehold.co/35x35/ccc/777?text=User'">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <aside class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="dashboard.html"> <span class="menu-icon">📊</span> Dashboard </a>
+                        <a href="manage-cases.html"> <span class="menu-icon">📁</span> Manage Cases </a>
+                        <a href="add-case.html"> <span class="menu-icon">➕</span> Add New Case </a>
+                        <a href="manage-users.html"> <span class="menu-icon">👥</span> Manage Users </a>
+                        <a href="manage-templates.html" class="active"> <span class="menu-icon">📋</span> Manage Templates </a>
+                        <a href="settings.html"> <span class="menu-icon">⚙️</span> Settings </a>
+                    </div>
+                </aside>
+                
+                <section class="admin-content">
+                    <div class="admin-header">
+                        <h1>Manage Report Templates</h1>
+                        <p>Create and manage master report templates for different examination types.</p>
+                    </div>
+                    
+                    <div class="admin-tabs">
+                        <div class="tab active" data-tab="template-list">Template List</div>
+                        <div class="tab" data-tab="create-template">Create/Edit Template</div>
+                    </div>
+                    
+                    <div id="templateListContainer" class="tab-content active">
+                        <div class="admin-controls">
+                            <div class="search-container">
+                                <input type="text" id="templateSearchInput" placeholder="Search templates...">
+                                <button id="templateSearchBtn" class="btn">Search</button>
+                            </div>
+                            <div class="filter-controls">
+                                <div class="filter-group">
+                                    <label for="listModalityFilter">Modality:</label>
+                                    <select id="listModalityFilter">
+                                        <option value="">All</option>
+                                        </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="listBodyPartFilter">Body Part/Region:</label>
+                                    <select id="listBodyPartFilter">
+                                        <option value="">All</option>
+                                        </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="data-table-container">
+                            <table class="data-table" id="templatesTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Template Name</th>
+                                        <th>Modality</th>
+                                        <th>Body Part/Region</th>
+                                        <th>Sections</th>
+                                        <th>Active</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="masterTemplatesTableBody">
+                                    <tr><td colspan="7" style="text-align:center;">Loading templates...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="templateListPaginationContainer">
+                            </div>
+                    </div>
+                    
+                    <div id="createTemplateContainer" class="tab-content">
+                        <div class="admin-form-container">
+                            <h2 id="templateFormTitle">Create New Template</h2> <form id="templateForm" class="admin-form">
+                                <input type="hidden" id="templateId" name="templateId"> <div class="form-section">
+                                    <h3>Template Information</h3>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="templateName">Template Name</label>
+                                            <input type="text" id="templateName" name="name" required>
+                                            <p class="field-hint">E.g., "CT Brain Without Contrast" or "XR Chest PA and Lateral"</p>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="templateModality">Modality</label>
+                                            <select id="templateModality" name="modality" required>
+                                                <option value="">Select Modality</option>
+                                                <option value="CT">CT - Computer Tomography</option>
+                                                <option value="MR">MR - Magnetic Resonance</option>
+                                                <option value="US">US - Ultrasound</option>
+                                                <option value="XR">XR - X-ray</option>
+                                                <option value="FL">FL - Fluoroscopy</option>
+                                                <option value="NM">NM - Nuclear Medicine</option>
+                                                <option value="OT">OT - Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="templateBodyPart">Body Part/Region</label>
+                                            <select id="templateBodyPart" name="body_part" required>
+                                                <option value="">Select Body Part/Region</option>
+                                                <option value="BR">BR - Breast (Imaging and Interventional)</option>
+                                                <option value="CA">CA - Cardiac Radiology</option>
+                                                <option value="CH">CH - Chest Radiology</option>
+                                                <option value="ER">ER - Emergency Radiology</option>
+                                                <option value="GI">GI - Gastrointestinal Radiology</option>
+                                                <option value="GU">GU - Genitourinary Radiology</option>
+                                                <option value="HN">HN - Head and Neck</option>
+                                                <option value="IR">IR - Interventional Radiology</option>
+                                                <option value="MK">MK - Musculoskeletal Radiology</option>
+                                                <option value="NM">NM - Nuclear Medicine (Subspecialty)</option>
+                                                <option value="NR">NR - Neuroradiology</option>
+                                                <option value="OB">OB - Obstetric/Gynecologic Radiology</option>
+                                                <option value="OI">OI - Oncologic Imaging</option>
+                                                <option value="VA">VA - Vascular Radiology</option>
+                                                <option value="PD">PD - Pediatric Radiology</option>
+                                                <option value="OT">OT - Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="templateDescription">Description (Optional)</label>
+                                        <textarea id="templateDescription" name="description" rows="3"></textarea>
+                                    </div>
+                                    <div class="form-group checkbox-item">
+                                        <input type="checkbox" id="templateIsActive" name="is_active" checked>
+                                        <label for="templateIsActive">Active Template</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-section">
+                                    <h3>Template Sections</h3>
+                                    <p class="note">Add and order sections for this template. Drag to reorder.</p>
+                                    <div id="templateSectionsContainer" class="template-sections-list">
+                                        <p class="empty-sections-message">No sections added yet. Click "Add Section" to begin.</p>
+                                    </div>
+                                    <div class="form-group section-controls" style="margin-top:15px;">
+                                        <button type="button" id="addSectionBtn" class="btn btn-secondary">Add Section</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-section">
+                                    <h3>Language Translations (Optional)</h3>
+                                    <p class="note">For each supported language, provide translations for section titles if needed.</p>
+                                    <div class="language-tabs" id="formLanguageTabs">
+                                        <div class="language-tab active" data-lang="en">English (Default)</div>
+                                        </div>
+                                    <div id="languageTranslationsContainer" class="language-translations">
+                                        <div class="translation-content active" data-lang="en">
+                                            <p>Section names are defined in English when adding/editing them. Translations are optional overrides.</p>
+                                        </div>
+                                        </div>
+                                </div>
+                                
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-secondary" id="formPreviewTemplateBtn">Preview Template</button>
+                                    <button type="button" class="btn btn-secondary" id="formCancelBtn">Cancel</button>
+                                    <button type="submit" class="btn" id="formSaveBtn">Save Template</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal" id="sectionModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="sectionModalTitle">Add Section</h3>
+                <span class="close-modal" data-dismiss-modal="sectionModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="sectionModalEditIndex"> <div class="form-group">
+                    <label for="sectionTitle">Section Title (English)</label>
+                    <input type="text" id="sectionTitle" name="sectionTitle" required>
+                    <p class="field-hint">E.g., "Ventricles", "Lungs", "Impression"</p>
+                </div>
+                <div class="form-group">
+                    <label for="sectionPlaceholder">Placeholder Text (Optional)</label>
+                    <textarea id="sectionPlaceholder" name="sectionPlaceholder" rows="3" placeholder="Guidance text for this section..."></textarea>
+                    <p class="field-hint">This text will appear as a placeholder in the report form.</p>
+                </div>
+                <div class="form-group checkbox-item">
+                    <input type="checkbox" id="sectionRequired" name="sectionRequired" checked>
+                    <label for="sectionRequired">Required field</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-dismiss-modal="sectionModal">Cancel</button>
+                <button class="btn" id="saveSectionBtn">Add Section</button> </div>
+        </div>
+    </div>
+
+    <div class="modal" id="templatePreviewModal" style="display:none;">
+        <div class="modal-content" style="max-width: 600px;"> <div class="modal-header">
+                <h3>Template Preview</h3>
+                <span class="close-modal" data-dismiss-modal="templatePreviewModal">&times;</span>
+            </div>
+            <div class="modal-body" id="templatePreviewContainer" style="max-height: 70vh; overflow-y:auto;">
+                </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-dismiss-modal="templatePreviewModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="deleteConfirmationModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirm Deletion</h3>
+                <span class="close-modal" data-dismiss-modal="deleteConfirmationModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="deleteConfirmMessage">Are you sure you want to delete this template? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-dismiss-modal="deleteConfirmationModal">Cancel</button>
+                <button class="btn btn-danger" id="confirmDeleteMasterTemplateBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Admin Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="manage-cases.html">Manage Cases</a></li>
+                        <li><a href="add-case.html">Add New Case</a></li>
+                        <li><a href="manage-users.html">Manage Users</a></li>
+                        <li><a href="manage-templates.html">Manage Templates</a></li>
+                        <li><a href="settings.html">Settings</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: admin@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script> <script src="../js/admin-templates.js"></script>
+</body>
+</html>

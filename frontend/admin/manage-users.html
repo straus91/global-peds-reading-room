@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <!-- Toast Container for Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="../assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="../index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="../assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <!-- Sidebar -->
+                <div class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="dashboard.html" class="active"> <span class="menu-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="manage-cases.html">
+                            <span class="menu-icon">📁</span>
+                            Manage Cases
+                        </a>
+                        <a href="add-case.html">
+                            <span class="menu-icon">➕</span>
+                            Add New Case
+                        </a>
+                        <a href="manage-users.html">
+                            <span class="menu-icon">👥</span>
+                            Manage Users
+                        </a>
+                        <a href="manage-templates.html">
+                            <span class="menu-icon">📋</span>
+                            Manage Templates
+                        </a>
+                        <a href="settings.html">
+                            <span class="menu-icon">⚙️</span>
+                            Settings
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Main Admin Content -->
+                <div class="admin-content">
+                    <div class="admin-header">
+                        <h1>Manage Users</h1>
+                        <p>View, approve, and manage user accounts in the Global Peds Reading Room.</p>
+                    </div>
+                    
+                    <!-- Tabs -->
+                    <div class="admin-tabs">
+                        <div class="tab active" data-tab="all-users">All Users</div>
+                        <div class="tab" data-tab="pending-approvals">Pending Approvals <span class="badge">3</span></div>
+                        <div class="tab" data-tab="administrators">Administrators</div>
+                    </div>
+                    
+                    <!-- Search and Filters -->
+                    <div class="admin-controls">
+                        <div class="search-container">
+                            <input type="text" id="userSearch" placeholder="Search users...">
+                            <button id="searchBtn" class="btn">Search</button>
+                        </div>
+                        
+                        <div class="filter-controls">
+                            <div class="filter-group">
+                                <label for="roleFilter">Role:</label>
+                                <select id="roleFilter">
+                                    <option value="">All</option>
+                                    <option value="student">Student</option>
+                                    <option value="resident">Resident</option>
+                                    <option value="fellow">Fellow</option>
+                                    <option value="attending">Attending</option>
+                                    <option value="admin">Administrator</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="statusFilter">Status:</label>
+                                <select id="statusFilter">
+                                    <option value="">All</option>
+                                    <option value="active">Active</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions">
+                        <div class="selected-count">0 users selected</div>
+                        <div class="action-buttons">
+                            <button id="bulkApproveBtn" class="btn btn-sm" disabled>Approve</button>
+                            <button id="bulkDeactivateBtn" class="btn btn-sm" disabled>Deactivate</button>
+                            <button id="bulkDeleteBtn" class="btn btn-sm btn-danger" disabled>Delete</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Users Table -->
+                    <div class="data-table-container">
+                        <table class="data-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAllUsers">
+                                    </th>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Institution</th>
+                                    <th>Country</th>
+                                    <th>Status</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <button class="pagination-btn" disabled>Previous</button>
+                        <div class="pagination-pages">
+                            <span class="pagination-page active">1</span>
+                            <span class="pagination-page">2</span>
+                        </div>
+                        <button class="pagination-btn">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- User Detail Modal -->
+    <div class="modal" id="userDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>User Details</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <img src="https://via.placeholder.com/100" alt="User Avatar">
+                    </div>
+                    <div class="user-info">
+                        <h4 id="userDetailName">User Name</h4>
+                        <p id="userDetailEmail">user@example.com</p>
+                        <p id="userDetailRole">Role: <span>Student</span></p>
+                        <p id="userDetailStatus">Status: <span class="status-badge active">Active</span></p>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Personal Information</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Institution:</span>
+                        <span id="userDetailInstitution">Hospital Name</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Country:</span>
+                        <span id="userDetailCountry">Country Name</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Joined:</span>
+                        <span id="userDetailJoined">Date</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Activity Summary</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Reports Submitted:</span>
+                        <span id="userDetailReports">0</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Last Active:</span>
+                        <span id="userDetailLastActive">Date</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeUserDetailBtn">Close</button>
+                <button class="btn" id="editUserBtn">Edit User</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirm Deletion</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the selected user(s)? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Admin Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="manage-cases.html">Manage Cases</a></li>
+                        <li><a href="add-case.html">Add New Case</a></li>
+                        <li><a href="manage-users.html">Manage Users</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: admin@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Files -->
+    <script src="../js/api.js"></script> 
+    <script src="../js/admin.js"></script>
+    <script src="../js/admin-users.js"></script>
+
+</body>
+</html>

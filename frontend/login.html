@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-tabs">
+                        <div class="auth-tab active" id="loginTab">Login</div>
+                        <div class="auth-tab" id="registerTab">Register</div>
+                    </div>
+
+                    <div class="auth-content">
+                        <form id="loginForm" class="auth-form active">
+                            <div class="form-group">
+                                <label for="loginEmail">Email Address</label>
+                                <input type="email" id="loginEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="loginPassword">Password</label>
+                                <input type="password" id="loginPassword" required>
+                            </div>
+                            <div class="form-group form-links">
+                                <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+                            </div>
+                            <button type="submit" class="btn btn-full">Login</button>
+                        </form>
+
+                        <form id="registerForm" class="auth-form">
+                            <div class="form-group">
+                                <label for="registerFirstName">Full Name</label>
+                                <input type="text" id="registerFirstName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerLastName">Last Name</label>
+                                <input type="text" id="registerLastName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerEmail">Email Address</label>
+                                <input type="email" id="registerEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPassword">Password</label>
+                                <input type="password" id="registerPassword" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPasswordConfirm">Confirm Password</label>
+                                <input type="password" id="registerPasswordConfirm" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerRole">Role</label>
+                                <select id="registerRole" required>
+                                    <option value="student">Student</option>
+                                    <option value="resident">Resident</option>
+                                    <option value="fellow">Fellow</option>
+                                    <option value="attending">Attending</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerInstitution">Institution/Hospital</label>
+                                <input type="text" id="registerInstitution" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerCountry">Country</label>
+                                <select id="registerCountry" required>
+                                    <option value="">Select Country</option>
+                                    </select>
+                            </div>
+                            <button type="submit" class="btn btn-full">Register</button>
+                        </form>
+
+                        <form id="forgotPasswordForm" class="auth-form">
+                            <h3>Reset Password</h3>
+                            <p>Enter your email address and we'll send you a link to reset your password.</p>
+                            <div class="form-group">
+                                <label for="resetEmail">Email Address</label>
+                                <input type="email" id="resetEmail" required>
+                            </div>
+                            <button type="submit" class="btn btn-full">Send Reset Link</button>
+                            <button type="button" class="btn btn-secondary btn-full" id="backToLoginBtn">Back to Login</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: info@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/api.js"></script>    
+    <script src="js/auth.js"></script>  
+</body>
+</html>

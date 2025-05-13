@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Settings - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <!-- Toast Container for Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="../assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="../index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="../assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <!-- Sidebar -->
+                <div class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="dashboard.html" class="active"> <span class="menu-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="manage-cases.html">
+                            <span class="menu-icon">📁</span>
+                            Manage Cases
+                        </a>
+                        <a href="add-case.html">
+                            <span class="menu-icon">➕</span>
+                            Add New Case
+                        </a>
+                        <a href="manage-users.html">
+                            <span class="menu-icon">👥</span>
+                            Manage Users
+                        </a>
+                        <a href="manage-templates.html">
+                            <span class="menu-icon">📋</span>
+                            Manage Templates
+                        </a>
+                        <a href="settings.html">
+                            <span class="menu-icon">⚙️</span>
+                            Settings
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Main Admin Content -->
+                <div class="admin-content">
+                    <div class="admin-header">
+                        <h1>System Settings</h1>
+                        <p>Configure your Global Peds Reading Room platform settings.</p>
+                    </div>
+                    
+                    <!-- Settings Form -->
+                    <div class="admin-form-container">
+                        <form id="settingsForm" class="admin-form">
+                            <div class="form-section">
+                                <h3>General Settings</h3>
+                                
+                                <div class="form-group">
+                                    <label for="siteName">Platform Name</label>
+                                    <input type="text" id="siteName" name="siteName" value="Global Peds Reading Room">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="siteDescription">Platform Description</label>
+                                    <textarea id="siteDescription" name="siteDescription" rows="3">A teaching platform for pediatric radiology education worldwide.</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="contactEmail">Contact Email</label>
+                                    <input type="email" id="contactEmail" name="contactEmail" value="info@globalpeds.org">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="supportEmail">Support Email</label>
+                                    <input type="email" id="supportEmail" name="supportEmail" value="support@globalpeds.org">
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h3>User Registration</h3>
+                                
+                                <div class="form-group">
+                                    <label for="registrationType">Registration Approval</label>
+                                    <select id="registrationType" name="registrationType">
+                                        <option value="auto">Automatic (No Approval Required)</option>
+                                        <option value="manual" selected>Manual Approval Required</option>
+                                        <option value="closed">Closed (By Invitation Only)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" id="allowStudents" name="allowedRoles[]" value="student" checked>
+                                        Allow Student Registrations
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" id="allowResidents" name="allowedRoles[]" value="resident" checked>
+                                        Allow Resident Registrations
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" id="allowFellows" name="allowedRoles[]" value="fellow" checked>
+                                        Allow Fellow Registrations
+                                    </label>
+                                    <label class="checkbox-item">
+                                        <input type="checkbox" id="allowAttending" name="allowedRoles[]" value="attending" checked>
+                                        Allow Attending Registrations
+                                    </label>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="welcomeMessage">Welcome Message</label>
+                                    <textarea id="welcomeMessage" name="welcomeMessage" rows="3">Thank you for registering with Global Peds Reading Room. Your account will be approved shortly.</textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h3>Language Settings</h3>
+                                
+                                <div class="form-group">
+                                    <label for="defaultLanguage">Default Platform Language</label>
+                                    <select id="defaultLanguage" name="defaultLanguage">
+                                        <option value="en" selected>English</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="pt">Portuguese</option>
+                                        <option value="fr">French</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group checkbox-group">
+                                    <label>Available Languages</label>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="langEn" name="languages[]" value="en" checked>
+                                        <label for="langEn">English</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="langEs" name="languages[]" value="es" checked>
+                                        <label for="langEs">Spanish</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="langPt" name="languages[]" value="pt" checked>
+                                        <label for="langPt">Portuguese</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="langFr" name="languages[]" value="fr">
+                                        <label for="langFr">French</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h3>Case Settings</h3>
+                                
+                                <div class="form-group">
+                                    <label for="casesPerPage">Cases Per Page</label>
+                                    <input type="number" id="casesPerPage" name="casesPerPage" value="12" min="4" max="48">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="defaultDifficulty">Default Case Difficulty</label>
+                                    <select id="defaultDifficulty" name="defaultDifficulty">
+                                        <option value="beginner" selected>Beginner</option>
+                                        <option value="intermediate">Intermediate</option>
+                                        <option value="advanced">Advanced</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group checkbox-group">
+                                    <label>Report Requirements</label>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="requireFindings" name="reportRequirements[]" value="findings" checked>
+                                        <label for="requireFindings">Findings Required</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="requireImpression" name="reportRequirements[]" value="impression" checked>
+                                        <label for="requireImpression">Impression Required</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="requireDifferentials" name="reportRequirements[]" value="differentials">
+                                        <label for="requireDifferentials">Differential Diagnosis Required</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h3>Email Settings</h3>
+                                
+                                <div class="form-group checkbox-group">
+                                    <label>Admin Notifications</label>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="notifyNewUsers" name="adminNotifications[]" value="newUsers" checked>
+                                        <label for="notifyNewUsers">New User Registrations</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="notifyNewReports" name="adminNotifications[]" value="newReports" checked>
+                                        <label for="notifyNewReports">New Report Submissions</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group checkbox-group">
+                                    <label>User Notifications</label>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="emailWelcome" name="userNotifications[]" value="welcome" checked>
+                                        <label for="emailWelcome">Welcome Email</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="emailApproval" name="userNotifications[]" value="approval" checked>
+                                        <label for="emailApproval">Account Approval</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="emailNewCases" name="userNotifications[]" value="newCases">
+                                        <label for="emailNewCases">New Cases Available</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="resetSettingsBtn">Reset to Defaults</button>
+                                <button type="submit" class="btn">Save Settings</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Admin Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="manage-cases.html">Manage Cases</a></li>
+                        <li><a href="add-case.html">Add New Case</a></li>
+                        <li><a href="manage-users.html">Manage Users</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: admin@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Files -->
+    <script src="../js/admin.js"></script>
+    <script>
+        // Settings page specific script
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle form submission
+            const settingsForm = document.getElementById('settingsForm');
+            if (settingsForm) {
+                settingsForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // In a real app, this would save the settings to the server
+                    showToast('Settings saved successfully', 'success');
+                });
+            }
+            
+            // Handle reset to defaults
+            const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+            if (resetSettingsBtn) {
+                resetSettingsBtn.addEventListener('click', function() {
+                    if (confirm('Are you sure you want to reset all settings to default values?')) {
+                        // In a real app, this would reset settings to default values
+                        showToast('Settings reset to defaults', 'info');
+                        settingsForm.reset();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

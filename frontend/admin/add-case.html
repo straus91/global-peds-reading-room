@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Case - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/admin.css">
+    <style>
+        /* Style for dynamically added findings */
+        .finding-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .finding-input-group input[type="text"] { flex-grow: 1; } /* Ensure text input takes available space */
+        .finding-input-group .remove-finding-btn { padding: 5px 10px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; cursor: pointer; font-size: 12px; line-height: 1; flex-shrink: 0; }
+        .finding-input-group .remove-finding-btn:hover { background-color: #f1b0b7; }
+
+        /* Style for Language Template Blocks */
+        .language-template-block {
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #fdfdfd;
+        }
+        .language-template-block .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .language-template-block .controls label {
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+        .language-template-block .controls select {
+            padding: 8px 12px;
+            flex-grow: 1;
+            min-width: 150px;
+        }
+        .language-template-block .remove-lang-template-btn {
+            padding: 8px 12px;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            line-height: 1;
+            margin-left: auto; /* Pushes the button to the right */
+        }
+        .language-template-block .remove-lang-template-btn:hover {
+            background-color: #f1b0b7;
+        }
+        .language-template-block .template-fields-container {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+        }
+        .language-template-block .template-fields-container .template-placeholder {
+            font-style: italic;
+            color: #888;
+            text-align: center;
+        }
+        
+        /* Template Summary Styles */
+        .template-summary {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .template-info h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .template-sections-summary {
+            margin-top: 15px;
+        }
+        .template-sections-summary h5 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #555;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .section-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .section-list-item {
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .section-list-item:last-child {
+            border-bottom: none;
+        }
+        .required-badge {
+            background-color: #e7f4e4;
+            color: #2e7d32;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .empty-template-message {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 15px;
+        }
+        /* UPDATED: Styles for new Patient Age input */
+        .patient-age-group {
+            display: flex;
+            gap: 10px; /* Space between number input and unit select */
+            align-items: center; /* Align items vertically */
+        }
+        .patient-age-group input[type="number"] {
+            flex-grow: 1; /* Allow number input to take available space */
+            min-width: 80px; /* Ensure it has some base width */
+        }
+        .patient-age-group select {
+            min-width: 100px; /* Adjust as needed for unit select */
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; color: white; font-size: 1.5em;">
+        <div class="loading-message" style="background: #333; padding: 20px; border-radius: 5px;">Loading...</div>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="../assets/img/logo.png" alt="Logo" style="height: 40px; width: auto; border-radius: 4px;" onerror="this.style.display='none'">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="../index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="../assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;" onerror="this.src='https://placehold.co/35x35/ccc/777?text=User'">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <aside class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="dashboard.html">
+                            <span class="menu-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="manage-cases.html">
+                            <span class="menu-icon">📁</span>
+                            Manage Cases
+                        </a>
+                        <a href="add-case.html" class="active">
+                            <span class="menu-icon">➕</span>
+                            Add New Case
+                        </a>
+                        <a href="manage-users.html">
+                            <span class="menu-icon">👥</span>
+                            Manage Users
+                        </a>
+                        <a href="manage-templates.html">
+                            <span class="menu-icon">📋</span>
+                            Manage Templates
+                        </a>
+                        <a href="settings.html">
+                            <span class="menu-icon">⚙️</span>
+                            Settings
+                        </a>
+                    </div>
+                </aside>
+
+                <section class="admin-content">
+                    <div class="admin-header">
+                        <h1>Add New Case</h1>
+                        <p>Create a new radiology case for the Global Peds Reading Room.</p>
+                    </div>
+
+                    <div class="admin-form">
+                        <form id="addCaseForm">
+                            <div class="form-section">
+                                <h3>Case Information</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="caseTitle">Case Title</label>
+                                        <input type="text" id="caseTitle" name="title" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="caseSubspecialty">Subspecialty</label>
+                                        <select id="caseSubspecialty" name="subspecialty" required>
+                                            <option value="">Select Subspecialty</option>
+                                            <option value="BR">BR - Breast (Imaging and Interventional)</option>
+                                            <option value="CA">CA - Cardiac Radiology</option>
+                                            <option value="CH">CH - Chest Radiology</option>
+                                            <option value="ER">ER - Emergency Radiology</option>
+                                            <option value="GI">GI - Gastrointestinal Radiology</option>
+                                            <option value="GU">GU - Genitourinary Radiology</option>
+                                            <option value="HN">HN - Head and Neck</option>
+                                            <option value="IR">IR - Interventional Radiology</option>
+                                            <option value="MK">MK - Musculoskeletal Radiology</option>
+                                            <option value="NM">NM - Nuclear Medicine (Subspecialty)</option>
+                                            <option value="NR">NR - Neuroradiology</option>
+                                            <option value="OB">OB - Obstetric/Gynecologic Radiology</option>
+                                            <option value="OI">OI - Oncologic Imaging</option>
+                                            <option value="VA">VA - Vascular Radiology</option>
+                                            <option value="PD">PD - Pediatric Radiology</option>
+                                            <option value="OT">OT - Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="caseModality">Modality</label>
+                                        <select id="caseModality" name="modality" required>
+                                            <option value="">Select Modality</option>
+                                            <option value="CT">CT - Computer Tomography</option>
+                                            <option value="MR">MR - Magnetic Resonance</option>
+                                            <option value="US">US - Ultrasound</option>
+                                            <option value="XR">XR - X-ray</option>
+                                            <option value="FL">FL - Fluoroscopy</option>
+                                            <option value="NM">NM - Nuclear Medicine (Modality)</option>
+                                            <option value="OT">OT - Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="caseDifficulty">Difficulty</label>
+                                        <select id="caseDifficulty" name="difficulty" required>
+                                            <option value="">Select Difficulty</option>
+                                            <option value="beginner">Beginner</option>
+                                            <option value="intermediate">Intermediate</option>
+                                            <option value="advanced">Advanced</option>
+                                            <option value="expert">Expert</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>Clinical Information</h3>
+                                <div class="form-group">
+                                    <label for="patientAgeValue">Patient Age</label>
+                                    <div class="patient-age-group">
+                                        <input type="number" id="patientAgeValue" name="patientAgeValue" min="0" placeholder="Age" style="width: 100px;" required>
+                                        <select id="patientAgeUnit" name="patientAgeUnit" required>
+                                            <option value="years">Years</option>
+                                            <option value="months">Months</option>
+                                            <option value="days">Days</option>
+                                            <option value="neonate">Neonate</option> </select>
+                                    </div>
+                                    <input type="hidden" id="patient_age_combined" name="patient_age"> </div>
+                                <div class="form-group">
+                                    <label for="clinicalInfo">Clinical History</label>
+                                    <textarea id="clinicalInfo" name="clinical_history" rows="4" required></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h3>Images</h3>
+                                <p class="note">Note: DICOM functionality will be implemented in a future version. For now, please add placeholder description or link to sample images if available.</p>
+                                <div class="form-group">
+                                    <label for="imagePlaceholder">Image Description (Placeholder)</label>
+                                    <textarea id="imagePlaceholder" name="image_description_placeholder" rows="2" placeholder="e.g., Axial CT images of the abdomen..."></textarea>
+                                    <label for="imageURL" style="margin-top:10px;">Image URL (Optional, for linking sample images)</label>
+                                    <input type="url" id="imageURL" name="image_url_placeholder" placeholder="https://via.placeholder.com/600x400">
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>Teaching Points (Expert Input)</h3>
+                                <div class="form-group">
+                                    <label>Key Imaging Findings</label>
+                                    <div id="findingsContainer">
+                                        <div class="finding-input-group">
+                                            <input type="text" name="key_findings_list_item" class="finding-input" placeholder="Enter key finding #1" required>
+                                            <button type="button" class="remove-finding-btn" disabled>Remove</button>
+                                        </div>
+                                    </div>
+                                    <button type="button" id="addFindingBtn" class="btn btn-secondary btn-sm" style="margin-top: 10px;">+ Add Finding</button>
+                                    <input type="hidden" id="key_findings_combined" name="key_findings"> 
+                                </div>
+                                <div class="form-group">
+                                    <label for="diagnosis">Diagnosis (Expert)</label>
+                                    <input type="text" id="diagnosis" name="diagnosis" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="discussion">Discussion (Expert)</label>
+                                    <textarea id="discussion" name="discussion" rows="6" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="references">References</label>
+                                    <textarea id="references" name="references" rows="3"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>Master Report Template Association</h3>
+                                <div class="form-group">
+                                    <label for="reportTemplate">Select Master Report Template</label>
+                                    <select id="reportTemplate" name="master_template" required>
+                                        <option value="">Loading templates...</option>
+                                        </select>
+                                    <p class="field-hint">This template determines the structure for expert-filled versions and influences user reporting.</p>
+                                </div>
+                                <div class="form-group template-actions">
+                                    <button type="button" id="previewMasterTemplateBtn" class="btn btn-secondary">Preview Selected Template</button>
+                                    <button type="button" id="createNewMasterTemplateBtn" class="btn btn-secondary">Create New Master Template</button>
+                                </div>
+                                <div id="templateSummary" class="template-summary">
+                                    <p class="empty-template-message">Please select a master template to see its structure.</p>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>Expert-Filled Template Languages</h3>
+                                <p class="note">Manage language versions of the expert report for this case, based on the selected Master Template.</p>
+                                <div id="languageTemplatesContainer">
+                                    <p id="noTemplatesMsg" style="font-style: italic; color: #777;">No expert language templates added yet for this case. Select a Master Template above first.</p>
+                                </div>
+                                <button type="button" id="addLangTemplateBtn" class="btn btn-secondary" style="margin-top: 15px;">+ Add Language Version</button>
+                                </div>
+
+                            <div class="form-section">
+                                <h3>Publication Settings</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="caseStatus">Status</label>
+                                        <select id="caseStatus" name="status" required>
+                                            <option value="draft">Draft</option>
+                                            <option value="published">Active (Published)</option>
+                                            <option value="archived">Archived</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="publishDate">Publication Date (Optional)</label>
+                                        <input type="date" id="publishDate" name="published_at">
+                                        <p class="field-hint">If status is 'Active (Published)' and no date is set, it publishes immediately.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="previewCaseBtn">Preview Case (Not Implemented)</button>
+                                <button type="button" class="btn btn-secondary" id="saveDraftBtn">Save as Draft</button>
+                                <button type="submit" class="btn">Create Case</button> </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Peds Reading Room</h3>
+                    <p>A teaching platform for pediatric radiology education worldwide.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Admin Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="manage-cases.html">Manage Cases</a></li>
+                        <li><a href="add-case.html">Add New Case</a></li>
+                        <li><a href="manage-users.html">Manage Users</a></li>
+                        <li><a href="manage-templates.html">Manage Templates</a></li>
+                        <li><a href="settings.html">Settings</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul class="footer-links">
+                        <li>Email: admin@globalpeds.org</li>
+                        <li>Support: support@globalpeds.org</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Global Peds Reading Room. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div id="addLanguageModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Add Language Version for Expert Template</h3>
+                <span class="close-modal" data-dismiss-modal="addLanguageModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Select a language to create an expert-filled version of the report for this case. The structure will be based on the case's Master Template.</p>
+                <div class="form-group">
+                    <label for="selectNewExpertLang">Available Languages:</label>
+                    <select id="selectNewExpertLang" class="form-control" style="width: 100%;">
+                        <option value="">-- Select Language --</option>
+                        </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss-modal="addLanguageModal">Cancel</button>
+                <button type="button" class="btn" id="confirmAddLangBtn">Add Language Version</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="templatePreviewModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Master Template Preview</h3>
+                <span class="close-modal" data-dismiss-modal="templatePreviewModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="templatePreviewContainer">
+                    </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-dismiss-modal="templatePreviewModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script src="../js/admin-case-edit.js"></script>
+</body>
+</html>
