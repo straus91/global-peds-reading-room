@@ -517,70 +517,76 @@ async function handleCasePaginationClick(event) {
 // --- Load My Reports View ---
 
 async function loadMyReports() {
-        console.log("--- loadMyReports called ---");
-        const mainContent = document.getElementById('mainContent');
-        if (!mainContent) {
-            console.error("Main content area #mainContent not found for My Reports.");
+    console.log("--- loadMyReports called ---");
+    const mainContent = document.getElementById('mainContent');
+    if (!mainContent) {
+        console.error("Main content area #mainContent not found for My Reports.");
+        return;
+    }
+
+    mainContent.innerHTML = `<h2>My Submitted Reports</h2><div class="loading-indicator">Fetching your reports...</div>`;
+    const loadingIndicator = mainContent.querySelector('.loading-indicator');
+
+    try {
+        // Fetch reports from the backend API endpoint
+        const response = await apiRequest('/cases/my-reports/'); // Uses api.js
+
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none'; // Hide loading indicator
+        }
+
+        // Handle both paginated and direct array responses
+        let reports = [];
+        if (response && Array.isArray(response.results)) {
+            // Paginated response
+            reports = response.results;
+        } else if (response && Array.isArray(response)) {
+            // Direct array response
+            reports = response;
+        } else {
+            console.error("Invalid response structure for reports:", response);
+            mainContent.innerHTML += '<p>Could not load your reports. Invalid response format.</p>';
             return;
         }
 
-        mainContent.innerHTML = `<h2>My Submitted Reports</h2><div class="loading-indicator">Fetching your reports...</div>`;
-        const loadingIndicator = mainContent.querySelector('.loading-indicator');
+        if (reports.length === 0) {
+            mainContent.innerHTML += '<p>You have not submitted any reports yet.</p>';
+        } else {
+            let reportListHTML = '<ul class="report-list">'; // Add a class for styling
+            reports.forEach(report => {
+                reportListHTML += `
+                    <li>
+                        <a href="#" class="view-case-link" data-case-id="${report.case}">
+                            ${report.case_title || `Case ID ${report.case}`}
+                        </a>
+                        - Submitted on ${new Date(report.submitted_at).toLocaleDateString()}
+                    </li>`;
+            });
+            reportListHTML += '</ul>';
+            mainContent.innerHTML += reportListHTML;
 
-        try {
-            // Fetch reports from the backend API endpoint
-            const response = await apiRequest('/cases/my-reports/'); // Uses api.js
-
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none'; // Hide loading indicator
-            }
-
-            // ** CORRECTED: Expect reports in response.results for paginated API **
-            if (response && Array.isArray(response.results)) {
-                const reports = response.results;
-                if (reports.length === 0) {
-                    mainContent.innerHTML += '<p>You have not submitted any reports yet.</p>';
-                } else {
-                    let reportListHTML = '<ul class="report-list">'; // Add a class for styling
-                    reports.forEach(report => {
-                        // Ensure 'report.case' is the ID and 'report.case_title' has the title
-                        reportListHTML += `
-                            <li>
-                                <a href="#" class="view-case-link" data-case-id="${report.case}">
-                                    ${report.case_title || `Case ID ${report.case}`}
-                                </a>
-                                - Submitted on ${new Date(report.submitted_at).toLocaleDateString()}
-                            </li>`;
-                    });
-                    reportListHTML += '</ul>';
-                    mainContent.innerHTML += reportListHTML;
-
-                    // Add event listeners to the newly created links
-                    mainContent.querySelectorAll('.view-case-link').forEach(link => {
-                        link.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            const caseId = e.target.getAttribute('data-case-id');
-                            if (caseId) {
-                                viewCase(caseId);
-                            } else {
-                                console.error("View case link clicked, but no case ID found.");
-                                showToast("Could not load case: ID missing.", "error");
-                            }
-                        });
-                    });
-                }
-            } else {
-                 mainContent.innerHTML += '<p>Could not load your reports or no reports found.</p>';
-                 console.error("Invalid response structure for reports, or 'results' array missing:", response);
-            }
-       } catch (error) {
-            console.error("Failed to load reports:", error);
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
-            }
-            mainContent.innerHTML += `<p>Error loading reports: ${error.message || 'Unknown error'}</p>`;
-       }
+            // Add event listeners to the newly created links
+            mainContent.querySelectorAll('.view-case-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const caseId = e.target.getAttribute('data-case-id');
+                    if (caseId) {
+                        viewCase(caseId);
+                    } else {
+                        console.error("View case link clicked, but no case ID found.");
+                        showToast("Could not load case: ID missing.", "error");
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error("Failed to load reports:", error);
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+        mainContent.innerHTML += `<p>Error loading reports: ${error.message || 'Unknown error'}</p>`;
     }
+}
 
 function getBodyPartFromSubspecialty(subspecialty) {
     switch (subspecialty) {
