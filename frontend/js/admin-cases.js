@@ -54,38 +54,41 @@ function setupCaseTableEventListeners() {
         return;
     }
 
-    // To prevent adding multiple listeners if this function is called again,
-    // we can either remove the old one or use a flag.
-    // For simplicity, let's assume it's called once or that re-adding is harmless here.
-
     tableBody.addEventListener('click', (event) => {
-        // Find the button, whether the click was on the button itself or its child span
         const editButton = event.target.closest('button.edit-case-btn');
+        const viewButton = event.target.closest('button.view-btn');
+        const deleteButton = event.target.closest('button.delete-btn');
 
         if (editButton) {
-            event.preventDefault(); // Good practice for button clicks that navigate
-            const caseId = editButton.dataset.id; // Use .dataset for data-* attributes
+            event.preventDefault();
+            const caseId = editButton.dataset.id;
             if (caseId) {
-                console.log(`[Action] Edit button clicked for case ID: ${caseId}. Redirecting to add-case.html?edit_id=${caseId}`);
+                console.log(`[Action] Edit button clicked for case ID: ${caseId}`);
                 window.location.href = `add-case.html?edit_id=${caseId}`;
-            } else {
-                console.warn('[Action] Edit button clicked, but no case ID found on button.');
             }
-            return; // Stop further processing if edit button was handled
+            return;
         }
 
-        // Example for other buttons if you add them directly here (like view or delete)
-        // const deleteButton = event.target.closest('button.delete-btn');
-        // if (deleteButton) {
-        //     event.preventDefault();
-        //     const caseId = deleteButton.dataset.id;
-        //     if (caseId) {
-        //         confirmDeleteCase(caseId); // Make sure confirmDeleteCase is defined
-        //     }
-        //     return;
-        // }
+        if (viewButton) {
+            event.preventDefault();
+            const caseId = viewButton.dataset.id;
+            if (caseId) {
+                // Open the case in a new tab in the user-facing view
+                window.open(`../index.html#case/${caseId}`, '_blank');
+            }
+            return;
+        }
+
+        if (deleteButton) {
+            event.preventDefault();
+            const caseId = deleteButton.dataset.id;
+            if (caseId) {
+                confirmDeleteCase(caseId);
+            }
+            return;
+        }
     });
-    console.log("[SetupListeners] Case table action event listener (delegated) is set up on adminCasesTableBody.");
+    console.log("[SetupListeners] Case table action event listener is set up.");
 }
 
 async function fetchAndRenderCases(url = null) {
@@ -152,29 +155,32 @@ function renderCasesTable(cases) {
     cases.forEach(caseItem => {
         const row = tableBody.insertRow();
         const createdDate = caseItem.created_at ? new Date(caseItem.created_at).toLocaleDateString() : 'N/A';
+        
+        // Display abbreviated values
         const statusDisplay = caseItem.status ? caseItem.status.charAt(0).toUpperCase() + caseItem.status.slice(1) : 'N/A';
+        const subspecialtyDisplay = caseItem.subspecialty || 'N/A';  // Now showing abbreviation
+        const modalityDisplay = caseItem.modality || 'N/A';  // Now showing abbreviation
+        const difficultyDisplay = caseItem.difficulty ? caseItem.difficulty.charAt(0).toUpperCase() : 'N/A';  // Show first letter
 
         row.innerHTML = `
             <td><input type="checkbox" class="case-select" data-id="${caseItem.id}"></td>
             <td>${caseItem.id}</td>
             <td>${caseItem.title || 'N/A'}</td>
-            <td>${caseItem.subspecialty_display || caseItem.subspecialty || 'N/A'}</td>
-            <td>${caseItem.modality_display || caseItem.modality || 'N/A'}</td>
-            <td>${caseItem.difficulty_display || caseItem.difficulty || 'N/A'}</td>
+            <td>${subspecialtyDisplay}</td>
+            <td>${modalityDisplay}</td>
+            <td>${difficultyDisplay}</td>
             <td><span class="status-badge ${caseItem.status || 'default'}">${statusDisplay}</span></td>
             <td>${createdDate}</td>
             <td class="actions-cell">
                 <button class="action-btn edit-case-btn" data-id="${caseItem.id}" title="Edit Case"><span>✏️</span></button>
-                <button class="action-btn view-btn" data-id="${caseItem.id}" title="View Case (Frontend)" onclick="alert('View on frontend not implemented yet for case ID ${caseItem.id}')"><span>👁️</span></button>
-                <button class="action-btn delete-btn" data-id="${caseItem.id}" title="Delete Case" onclick="confirmDeleteCase(${caseItem.id})"><span>🗑️</span></button>
+                <button class="action-btn view-btn" data-id="${caseItem.id}" title="View Case (Frontend)"><span>👁️</span></button>
+                <button class="action-btn delete-btn" data-id="${caseItem.id}" title="Delete Case"><span>🗑️</span></button>
             </td>
         `;
     });
-     // Re-initialize table selection checkboxes if they were cleared
+    
+    // Re-initialize table selection checkboxes if they were cleared
     if (typeof initTableSelection === 'function') {
-        // You might need to ensure initTableSelection can be called multiple times safely
-        // or specifically target the newly added checkboxes if it doesn't use event delegation.
-        // For now, let's assume it's safe or uses delegation.
         initTableSelection();
     }
 }

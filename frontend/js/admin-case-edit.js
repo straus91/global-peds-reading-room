@@ -413,16 +413,46 @@ function updateExpertTemplatesDisplay(expertTemplates, caseId) {
  * Shows a modal for selecting a language.
  */
 function handleAddLanguageTemplateClick() {
-    if (!currentCaseId) {
-        window.showToast("Please save the case first before adding language versions.", "warning");
-        return;
-    }
     const masterTemplateId = document.getElementById('reportTemplate').value;
     if (!masterTemplateId) {
-        window.showToast("Please select and save a Master Report Template for this case first.", "warning");
+        window.showToast("Please select a Master Report Template for this case first.", "warning");
         return;
     }
 
+    // If we don't have a currentCaseId, we need to save the case first
+    if (!currentCaseId) {
+        // Automatically save the case as draft first
+        const form = document.getElementById('addCaseForm');
+        const saveButton = document.getElementById('saveDraftBtn');
+        
+        // Trigger a save as draft first
+        if (saveButton) {
+            window.showToast("Saving case as draft before adding language versions...", "info");
+            
+            // Create a temporary handler for after the save
+            const originalOnclick = saveButton.onclick;
+            saveButton.onclick = async function(e) {
+                e.preventDefault();
+                await handleCaseFormSubmit(e, true); // true = save as draft
+                
+                // After save completes, try adding language again
+                if (currentCaseId) {
+                    handleAddLanguageTemplateClick();
+                }
+                
+                // Restore original handler
+                saveButton.onclick = originalOnclick;
+            };
+            
+            saveButton.click();
+            return;
+        } else {
+            window.showToast("Please save the case first before adding language versions.", "warning");
+            return;
+        }
+    }
+
+    // Rest of the existing function...
     const existingLangCodes = Array.from(document.querySelectorAll('#languageTemplatesContainer .language-template-block'))
                                    .map(el => el.dataset.languageCode);
     const availableLangsForModal = availableLanguages.filter(lang => !existingLangCodes.includes(lang.code));
@@ -432,34 +462,33 @@ function handleAddLanguageTemplateClick() {
         return;
     }
 
-    const modal = document.getElementById('addLanguageModal'); // Modal defined in add-case.html
-    const selectEl = document.getElementById('selectNewExpertLang'); // Select inside the modal
+    const modal = document.getElementById('addLanguageModal');
+    const selectEl = document.getElementById('selectNewExpertLang');
     if (!modal || !selectEl) {
         console.error("[CaseEdit] Add language modal or its select element not found.");
         window.showToast("Error: Could not open language selection dialog.", "error");
         return;
     }
 
-    selectEl.innerHTML = '<option value="">-- Select Language --</option>'; // Clear previous
+    selectEl.innerHTML = '<option value="">-- Select Language --</option>';
     availableLangsForModal.forEach(lang => {
         const option = document.createElement('option');
-        option.value = lang.id; // Send language ID
+        option.value = lang.id;
         option.textContent = `${lang.name} (${lang.code})`;
         selectEl.appendChild(option);
     });
     
-    // Ensure confirm button listener is fresh or use .onclick
     const confirmBtn = document.getElementById('confirmAddLangBtn');
-    confirmBtn.onclick = () => { // .onclick replaces previous listener
+    confirmBtn.onclick = () => {
         const selectedLangId = selectEl.value;
         if (selectedLangId) {
             createNewExpertTemplate(currentCaseId, selectedLangId);
-            window.closeModal('addLanguageModal'); // Use global closeModal from admin.js
+            window.closeModal('addLanguageModal');
         } else {
             window.showToast("Please select a language.", "warning");
         }
     };
-    window.openModal('addLanguageModal'); // Use global openModal from admin.js
+    window.openModal('addLanguageModal');
 }
 
 /**
@@ -705,16 +734,16 @@ async function handleSaveExpertTemplateContent(caseTemplateId, fieldsContainer) 
 /**
  * Handles the submission of the main case form (create or update).
  */
-async function handleCaseFormSubmit(event) {
+async function handleCaseFormSubmit(event, saveAsDraft = false) {
     event.preventDefault();
-    console.log(`[CaseEdit] Main case form submitted. Edit Mode: ${!!currentCaseId}`);
-    const form = event.target;
+    console.log(`[CaseEdit] Main case form submitted. Edit Mode: ${!!currentCaseId}, Save as Draft: ${saveAsDraft}`);
+    const form = event.target || document.getElementById('addCaseForm');
 
     // Consolidate Patient Age
     const patientAgeValue = form.elements['patientAgeValue'].value;
     const patientAgeUnit = form.elements['patientAgeUnit'].value;
     let combinedPatientAge = "";
-    if (patientAgeUnit === "neonate" && !patientAgeValue) { // If "Neonate" is selected and no number, just use "Neonate"
+    if (patientAgeUnit === "neonate" && !patientAgeValue) {
         combinedPatientAge = "Neonate";
     } else if (patientAgeValue && patientAgeUnit) {
         combinedPatientAge = `${patientAgeValue} ${patientAgeUnit}`;
@@ -729,23 +758,26 @@ async function handleCaseFormSubmit(event) {
     const formData = new FormData(form);
     const caseDataPayload = {};
     for (let [key, value] of formData.entries()) {
-        // Skip fields handled manually or that are not part of the Case model directly
         if (['key_findings_list_item', 'patientAgeValue', 'patientAgeUnit'].includes(key)) {
             continue;
         }
-        // Trim strings, handle numbers/booleans if necessary based on API expectation
         if (key === 'master_template') {
             caseDataPayload[key] = value ? parseInt(value, 10) : null;
         } else if (key === 'published_at') {
-            caseDataPayload[key] = value || null; // Send null if date is cleared
+            caseDataPayload[key] = value || null;
         } else {
             caseDataPayload[key] = typeof value === 'string' ? value.trim() : value;
         }
     }
-    caseDataPayload['patient_age'] = combinedPatientAge || null; // Ensure null if empty, not empty string
-    caseDataPayload['key_findings'] = combinedKeyFindings; // Will be empty string if no findings
+    caseDataPayload['patient_age'] = combinedPatientAge || null;
+    caseDataPayload['key_findings'] = combinedKeyFindings;
 
-    if (!caseDataPayload['status']) caseDataPayload['status'] = 'draft'; // Default status if not submitted
+    // Force draft status if saveAsDraft is true
+    if (saveAsDraft) {
+        caseDataPayload['status'] = 'draft';
+    } else if (!caseDataPayload['status']) {
+        caseDataPayload['status'] = 'draft';
+    }
 
     console.log("[CaseEdit] Case data payload for API:", caseDataPayload);
 
@@ -762,36 +794,38 @@ async function handleCaseFormSubmit(event) {
         console.log(`[CaseEdit] Case ${actionText.toLowerCase()} successful:`, response);
         window.showToast(`Case ${actionText.toLowerCase().replace(/ing$/, 'ed')} successfully!`, 'success');
         
-        loadedCaseDataForEdit = response; // Update cached data with server response
+        loadedCaseDataForEdit = response;
 
-        if (!currentCaseId && response.id) { // If a new case was created and API returned its ID
-            // Redirect to the edit page for this new case to allow adding expert templates etc.
-            window.location.href = `add-case.html?edit_id=${response.id}`;
-        } else if (currentCaseId) { // If an existing case was updated
-            // Re-populate form to reflect any changes from backend (e.g. updated_at, or server-side modifications)
-            populateFormWithCaseData(response); 
-            // Re-load expert templates as their existence might depend on master_template if it was changed.
-            await loadAndDisplayExpertTemplates(currentCaseId); 
-        } else { // Fallback for new case if no ID in response (should not happen with DRF)
-            form.reset(); // Basic reset
-            clearTemplateSummaryDisplay();
-            const findingsContainer = document.getElementById('findingsContainer');
-            if(findingsContainer) findingsContainer.innerHTML = '';
-            handleAddFinding(false); // Add one empty finding input
-            updateExpertTemplatesDisplay([], null); // Clear expert templates section
+        if (!currentCaseId && response.id) {
+            currentCaseId = response.id; // Store the new case ID
+            
+            // Update the URL without reloading if we just created a new case
+            const newUrl = `add-case.html?edit_id=${response.id}`;
+            window.history.replaceState({}, document.title, newUrl);
+            
+            // Update the form title and button
+            const formTitleElement = document.querySelector('.admin-content .admin-header h1');
+            const submitButton = document.querySelector('#addCaseForm button[type="submit"]');
+            if (formTitleElement) formTitleElement.textContent = 'Edit Case';
+            if (submitButton) submitButton.textContent = 'Update Case';
+            
+            // Load expert templates for the new case
+            await loadAndDisplayExpertTemplates(currentCaseId);
+        } else if (currentCaseId) {
+            populateFormWithCaseData(response);
+            await loadAndDisplayExpertTemplates(currentCaseId);
         }
     } catch (error) {
         console.error(`[CaseEdit] Error ${actionText.toLowerCase()} case:`, error);
         let errorMsg = `Failed to ${actionText.toLowerCase()} case.`;
         if (error.data && typeof error.data === 'object') {
-            // Format DRF errors for display
             errorMsg = Object.entries(error.data)
                 .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${Array.isArray(value) ? value.join(', ') : value}`)
                 .join('; ');
         } else if (error.message) {
             errorMsg = error.message;
         }
-        window.showToast(`Error: ${errorMsg}`, 'error', 5000); // Longer duration for detailed errors
+        window.showToast(`Error: ${errorMsg}`, 'error', 5000);
     } finally {
         window.showLoading(false);
     }

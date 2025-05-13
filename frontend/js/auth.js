@@ -213,13 +213,29 @@ async function fetchUserDetailsAndRedirect() {
     try {
         const userData = await apiRequest('/users/me/');
         if (userData && userData.profile) {
-             sessionStorage.setItem('user', JSON.stringify({ id: userData.id, name: `${userData.first_name} ${userData.last_name}`.trim() || userData.username, email: userData.email, role: userData.profile.role, isAdmin: userData.is_admin }));
+            sessionStorage.setItem('user', JSON.stringify({ 
+                id: userData.id, 
+                name: `${userData.first_name} ${userData.last_name}`.trim() || userData.username, 
+                email: userData.email, 
+                role: userData.profile.role, 
+                isAdmin: userData.is_admin 
+            }));
             showToast('Login successful!', 'success');
-            if (userData.is_admin) { window.location.href = 'admin/dashboard.html'; } else { window.location.href = 'index.html'; }
-        } else { throw new Error("User data or profile missing in response."); }
-    } catch (error) { console.error("Failed to fetch user details after login:", error); showToast("Login successful, but failed to retrieve user details. Please try refreshing.", "warning"); clearAuthTokens(); }
-}
-
+            
+            // Fixed paths - use correct relative paths
+            if (userData.is_admin) { 
+                window.location.href = 'frontend/admin/dashboard.html'; 
+            } else { 
+                window.location.href = 'frontend/index.html'; 
+            }
+        } else { 
+            throw new Error("User data or profile missing in response."); 
+        }
+    } catch (error) { 
+        console.error("Failed to fetch user details after login:", error); 
+        showToast("Login successful, but failed to retrieve user details. Please try refreshing.", "warning"); 
+        clearAuthTokens(); 
+    }
 // Load countries for the register form
 function loadCountries() {
     const countrySelect = document.getElementById('registerCountry');

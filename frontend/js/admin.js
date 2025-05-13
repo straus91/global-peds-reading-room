@@ -39,21 +39,21 @@ document.addEventListener('DOMContentLoaded', async () => {
  * 3. Checks the is_admin flag from the fetched user data.
  * 4. Redirects to login if not logged in, or to main site if not an admin.
  * @returns {Promise<boolean>} True if authenticated as admin, false otherwise (and redirection will occur).
- */
-async function checkAdminAuth() {
-    const tokens = getAuthTokens(); // From api.js
+ */async function checkAdminAuth() {
+    const tokens = getAuthTokens();
 
     if (!tokens || !tokens.accessToken) {
         console.log("[AdminJS - checkAdminAuth] No access token found. Redirecting to login.");
-        window.location.href = '../login.html'; // Adjust path if admin pages are deeper
-        return false; // Indicate auth failed / redirection initiated
+        // Use consistent path resolution
+        window.location.href = getLoginPath();
+        return false;
     }
 
     try {
-        const userData = await apiRequest('/users/me/'); // apiRequest handles token inclusion
+        const userData = await apiRequest('/users/me/');
 
         if (userData && userData.id) {
-            if (userData.is_admin === true) { // Explicitly check for true
+            if (userData.is_admin === true) {
                 console.log("[AdminJS - checkAdminAuth] Admin user verified:", userData.username);
                 sessionStorage.setItem('user', JSON.stringify({
                     id: userData.id,
@@ -62,17 +62,15 @@ async function checkAdminAuth() {
                     role: userData.profile?.role || 'Admin',
                     isAdmin: true
                 }));
-                updateAdminUI(); // Update header, logout link, etc.
-                return true; // Admin authenticated
+                updateAdminUI();
+                return true;
             } else {
                 console.warn("[AdminJS - checkAdminAuth] User is authenticated but not an admin. Redirecting to main site.");
                 showToast("Access Denied: You do not have administrator privileges.", "error");
-                window.location.href = '../index.html'; // Redirect non-admins
-                return false; // Indicate auth failed / redirection initiated
+                window.location.href = getMainPath();
+                return false;
             }
         } else {
-            // This case should ideally not be reached if apiRequest throws error for non-OK responses.
-            // But as a fallback:
             console.error("[AdminJS - checkAdminAuth] Invalid user data received from API, or user ID missing.");
             throw new Error("Invalid user data from API.");
         }
@@ -81,11 +79,36 @@ async function checkAdminAuth() {
         clearAuthTokens();
         sessionStorage.removeItem('user');
         showToast("Session expired or invalid. Please log in again.", "error");
-        window.location.href = '../login.html'; // Redirect to login on any auth error
-        return false; // Indicate auth failed / redirection initiated
+        window.location.href = getLoginPath();
+        return false;
     }
 }
+function getLoginPath() {
+    // Check if we're in admin directory
+    const currentPath = window.location.pathname;
+    if (currentPath.includes('/admin/')) {
+        return '../login.html';
+    }
+    return 'login.html';
+}
 
+function getMainPath() {
+    // Check if we're in admin directory
+    const currentPath = window.location.pathname;
+    if (currentPath.includes('/admin/')) {
+        return '../index.html';
+    }
+    return 'index.html';
+}
+
+async function adminLogout() {
+    console.log("[AdminJS] Logging out admin...");
+    clearAuthTokens();
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('adminWelcomeToastShown');
+    showToast("You have been logged out.", "success");
+    window.location.href = getLoginPath();
+}
 /**
  * Initializes common admin application UI components like modals, tabs, etc.
  * Also sets up global handlers like logout.

@@ -1,18 +1,25 @@
 // js/admin-users.js - User management functionality for the admin panel
-
-// Global variable to store fetched user data (for client-side filtering/searching)
 let allUsersData = [];
 let currentFilters = { role: '', status: '', search: '' };
 let currentTab = 'all-users'; // To filter based on active tab
 
+// Track initialization
+let isInitialized = false;
+
 // Initialize when the DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Prevent multiple initializations
+    if (isInitialized) {
+        console.log('[admin-users] Already initialized, skipping...');
+        return;
+    }
+    
     // Initialize user management functions if on the correct page
     if (window.location.pathname.includes('manage-users.html')) {
+        isInitialized = true;
         initManageUsersPage();
     }
 });
-
 // Check API connection before proceeding
 async function checkApiConnection() {
     const apiUrl = `${API_CONFIG.getBaseUrl()}/users/me/`;
@@ -208,33 +215,44 @@ function setupBulkActions() {
 
 // Setup table selections
 function setupTableSelections() {
-    // Set up select all checkbox
+    // Set up select all checkbox - remove old listener first
     const selectAllUsers = document.getElementById('selectAllUsers');
     if (selectAllUsers) {
-        selectAllUsers.addEventListener('change', function() {
+        // Remove any existing listener
+        const newSelectAll = selectAllUsers.cloneNode(true);
+        selectAllUsers.parentNode.replaceChild(newSelectAll, selectAllUsers);
+        
+        newSelectAll.addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('.user-select');
             checkboxes.forEach(checkbox => checkbox.checked = this.checked);
             updateBulkActionsState(this.checked ? checkboxes.length : 0);
         });
     }
 
-    // Handle individual checkbox changes using event delegation
-    document.addEventListener('change', function(e) {
-        if (e.target.matches('.user-select')) {
-            const selectedCount = document.querySelectorAll('.user-select:checked').length;
-            const totalCount = document.querySelectorAll('.user-select').length;
-            
-            // Update the "select all" checkbox
-            const selectAllUsers = document.getElementById('selectAllUsers');
-            if (selectAllUsers) {
-                selectAllUsers.checked = selectedCount === totalCount && totalCount > 0;
-            }
-            
-            updateBulkActionsState(selectedCount);
-        }
-    });
+    // Handle individual checkbox changes using event delegation on the table
+    const tableBody = document.querySelector('#usersTable tbody');
+    if (tableBody) {
+        // Remove old listener
+        tableBody.removeEventListener('change', handleCheckboxChange);
+        // Add new listener
+        tableBody.addEventListener('change', handleCheckboxChange);
+    }
 }
-
+// Separate function for handling checkbox changes
+function handleCheckboxChange(e) {
+    if (e.target.matches('.user-select')) {
+        const selectedCount = document.querySelectorAll('.user-select:checked').length;
+        const totalCount = document.querySelectorAll('.user-select').length;
+        
+        // Update the "select all" checkbox
+        const selectAllUsers = document.getElementById('selectAllUsers');
+        if (selectAllUsers) {
+            selectAllUsers.checked = selectedCount === totalCount && totalCount > 0;
+        }
+        
+        updateBulkActionsState(selectedCount);
+    }
+}
 // Update bulk action buttons state
 function updateBulkActionsState(selectedCount) {
     console.log(`Updating bulk actions state: ${selectedCount} users selected`);
@@ -422,40 +440,37 @@ function updateTabBadges() {
 function attachActionListeners() {
     console.log("Attaching action button listeners");
     
-    // View buttons
-    document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.removeEventListener('click', handleViewUser);
-        btn.addEventListener('click', handleViewUser);
-    });
-    
-    // Approve buttons
-    document.querySelectorAll('.approve-btn').forEach(btn => {
-        btn.removeEventListener('click', handleApproveUser);
-        btn.addEventListener('click', handleApproveUser);
-    });
-    
-    // Edit buttons
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.removeEventListener('click', handleEditUser);
-        btn.addEventListener('click', handleEditUser);
-    });
-    
-    // Status toggle buttons
-    document.querySelectorAll('.status-btn').forEach(btn => {
-        btn.removeEventListener('click', handleStatusToggle);
-        btn.addEventListener('click', handleStatusToggle);
-    });
-    
-    // Delete buttons
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.removeEventListener('click', handleDeleteUserClick);
-        btn.addEventListener('click', handleDeleteUserClick);
-    });
+    // Use event delegation on the table body instead of individual buttons
+    const tableBody = document.querySelector('#usersTable tbody');
+    if (tableBody) {
+        // Remove old listener
+        tableBody.removeEventListener('click', handleActionClick);
+        // Add new listener
+        tableBody.addEventListener('click', handleActionClick);
+    }
 }
-
+// Separate function for handling action clicks
+function handleActionClick(e) {
+    const button = e.target.closest('.action-btn');
+    if (!button) return;
+    
+    const userId = button.getAttribute('data-id');
+    
+    if (button.classList.contains('view-btn')) {
+        handleViewUser(button);
+    } else if (button.classList.contains('approve-btn')) {
+        handleApproveUser(button);
+    } else if (button.classList.contains('edit-btn')) {
+        handleEditUser(button);
+    } else if (button.classList.contains('status-btn')) {
+        handleStatusToggle(button);
+    } else if (button.classList.contains('delete-btn')) {
+        handleDeleteUserClick(button);
+    }
+}
 // Handle view user button click
-function handleViewUser(event) {
-    const userId = event.currentTarget.getAttribute('data-id');
+function handleViewUser(button) {
+    const userId = button.getAttribute('data-id');
     console.log("View user:", userId);
     
     const userData = allUsersData.find(u => u.id == userId);
@@ -466,9 +481,9 @@ function handleViewUser(event) {
     }
 }
 
+
 // Handle approve user button click
-async function handleApproveUser(event) {
-    const button = event.currentTarget;
+async function handleApproveUser(button) {
     const userId = button.getAttribute('data-id');
     console.log("Approve user:", userId);
     
@@ -504,14 +519,13 @@ async function handleApproveUser(event) {
 }
 
 // Handle edit user button click
-function handleEditUser(event) {
-    const userId = event.currentTarget.getAttribute('data-id');
+function handleEditUser(button) {
+    const userId = button.getAttribute('data-id');
     showToast(`Editing user #${userId} - Not Implemented Yet`, 'info');
 }
 
 // Handle status toggle button click
-async function handleStatusToggle(event) {
-    const button = event.currentTarget;
+async function handleStatusToggle(button) {
     const userId = button.getAttribute('data-id');
     const currentStatus = button.getAttribute('data-current-status');
     const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
@@ -549,8 +563,7 @@ async function handleStatusToggle(event) {
 }
 
 // Handle delete user button click
-function handleDeleteUserClick(event) {
-    const button = event.currentTarget;
+function handleDeleteUserClick(button) {
     const userId = button.getAttribute('data-id');
     console.log(`Requesting delete for user ID: ${userId}`);
     

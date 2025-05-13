@@ -82,38 +82,38 @@ class CurrentUserView(generics.RetrieveAPIView):
 
 # --- Admin User Management ViewSet ---
 
-class AdminUserViewSet(viewsets.ReadOnlyModelViewSet): # Start with ReadOnly for listing/retrieving
+class AdminUserViewSet(viewsets.ModelViewSet):  # Changed from ReadOnlyModelViewSet
     """
-    API endpoint for admins to view user details.
-    Provides `list` and `retrieve` actions.
-    Approval is handled via a custom action.
+    API endpoint for admins to manage users.
+    Provides full CRUD operations.
     """
-    queryset = User.objects.select_related('profile').all().order_by('id') # Select related profile for efficiency
+    queryset = User.objects.select_related('profile').all().order_by('id')
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser] # Only admins can access
+    permission_classes = [permissions.IsAdminUser]
 
     # Configure filtering
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    # Define fields available for filtering (using profile fields)
     filterset_fields = {
-        'profile__approval_status': ['exact'], # Allow filtering like ?profile__approval_status=pending
-        'profile__role': ['exact'],           # Allow filtering like ?profile__role=student
-        'is_active': ['exact'],               # Allow filtering like ?is_active=true
+        'profile__approval_status': ['exact'],
+        'profile__role': ['exact'],
+        'is_active': ['exact'],
     }
-    # Define fields available for searching
     search_fields = ['username', 'email', 'first_name', 'last_name', 'profile__institution', 'profile__country']
-    # Define fields available for ordering
     ordering_fields = ['id', 'email', 'first_name', 'last_name', 'date_joined', 'profile__role', 'profile__approval_status']
-    ordering = ['id'] # Default ordering
+    ordering = ['id']
+
+    def destroy(self, request, *args, **kwargs):
+        """Override destroy to add custom logic if needed"""
+        user = self.get_object()
+        user_id = user.id
+        self.perform_destroy(user)
+        return Response({'detail': f'User {user_id} deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser], url_path='approve')
     def approve_user(self, request, pk=None):
-        """
-        Custom action to approve a pending user.
-        Sets User.is_active = True and UserProfile.approval_status = 'active'.
-        """
-        user = self.get_object() # Gets the user instance based on pk (user_id)
-        profile = getattr(user, 'profile', None) # Safely get profile
+        """Custom action to approve a pending user."""
+        user = self.get_object()
+        profile = getattr(user, 'profile', None)
 
         if not profile:
              return Response({'detail': 'User profile not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -133,10 +133,7 @@ class AdminUserViewSet(viewsets.ReadOnlyModelViewSet): # Start with ReadOnly for
 
     @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser], url_path='set-status')
     def set_user_status(self, request, pk=None):
-        """
-        Custom action to set user profile status (e.g., active, inactive) and sync User.is_active.
-        Expects {'status': 'active'} or {'status': 'inactive'} in request data.
-        """
+        """Custom action to set user profile status and sync User.is_active."""
         user = self.get_object()
         profile = getattr(user, 'profile', None)
         new_status = request.data.get('status')
@@ -151,7 +148,7 @@ class AdminUserViewSet(viewsets.ReadOnlyModelViewSet): # Start with ReadOnly for
 
         # Update status and sync is_active flag
         profile.approval_status = new_status
-        user.is_active = (new_status == StatusChoices.ACTIVE) # User active only if profile status is active
+        user.is_active = (new_status == StatusChoices.ACTIVE)
         profile.save()
         user.save()
 
