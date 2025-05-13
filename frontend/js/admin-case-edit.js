@@ -412,83 +412,114 @@ function updateExpertTemplatesDisplay(expertTemplates, caseId) {
  * Handles the click event for the "+ Add Language Version" button.
  * Shows a modal for selecting a language.
  */
-function handleAddLanguageTemplateClick() {
+// In frontend/js/admin-case-edit.js
+
+async function handleAddLanguageTemplateClick() {
     const masterTemplateId = document.getElementById('reportTemplate').value;
     if (!masterTemplateId) {
         window.showToast("Please select a Master Report Template for this case first.", "warning");
         return;
     }
 
-    // If we don't have a currentCaseId, we need to save the case first
+    // Ensure current case ID exists, save as draft if not
     if (!currentCaseId) {
-        // Automatically save the case as draft first
+        window.showToast("Saving case as draft before adding language versions...", "info");
         const form = document.getElementById('addCaseForm');
-        const saveButton = document.getElementById('saveDraftBtn');
-        
-        // Trigger a save as draft first
-        if (saveButton) {
-            window.showToast("Saving case as draft before adding language versions...", "info");
-            
-            // Create a temporary handler for after the save
-            const originalOnclick = saveButton.onclick;
-            saveButton.onclick = async function(e) {
-                e.preventDefault();
-                await handleCaseFormSubmit(e, true); // true = save as draft
-                
-                // After save completes, try adding language again
-                if (currentCaseId) {
-                    handleAddLanguageTemplateClick();
-                }
-                
-                // Restore original handler
-                saveButton.onclick = originalOnclick;
-            };
-            
-            saveButton.click();
-            return;
-        } else {
-            window.showToast("Please save the case first before adding language versions.", "warning");
+        try {
+            // Assuming handleCaseFormSubmit is async and updates currentCaseId
+            await handleCaseFormSubmit({ preventDefault: () => {}, target: form }, true); // true for saveAsDraft
+
+            if (!currentCaseId) {
+                window.showToast("Failed to save the case as a draft. Please save manually and try again.", "error");
+                return;
+            }
+        } catch (error) {
+            window.showToast("Error saving case as draft. Please try manually.", "error");
+            console.error("Error during auto-draft save:", error);
             return;
         }
     }
 
-    // Rest of the existing function...
-    const existingLangCodes = Array.from(document.querySelectorAll('#languageTemplatesContainer .language-template-block'))
+    // ***** ADDED: Re-fetch available languages just in case they changed or initial load failed *****
+    await loadAvailableLanguages();
+    // ***** END ADDED SECTION *****
+
+    if (availableLanguages.length === 0) {
+        window.showToast("No active languages are defined in the system. Please add/activate languages in the Django admin.", "warning");
+        return;
+    }
+
+    const existingLangCodesOnPage = Array.from(document.querySelectorAll('#languageTemplatesContainer .language-template-block'))
                                    .map(el => el.dataset.languageCode);
-    const availableLangsForModal = availableLanguages.filter(lang => !existingLangCodes.includes(lang.code));
+
+    const availableLangsForModal = availableLanguages.filter(lang => {
+        return lang.code && !existingLangCodesOnPage.includes(lang.code);
+    });
 
     if (availableLangsForModal.length === 0) {
-        window.showToast("All available languages have already been added, or no active languages are defined.", "info");
+        window.showToast("All available languages have already been added for this case.", "info");
         return;
     }
 
     const modal = document.getElementById('addLanguageModal');
     const selectEl = document.getElementById('selectNewExpertLang');
+
     if (!modal || !selectEl) {
         console.error("[CaseEdit] Add language modal or its select element not found.");
         window.showToast("Error: Could not open language selection dialog.", "error");
         return;
     }
 
-    selectEl.innerHTML = '<option value="">-- Select Language --</option>';
+    selectEl.innerHTML = '<option value="">-- Select Language --</option>'; // Clear previous options
+    console.log("Data for language dropdown:", JSON.stringify(availableLangsForModal, null, 2));
+
     availableLangsForModal.forEach(lang => {
         const option = document.createElement('option');
-        option.value = lang.id;
+        option.value = lang.id; // Use the Language ID for the API call
         option.textContent = `${lang.name} (${lang.code})`;
         selectEl.appendChild(option);
     });
-    
+
     const confirmBtn = document.getElementById('confirmAddLangBtn');
-    confirmBtn.onclick = () => {
+    // Clone and replace to remove old event listeners and prevent multiple calls
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    newConfirmBtn.onclick = async () => { // Make this async
         const selectedLangId = selectEl.value;
         if (selectedLangId) {
-            createNewExpertTemplate(currentCaseId, selectedLangId);
-            window.closeModal('addLanguageModal');
+            await createNewExpertTemplate(currentCaseId, selectedLangId); // Await this
+            window.closeModal('addLanguageModal'); // Use global closeModal
         } else {
             window.showToast("Please select a language.", "warning");
         }
     };
-    window.openModal('addLanguageModal');
+    window.openModal('addLanguageModal'); // Use global openModal
+}
+
+// New helper function to call the main save logic as a draft
+async function triggerSaveAsDraft() {
+    const form = document.getElementById('addCaseForm');
+    if (!form) return false;
+
+    // We need to replicate the data gathering and API call from handleCaseFormSubmit
+    // or refactor handleCaseFormSubmit to be more generally callable.
+    // For now, let's assume a refactor of handleCaseFormSubmit is too much.
+    // The most direct way is to ensure handleCaseFormSubmit is robust.
+
+    // The previous approach of saveButton.click() was problematic due to event handler restoration timing.
+    // Let's try to make handleCaseFormSubmit more directly callable for "save as draft"
+    // The main challenge is that it's an event handler.
+
+    // If `handleCaseFormSubmit` can be called programmatically (e.g., by passing a mock event or null):
+    // This is a simplification and might need `handleCaseFormSubmit` to be robust to `event` being null or a simple object.
+    // Let's assume for a moment that `handleCaseFormSubmit(null, true)` would work.
+    await handleCaseFormSubmit({
+        preventDefault: () => {}, // Mock preventDefault
+        target: form // Provide the form as the target
+    }, true); // true for saveAsDraft
+
+    return !!currentCaseId; // Return true if currentCaseId was set (meaning save likely succeeded)
 }
 
 /**
