@@ -101,13 +101,18 @@ function getMainPath() {
     return 'index.html';
 }
 
+
 async function adminLogout() {
     console.log("[AdminJS] Logging out admin...");
-    clearAuthTokens();
-    sessionStorage.removeItem('user');
-    sessionStorage.removeItem('adminWelcomeToastShown');
+    clearAuthTokens(); // From api.js - clears localStorage
+    sessionStorage.removeItem('user'); // Clear any session-stored user info
+    sessionStorage.removeItem('adminWelcomeToastShown'); // Reset welcome toast flag
     showToast("You have been logged out.", "success");
-    window.location.href = getLoginPath();
+    
+    // Build absolute path to login page
+    const origin = window.location.origin;
+    const pathToFrontend = window.location.pathname.substring(0, window.location.pathname.indexOf('/frontend/') + '/frontend/'.length);
+    window.location.href = origin + pathToFrontend + 'login.html';
 }
 /**
  * Initializes common admin application UI components like modals, tabs, etc.

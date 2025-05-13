@@ -224,9 +224,9 @@ async function fetchUserDetailsAndRedirect() {
             
             // Fixed paths - use correct relative paths
             if (userData.is_admin) { 
-                window.location.href = 'frontend/admin/dashboard.html'; 
+                window.location.href = 'admin/dashboard.html'; 
             } else { 
-                window.location.href = 'frontend/index.html'; 
+                window.location.href = 'index.html'; 
             }
         } else { 
             throw new Error("User data or profile missing in response."); 
@@ -236,6 +236,7 @@ async function fetchUserDetailsAndRedirect() {
         showToast("Login successful, but failed to retrieve user details. Please try refreshing.", "warning"); 
         clearAuthTokens(); 
     }
+}
 // Load countries for the register form
 function loadCountries() {
     const countrySelect = document.getElementById('registerCountry');
@@ -260,3 +261,19 @@ function loadCountries() {
     });
 }
 
+if (!window.showToast) {
+    window.showToast = function(message, type = 'info') {
+        const toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) { 
+            console.warn('Toast container not found.'); 
+            return; 
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+        setTimeout(() => { 
+            toast.remove(); 
+        }, 3000);
+    };
+}
