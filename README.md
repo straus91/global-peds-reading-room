@@ -58,7 +58,21 @@ global-peds-reading-room/
 
 ## Recent Updates
 Last updated: May 12, 2025
-- [List recent changes here]
+
+### Critical Bugs Fixed
+- **API Data Handling**: Fixed loadMyReports to handle both paginated and direct array responses
+- **Event Listeners**: Implemented single initialization pattern to prevent duplicate registrations
+- **Django Admin**: Added proper admin configuration for User and UserProfile models  
+- **Path Consistency**: Resolved navigation path issues between frontend and admin sections
+- **User Management**: Fixed action handlers for edit, delete, and status toggle operations
+- **Case Creation**: Improved draft saving and language version handling
+
+### Infrastructure Improvements
+- Added requirements.txt with all project dependencies
+- Created consolidated .gitignore file at project root
+- Added .env.example template for environment configuration
+
+For a complete list of changes, see [CHANGELOG.md](docs/CHANGELOG.md)
 
 ## For AI Developers
 When making changes:
