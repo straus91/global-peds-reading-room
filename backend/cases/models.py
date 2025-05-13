@@ -1,10 +1,10 @@
-# cases/models.py
+# backend/cases/models.py
 from django.db import models
 from django.conf import settings # To get the User model
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
-# --- Choices ---
+# --- Choices (can be at the top) ---
 
 class ModalityChoices(models.TextChoices):
     CT = 'CT', _('Computer Tomography')
@@ -44,7 +44,7 @@ class CaseStatusChoices(models.TextChoices):
     PUBLISHED = 'published', _('Active (Published)')
     ARCHIVED = 'archived', _('Archived')
 
-# --- Models ---
+# --- Models (Reordered for correct ForeignKey references) ---
 
 class Language(models.Model):
     code = models.CharField(max_length=5, unique=True, help_text="Language code (e.g., 'en', 'es')")
@@ -57,7 +57,6 @@ class Language(models.Model):
     class Meta:
         ordering = ['name']
 
-
 class MasterTemplate(models.Model):
     name = models.CharField(max_length=255, help_text="Name of the master template (e.g., 'CT Brain Basic')")
     modality = models.CharField(
@@ -68,7 +67,7 @@ class MasterTemplate(models.Model):
     )
     body_part = models.CharField(
         max_length=5,
-        choices=SubspecialtyChoices.choices,
+        choices=SubspecialtyChoices.choices, # Using SubspecialtyChoices for body_part as per original file
         default=SubspecialtyChoices.OT,
         help_text="Primary body part or region this template is for."
     )
@@ -92,10 +91,9 @@ class MasterTemplate(models.Model):
         verbose_name = "Master Report Template"
         verbose_name_plural = "Master Report Templates"
 
-
 class MasterTemplateSection(models.Model):
     master_template = models.ForeignKey(
-        MasterTemplate,
+        MasterTemplate, # MasterTemplate is now defined above
         on_delete=models.CASCADE,
         related_name='sections',
         help_text="The master template this section belongs to."
@@ -113,10 +111,9 @@ class MasterTemplateSection(models.Model):
 
     class Meta:
         ordering = ['master_template', 'order', 'name']
-        unique_together = ('master_template', 'name')
+        unique_together = ('master_template', 'name') # A section name should be unique within a given master template
         verbose_name = "Master Template Section"
         verbose_name_plural = "Master Template Sections"
-
 
 class Case(models.Model):
     title = models.CharField(max_length=255)
@@ -153,7 +150,7 @@ class Case(models.Model):
         related_name='cases_created'
     )
     master_template = models.ForeignKey(
-        MasterTemplate,
+        MasterTemplate, # MasterTemplate is now defined above
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='cases',
@@ -161,10 +158,19 @@ class Case(models.Model):
     )
     viewed_by = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        through='UserCaseView',
+        through='UserCaseView', # Will define UserCaseView below
         related_name='viewed_cases',
         blank=True
     )
+    # ***** YOUR NEW FIELD - Correctly placed within Case model *****
+    orthanc_study_uid = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        unique=False,
+        help_text="The DICOM StudyInstanceUID for the primary study in Orthanc associated with this case."
+    )
+    # ***** END NEW FIELD *****
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True, help_text="Date when the case becomes publicly visible.")
@@ -180,10 +186,9 @@ class Case(models.Model):
             self.published_at = timezone.now()
         super().save(*args, **kwargs)
 
-
 class CaseTemplate(models.Model):
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='applied_expert_templates')
-    language = models.ForeignKey(Language, on_delete=models.PROTECT, help_text="Language of this expert-filled template.")
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='applied_expert_templates') # Case is defined above
+    language = models.ForeignKey(Language, on_delete=models.PROTECT, help_text="Language of this expert-filled template.") # Language is defined above
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -200,11 +205,10 @@ class CaseTemplate(models.Model):
         verbose_name = "Expert-Filled Case Template"
         verbose_name_plural = "Expert-Filled Case Templates"
 
-
 class CaseTemplateSectionContent(models.Model):
-    case_template = models.ForeignKey(CaseTemplate, on_delete=models.CASCADE, related_name='section_contents')
+    case_template = models.ForeignKey(CaseTemplate, on_delete=models.CASCADE, related_name='section_contents') # CaseTemplate defined above
     master_section = models.ForeignKey(
-        MasterTemplateSection,
+        MasterTemplateSection, # MasterTemplateSection defined above
         on_delete=models.CASCADE,
         help_text="The corresponding section from the MasterTemplate."
     )
@@ -219,25 +223,14 @@ class CaseTemplateSectionContent(models.Model):
         verbose_name = "Expert Template Section Content"
         verbose_name_plural = "Expert Template Section Contents"
 
-
 class Report(models.Model):
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='reports')
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='reports') # Case defined above
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reports')
-    
-    # Removed:
-    # findings = models.TextField()
-    # impression = models.TextField()
-
-    # Added:
-    # This field will store an array of objects, where each object represents a section:
-    # e.g., [{"master_template_section_id": 1, "content": "User text for section 1"},
-    #         {"master_template_section_id": 2, "content": "User text for section 2"}]
     structured_content = models.JSONField(
-        default=list, # Default to an empty list
-        blank=True,   # Can be blank if no content submitted (though UI should prevent this)
+        default=list,
+        blank=True,
         help_text="Stores the user's report content, structured by master template sections."
     )
-    
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -246,13 +239,12 @@ class Report(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
-        unique_together = ('case', 'user') # Allow only one report per user per case
-
+        unique_together = ('case', 'user')
 
 class UserCaseView(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    case = models.ForeignKey(Case, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    case = models.ForeignKey(Case, on_delete=models.CASCADE) # Case defined above
+    timestamp = models.DateTimeField(auto_now_add=True) # Renamed from viewed_at to match migration 0002
 
     def __str__(self):
         return f"{self.user.username} viewed {self.case.title} at {self.timestamp}"

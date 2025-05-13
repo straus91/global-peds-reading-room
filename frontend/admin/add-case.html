@@ -274,13 +274,20 @@
                             </div>
                             
                             <div class="form-section">
-                                <h3>Images</h3>
-                                <p class="note">Note: DICOM functionality will be implemented in a future version. For now, please add placeholder description or link to sample images if available.</p>
+                                <h3>Images & DICOM</h3> 
+                                <p class="note">For DICOM integration, provide the StudyInstanceUID from Orthanc.</p>
                                 <div class="form-group">
-                                    <label for="imagePlaceholder">Image Description (Placeholder)</label>
+                                    <label for="imagePlaceholder">Image Description (Placeholder for non-DICOM)</label>
                                     <textarea id="imagePlaceholder" name="image_description_placeholder" rows="2" placeholder="e.g., Axial CT images of the abdomen..."></textarea>
-                                    <label for="imageURL" style="margin-top:10px;">Image URL (Optional, for linking sample images)</label>
+                                </div>
+                                <div class="form-group">
+                                    <label for="imageURL">Image URL (Optional, for linking static sample images)</label>
                                     <input type="url" id="imageURL" name="image_url_placeholder" placeholder="https://via.placeholder.com/600x400">
+                                </div>
+                                <div class="form-group">
+                                    <label for="orthancStudyUID">Orthanc StudyInstanceUID</label>
+                                    <input type="text" id="orthancStudyUID" name="orthanc_study_uid" placeholder="e.g., 1.2.840.113619...">
+                                    <p class="field-hint">Paste the full StudyInstanceUID from Orthanc for the primary DICOM study associated with this case.</p>
                                 </div>
                             </div>
 

@@ -365,6 +365,7 @@ class CaseSerializer(serializers.ModelSerializer):
     )
     master_template_details = MasterTemplateSerializer(source='master_template', read_only=True)
 
+    # ***** ADD 'orthanc_study_uid' TO THE META FIELDS LIST *****
     class Meta:
         model = Case
         fields = [
@@ -375,11 +376,13 @@ class CaseSerializer(serializers.ModelSerializer):
             'subspecialty_display', 'modality_display', 'difficulty_display', 'status_display',
             'is_viewed_by_user', 'is_reported_by_user',
             'master_template', 'master_template_details',
-            'applied_templates'
+            'applied_templates',
+            'orthanc_study_uid'  # <<< --- ADDED HERE
         ]
         read_only_fields = ('id', 'created_by', 'created_at', 'updated_at', 'published_at', 'applied_templates', 'master_template_details')
+    # ***** END OF ADDITION *****
 
-
+    # ... (the rest of your CaseSerializer methods like get_is_viewed_by_user, create, update remain the same) ...
     def get_is_viewed_by_user(self, obj):
         request = self.context.get('request')
         if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
@@ -397,13 +400,15 @@ class CaseSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             validated_data['created_by'] = request.user
+        # orthanc_study_uid will be in validated_data if sent from frontend
         case = super().create(validated_data)
         return case
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        # orthanc_study_uid will be in validated_data if sent from frontend
         return super().update(instance, validated_data)
-
+    
 class CaseListSerializer(serializers.ModelSerializer):
     subspecialty = serializers.CharField(source='get_subspecialty_display', read_only=True)
     modality = serializers.CharField(source='get_modality_display', read_only=True)

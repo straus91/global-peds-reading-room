@@ -271,6 +271,12 @@ function populateFormWithCaseData(caseData) {
     form.elements['image_description_placeholder'].value = caseData.image_description_placeholder || '';
     form.elements['image_url_placeholder'].value = caseData.image_url_placeholder || '';
 
+    // ***** NEWLY ADDED: Populate Orthanc Study UID field *****
+    if (form.elements['orthanc_study_uid']) { // Check if the element exists on the form
+        form.elements['orthanc_study_uid'].value = caseData.orthanc_study_uid || '';
+    }
+    // ***** END OF ADDITION *****
+
     // Populate Key Findings
     const findingsContainer = document.getElementById('findingsContainer');
     findingsContainer.innerHTML = ''; // Clear previous findings
@@ -305,8 +311,6 @@ function populateFormWithCaseData(caseData) {
              loadAndDisplayTemplateSummary(caseData.master_template);
         } else {
             console.warn(`[CaseEditPopulate] Master template ID ${caseData.master_template} (from case data) not found or not active in dropdown.`);
-            // If the template is associated but not in the 'active' list, we might need to fetch its details separately to show summary.
-            // For now, if not in dropdown, summary won't load.
             clearTemplateSummaryDisplay();
         }
     } else {

@@ -605,10 +605,7 @@ function getBodyPartFromSubspecialty(subspecialty) {
     }
 }
  // --- View Case Detail ---
-// js/main.js
 
-// --- View Case Detail ---
-// --- View Case Detail ---
 // In frontend/js/main.js
 
 // --- View Case Detail ---
@@ -643,31 +640,30 @@ async function viewCase(caseId) {
             // Non-critical, so we continue
         }
 
-        // --- UPDATED: Side-by-Side Layout Structure with User Report Section ---
         const caseDetailHTML = `
             <style>
                 #caseDetailContainer {
                     display: flex;
-                    flex-direction: row; /* Default for larger screens */
-                    gap: 20px; /* Space between columns */
+                    flex-direction: row;
+                    gap: 20px;
                     padding-top: 15px;
                 }
                 #caseImagingColumn {
                     flex: 1;
                     min-width: 300px;
-                    height: calc(100vh - 150px); /* Adjust based on header/footer/padding */
+                    height: calc(100vh - 150px);
                     overflow-y: auto;
                     padding-right: 15px;
                     border-right: 1px solid #eee;
                     display: flex;
                     flex-direction: column;
-                    align-items: center;
+                    /* align-items: center; */ /* Let content align naturally */
                     justify-content: flex-start;
                 }
                 #caseInfoColumn {
                     flex: 0 0 480px;
                     max-width: 480px;
-                    height: calc(100vh - 150px); /* Match height */
+                    height: calc(100vh - 150px);
                     overflow-y: auto;
                     padding-left: 15px;
                 }
@@ -687,29 +683,17 @@ async function viewCase(caseId) {
                     border-bottom: 1px solid #eee;
                     padding-bottom: 5px;
                 }
-                .image-placeholder-container {
-                    width: 100%;
-                    max-width: 600px;
-                    margin: 0 auto;
-                    text-align: center;
-                }
-                .image-placeholder-container img {
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 8px;
-                    margin-bottom: 10px;
-                }
-                /* Styling for the new user report section */
+                /* Styles for user submitted report section, copied from previous response */
                 .user-submitted-report-content {
-                    margin-top: 20px; /* Renamed from user-submitted-report-container */
+                    margin-top: 20px;
                     padding: 20px;
-                    background-color: #eef5ff; /* Light blue background */
+                    background-color: #eef5ff;
                     border: 1px solid #cce7ff;
                     border-radius: 8px;
                     margin-bottom: 20px;
                 }
-                .user-submitted-report-content .case-section-title { /* Specific title style for user report */
-                    color: #0056b3; /* Darker blue for this title */
+                .user-submitted-report-content .case-section-title {
+                    color: #0056b3;
                     margin-bottom: 10px;
                 }
                 .user-submitted-report-content ul {
@@ -731,13 +715,12 @@ async function viewCase(caseId) {
                 }
                 .user-submitted-report-content div { /* For the content text */
                      padding-left: 10px;
-                     white-space: pre-wrap; /* Respect newlines from textarea */
-                     word-wrap: break-word; /* Break long words */
+                     white-space: pre-wrap;
+                     word-wrap: break-word;
                 }
-
                 @media (max-width: 860px) {
                     #caseDetailContainer {
-                        flex-direction: column-reverse; /* Stack image below info */
+                        flex-direction: column-reverse;
                     }
                     #caseInfoColumn, #caseImagingColumn {
                         flex-basis: auto;
@@ -782,10 +765,13 @@ async function viewCase(caseId) {
                 <div id="caseDetailContainer">
                     <div id="caseImagingColumn">
                         <h3 class="case-section-title">Imaging</h3>
-                        <div class="image-placeholder-container">
-                            <img src="https://placehold.co/600x400/ddd/777?text=Imaging+for+${caseData.modality || 'Case'}" alt="Placeholder image for ${caseData.title}">
-                            <p style="font-style:italic;">(Actual image/DICOM viewer will be implemented here)</p>
+                        <div id="dicomViewerContainer" style="width:100%; height:600px; min-height:500px; border:1px solid #ccc; background-color: #f0f0f0; display:flex; align-items:center; justify-content:center;">
+                            <iframe id="dicomViewerFrame" style="width:100%; height:100%; border:none;" title="DICOM Study Viewer">
+                                <p>Your browser does not support iframes, or an error occurred loading the DICOM viewer.</p>
+                            </iframe>
                         </div>
+                        <p id="dicomLoadingMessage" style="text-align:center; margin-top:10px; display:none;">Loading DICOM images...</p>
+                        <p id="dicomErrorMessage" style="color:red; text-align:center; margin-top:10px; display:none;">Could not load DICOM images.</p>
                     </div>
 
                     <div id="caseInfoColumn">
@@ -811,6 +797,7 @@ async function viewCase(caseId) {
                             <h3 class="case-section-title" style="color: #0056b3;">Your Submitted Report</h3>
                             <p>Loading your report...</p>
                         </div>
+
                         <div id="expertDiscussionSection" class="expert-analysis-content" style="display: none;">
                             <h3 class="case-section-title">Expert Analysis</h3>
                             <div id="expertLanguageSelector" style="margin-bottom:10px;"></div>
@@ -827,7 +814,9 @@ async function viewCase(caseId) {
             </div>
         `;
 
-        mainContent.innerHTML = caseDetailHTML;
+        mainContent.innerHTML = caseDetailHTML; // Render the base HTML
+
+        // Setup event listeners and dynamic content loading
         document.getElementById('backToCasesBtn')?.addEventListener('click', () => loadCaseList());
 
         const reportForm = document.getElementById('reportForm');
@@ -835,9 +824,7 @@ async function viewCase(caseId) {
             reportForm.addEventListener('submit', handleReportSubmit);
         }
 
-        // Render the dynamic reporting form based on master template
         if (caseData.master_template_details) {
-            console.log("Case has master_template_details:", caseData.master_template_details);
             renderMasterTemplateForReporting(caseData.master_template_details, 'dynamicReportSectionsContainer');
         } else {
             console.warn("Case does not have master_template_details. Cannot render report form sections.");
@@ -845,31 +832,64 @@ async function viewCase(caseId) {
             if (reportContainer) {
                 reportContainer.innerHTML = "<p><em>No report template is associated with this case, or template details are missing. Cannot submit a report.</em></p>";
             }
-            reportForm?.querySelector('button[type="submit"]')?.remove(); // Remove submit button if no template
+            reportForm?.querySelector('button[type="submit"]')?.remove();
         }
 
-        // Logic for displaying user's report / expert analysis / report form
+        // ***** START NEW JS LOGIC FOR IFRAME *****
+        const dicomViewerFrame = document.getElementById('dicomViewerFrame');
+        const dicomViewerContainer = document.getElementById('dicomViewerContainer');
+        const dicomLoadingMessage = document.getElementById('dicomLoadingMessage');
+        const dicomErrorMessage = document.getElementById('dicomErrorMessage');
+
+        if (caseData.orthanc_study_uid && dicomViewerFrame && dicomViewerContainer) {
+            if (dicomLoadingMessage) dicomLoadingMessage.style.display = 'block';
+            if (dicomErrorMessage) dicomErrorMessage.style.display = 'none';
+            dicomViewerFrame.style.display = 'block';
+
+            const orthancOhifViewerBaseUrl = "http://localhost:8042/ohif/viewer"; // Ensure this is your correct Orthanc OHIF base URL
+            const dicomSrcUrl = `${orthancOhifViewerBaseUrl}?StudyInstanceUIDs=${caseData.orthanc_study_uid}`;
+
+            console.log("Attempting to load DICOM study in iframe from URL:", dicomSrcUrl);
+            dicomViewerFrame.src = dicomSrcUrl;
+
+            dicomViewerFrame.onload = function() {
+                console.log("DICOM iframe content loaded (or attempted to load).");
+                if (dicomLoadingMessage) dicomLoadingMessage.style.display = 'none';
+            };
+            dicomViewerFrame.onerror = function() {
+                console.error("Error loading DICOM iframe content.");
+                if (dicomLoadingMessage) dicomLoadingMessage.style.display = 'none';
+                if (dicomErrorMessage) dicomErrorMessage.style.display = 'block';
+                dicomViewerFrame.style.display = 'none';
+            };
+
+        } else if (dicomViewerContainer) {
+            console.warn("No orthanc_study_uid for this case, or DICOM viewer elements not found.");
+            if (dicomViewerFrame) dicomViewerFrame.style.display = 'none';
+            if (dicomLoadingMessage) dicomLoadingMessage.style.display = 'none';
+            if (dicomErrorMessage) dicomErrorMessage.style.display = 'none';
+            dicomViewerContainer.innerHTML = '<p style="text-align:center; padding:20px; color:#777;">No DICOM images are associated with this case.</p>';
+        }
+        // ***** END NEW JS LOGIC FOR IFRAME *****
+
+        // Conditional display logic for report form, user's report, and expert analysis
         if (caseData.is_reported_by_user) {
             const reportSubmissionSection = document.getElementById('reportSubmissionSection');
-            if (reportSubmissionSection) reportSubmissionSection.style.display = 'none'; // Hide new report form
+            if (reportSubmissionSection) reportSubmissionSection.style.display = 'none';
 
-            // Show Expert Analysis section
             const discussionSection = document.getElementById('expertDiscussionSection');
             if (discussionSection) discussionSection.style.display = 'block';
             populateExpertLanguageSelector(caseData.id, caseData.applied_templates || []);
 
-            // ***** MODIFIED: Call to display user's submitted report *****
-            await displayUserSubmittedReport(caseData.id);
-            // ***** END OF MODIFICATION *****
-
+            await displayUserSubmittedReport(caseData.id); // Display user's existing report
         } else {
-            // User has not reported, show submission form, hide user report and expert analysis
+            // User has not reported, show submission form
             const reportSubmissionSection = document.getElementById('reportSubmissionSection');
             if (reportSubmissionSection) reportSubmissionSection.style.display = 'block';
 
+            // Hide user report and expert analysis sections if they haven't submitted
             const userReportDisplay = document.getElementById('userSubmittedReportSection');
             if(userReportDisplay) userReportDisplay.style.display = 'none';
-
             const discussionSection = document.getElementById('expertDiscussionSection');
             if (discussionSection) discussionSection.style.display = 'none';
         }
@@ -883,13 +903,7 @@ async function viewCase(caseId) {
     }
 }
 
-// populateExpertLanguageSelector function remains the same
-// renderMasterTemplateForReporting function remains the same
-// handleReportSubmit function remains the same for now
-// other helper functions (showToast, etc.) remain the same
 
-
-    // New helper function to populate expert language selector and load content
     async function populateExpertLanguageSelector(caseId, appliedTemplates) {
         const selectorContainer = document.getElementById('expertLanguageSelector');
         const contentContainer = document.getElementById('expertTemplateContentContainer');
