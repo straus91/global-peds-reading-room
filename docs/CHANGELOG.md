@@ -61,3 +61,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Backend now allows DELETE operations for users
 - Case creation form submission to handle draft saving properly
 - Frontend case view button functionality
+
+
+## [Unreleased]
+
+### Fixed
+- Corrected admin and user login redirection paths to prevent "double frontend" error (`frontend/js/auth.js`).
+- Implemented display of user's own submitted report on the case view page, allowing users to compare with expert analysis (`frontend/js/main.js`).
+- Resolved issues in "Add Language Version" flow on the new case page (`frontend/js/admin-case-edit.js`):
+    - Ensured case draft save completes before attempting to add language versions.
+    - Corrected display of language names in the "Available Languages" dropdown modal.
