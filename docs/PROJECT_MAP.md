@@ -74,7 +74,7 @@
 ## Key Workflows
 
 1. **User Views Case**
-   - Frontend: `main.js` → `loadCaseList()` → `viewCase()`
+   - Frontend: main.js → loadCaseList() → viewCase() (now includes iframe to Orthanc for DICOM)
    - Backend: `UserCaseViewSet` → `CaseSerializer`
 
 2. **User Submits Report**

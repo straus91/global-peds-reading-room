@@ -53,3 +53,5 @@ Thumbs.db
 backend/venv/
 *.docx
 project_analysis_*.json
+
+backend/.env

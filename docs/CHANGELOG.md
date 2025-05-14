@@ -71,3 +71,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Resolved issues in "Add Language Version" flow on the new case page (`frontend/js/admin-case-edit.js`):
     - Ensured case draft save completes before attempting to add language versions.
     - Corrected display of language names in the "Available Languages" dropdown modal.
+
+    ### Added
+- Basic DICOM integration:
+    - Cases can now be linked to DICOM studies in Orthanc via `StudyInstanceUID`.
+    - User-facing case view embeds Orthanc's OHIF viewer in an `<iframe>` to display linked DICOM studies.

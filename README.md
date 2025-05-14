@@ -66,6 +66,8 @@ Last updated: May 12, 2025
 - **Path Consistency**: Resolved navigation path issues between frontend and admin sections
 - **User Management**: Fixed action handlers for edit, delete, and status toggle operations
 - **Case Creation**: Improved draft saving and language version handling
+- Resolved login redirection errors and improved user report visibility.
+- Corrected language version handling in admin case creation.
 
 ### Infrastructure Improvements
 - Added requirements.txt with all project dependencies
