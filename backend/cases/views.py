@@ -2,6 +2,7 @@
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import transaction
@@ -20,6 +21,8 @@ from .serializers import (
     AdminCaseTemplateSetupSerializer, 
     BulkCaseTemplateSectionContentUpdateSerializer 
 )
+
+from .llm_feedback_service import get_feedback_from_llm 
 
 # --- ViewSets ---
 
@@ -111,6 +114,81 @@ class AdminCaseViewSet(viewsets.ModelViewSet): # Your existing AdminCaseViewSet
         case_template.delete()
         return Response({"detail": "Expert template deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
+
+
+
+class AIReportFeedbackView(APIView):
+    permission_classes = [permissions.IsAuthenticated] # Only authenticated users can request feedback
+
+    def get(self, request, report_id, format=None):
+        try:
+            # Ensure the report belongs to the requesting user for security/privacy
+            user_report = Report.objects.get(pk=report_id, user=request.user)
+        except Report.DoesNotExist:
+            return Response(
+                {"error": "Report not found or you do not have permission to access it."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        case_instance = user_report.case # Get the associated case from the report
+        if not case_instance.master_template:
+            return Response(
+                {"error": "This case does not have an associated master template. AI feedback cannot be generated without a structure."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Fetch the user's report structured content (already enriched by ReportSerializer)
+        # We need the request in the context for serializers that might use it (e.g., for user-specific fields)
+        serializer_context = {'request': request}
+        user_report_data = ReportSerializer(user_report, context=serializer_context).data
+        user_report_sections = user_report_data.get('structured_content', [])
+
+        if not user_report_sections:
+            return Response(
+                {"error": "User's report content is missing or empty. Cannot generate feedback."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Fetch the expert report. For MVP, we'll try to find an English ('en') version.
+        # This logic might need to be more sophisticated later (e.g., user selects which expert version, or a default is set).
+        expert_template_instance = CaseTemplate.objects.filter(case=case_instance, language__code='en').first()
+
+        if not expert_template_instance:
+            # If no English version, try to get ANY expert template for this case.
+            expert_template_instance = CaseTemplate.objects.filter(case=case_instance).first()
+            if not expert_template_instance:
+                return Response(
+                    {"error": "No expert template (e.g., English version) found for this case. AI feedback cannot be generated."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                print(f"Warning: English expert template not found for case {case_instance.id}. Using expert template in language: {expert_template_instance.language.code}")
+
+        # CaseTemplateSerializer also provides enriched section_contents
+        expert_report_data = CaseTemplateSerializer(expert_template_instance, context=serializer_context).data
+        expert_report_sections = expert_report_data.get('section_contents', [])
+
+        if not expert_report_sections:
+             return Response(
+                {"error": "Expert report content is missing or empty. Cannot generate feedback."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Call your LLM service function
+        ai_feedback_text = get_feedback_from_llm(
+            user_report_sections=user_report_sections,
+            expert_report_sections=expert_report_sections,
+            case_title=case_instance.title
+        )
+
+        # In a more advanced version, you might want to save this feedback to the database
+        # linked to the user_report. For MVP, just returning it is fine.
+        # Example: user_report.ai_feedback = ai_feedback_text; user_report.save()
+
+        return Response(
+            {"report_id": user_report.id, "feedback": ai_feedback_text},
+            status=status.HTTP_200_OK
+        )
 
 class CaseTemplateViewSet(viewsets.ViewSet): 
     permission_classes = [permissions.IsAdminUser]
@@ -205,3 +283,4 @@ class MyReportsListView(generics.ListAPIView): # Inherits from ListAPIView
     
     def get_serializer_context(self):
         return {'request': self.request, **super().get_serializer_context()} # super() is fine here
+    
