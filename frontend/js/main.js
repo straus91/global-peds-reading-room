@@ -1048,53 +1048,37 @@ async function displayUserSubmittedReport(caseId) {
         return;
     }
 
-    // Set a loading message and make the container visible
     userReportContainer.innerHTML = `
         <h3 class="case-section-title" style="color: #0056b3; margin-bottom: 10px;">Your Submitted Report</h3>
-        <p>Loading your report...</p>`;
+        <p>Loading your submitted report...</p>`;
     userReportContainer.style.display = 'block';
 
     try {
-        // Fetch all reports submitted by the current user
-        const myReportsResponse = await apiRequest('/cases/my-reports/'); // From api.js
-
+        const myReportsResponse = await apiRequest('/cases/my-reports/');
         let reports = [];
-        if (myReportsResponse && Array.isArray(myReportsResponse.results)) { // Handle paginated response
+        if (myReportsResponse && Array.isArray(myReportsResponse.results)) {
             reports = myReportsResponse.results;
-        } else if (myReportsResponse && Array.isArray(myReportsResponse)) { // Handle direct array response (if backend doesn't paginate this specific endpoint)
+        } else if (myReportsResponse && Array.isArray(myReportsResponse)) {
             reports = myReportsResponse;
         } else {
             console.warn("Unexpected response format for /cases/my-reports/ endpoint:", myReportsResponse);
-            // Keep reports as empty array, the UI will show "not found" message later
         }
 
-        // Find the report that matches the current caseId
-        // The report object might have 'case' as an ID (if it's a nested object from CaseSerializer)
-        // or 'case_id' (if it's a direct foreign key ID from ReportSerializer without full nesting).
-        // Checking both defensively.
         const reportForThisCase = reports.find(report =>
-            (report.case && String(report.case) === String(caseId)) || // If 'case' is just the ID
-            (report.case && typeof report.case === 'object' && String(report.case.id) === String(caseId)) || // If 'case' is a nested object
-            (report.case_id && String(report.case_id) === String(caseId)) // If 'case_id' field exists
+            (report.case && String(report.case) === String(caseId)) ||
+            (report.case && typeof report.case === 'object' && String(report.case.id) === String(caseId)) ||
+            (report.case_id && String(report.case_id) === String(caseId))
         );
 
         if (reportForThisCase && reportForThisCase.structured_content && Array.isArray(reportForThisCase.structured_content)) {
             let html = `<h3 class="case-section-title" style="color: #0056b3; margin-bottom: 10px;">Your Submitted Report</h3>`;
-
             if (reportForThisCase.submitted_at) {
                 html += `<p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">Submitted on: ${new Date(reportForThisCase.submitted_at).toLocaleString()}</p>`;
             }
-
             html += '<ul style="list-style: none; padding-left: 0;">';
-
-            // The backend ReportSerializer's to_representation method enriches structured_content
-            // with 'section_name' and 'section_order'.
-            // The content should already be sorted by 'section_order' from the backend serializer.
             reportForThisCase.structured_content.forEach(section => {
                 const sectionName = section.section_name || `Section ID ${section.master_template_section_id || 'N/A'}`;
                 const sectionContent = section.content || '<em>No content submitted for this section.</em>';
-                // Using white-space: pre-wrap to respect newlines in the content.
-                // Using word-wrap: break-word to prevent long unbroken strings from overflowing.
                 html += `
                     <li style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted #ddd;">
                         <strong style="display: block; margin-bottom: 5px; font-size: 1.05em;">${sectionName}:</strong>
@@ -1102,7 +1086,65 @@ async function displayUserSubmittedReport(caseId) {
                     </li>`;
             });
             html += '</ul>';
+
+            // ***** START: ADD AI FEEDBACK BUTTON & CONTAINER *****
+            html += `
+                <div style="text-align: right; margin-top: 20px; padding-top:15px; border-top: 1px solid #ddd_feedback;">
+                    <button class="btn btn-secondary btn-sm get-ai-feedback-btn" data-report-id="${reportForThisCase.id}">Get AI Feedback</button>
+                </div>
+                <div id="aiFeedbackContainerForReport_${reportForThisCase.id}" class="ai-feedback-container" style="margin-top: 15px; padding: 15px; background-color: #fff9e6; border: 1px solid #ffecb3; border-radius: 6px; display:none; white-space: pre-wrap; word-wrap: break-word;">
+                    <h4 style="color: #b08c00; margin-top:0; margin-bottom:10px;">AI Feedback:</h4>
+                    <p class="ai-feedback-loading-message">Loading feedback...</p>
+                    <div class="ai-feedback-content"></div>
+                </div>
+            `;
+            // ***** END: ADD AI FEEDBACK BUTTON & CONTAINER *****
+
             userReportContainer.innerHTML = html;
+
+            // ***** ADD EVENT LISTENER FOR THE NEW BUTTON *****
+            const aiFeedbackBtn = userReportContainer.querySelector(`.get-ai-feedback-btn[data-report-id="${reportForThisCase.id}"]`);
+            if (aiFeedbackBtn) {
+                aiFeedbackBtn.addEventListener('click', async () => {
+                    const reportId = aiFeedbackBtn.dataset.reportId;
+                    const feedbackDisplayDiv = document.querySelector(`#aiFeedbackContainerForReport_${reportId} .ai-feedback-content`);
+                    const feedbackContainer = document.getElementById(`aiFeedbackContainerForReport_${reportId}`);
+                    const loadingMessageP = feedbackContainer.querySelector('.ai-feedback-loading-message');
+
+
+                    if (feedbackContainer && feedbackDisplayDiv && loadingMessageP) {
+                        feedbackContainer.style.display = 'block';
+                        loadingMessageP.style.display = 'block';
+                        feedbackDisplayDiv.innerHTML = ''; // Clear previous feedback
+                        aiFeedbackBtn.disabled = true;
+                        aiFeedbackBtn.textContent = "Getting Feedback...";
+
+                        try {
+                            console.log(`Requesting AI feedback for report ID: ${reportId}`);
+                            const feedbackResponse = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`); // GET request
+                            
+                            if (feedbackResponse && feedbackResponse.feedback) {
+                                console.log("AI Feedback received:", feedbackResponse.feedback);
+                                feedbackDisplayDiv.textContent = feedbackResponse.feedback; // Using textContent to preserve formatting from LLM
+                            } else {
+                                console.warn("Could not retrieve valid AI feedback from response:", feedbackResponse);
+                                feedbackDisplayDiv.innerHTML = '<p style="color:red;">Could not retrieve AI feedback at this time.</p>';
+                            }
+                        } catch (error) {
+                            console.error("Error fetching AI feedback:", error);
+                            feedbackDisplayDiv.innerHTML = `<p style="color:red;">Error fetching AI feedback: ${error.message || 'Unknown error'}</p>`;
+                        } finally {
+                            loadingMessageP.style.display = 'none';
+                            aiFeedbackBtn.disabled = false;
+                            aiFeedbackBtn.textContent = "Get AI Feedback";
+                        }
+                    } else {
+                        console.error("Could not find elements for displaying AI feedback for report " + reportId);
+                    }
+                });
+            }
+            // ***** END OF EVENT LISTENER *****
+
         } else {
             userReportContainer.innerHTML = `
                 <h3 class="case-section-title" style="color: #0056b3; margin-bottom: 10px;">Your Submitted Report</h3>
