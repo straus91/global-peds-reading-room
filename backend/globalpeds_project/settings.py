@@ -2,16 +2,25 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Try to load environment variables
-try:
-    from dotenv import load_dotenv
-    load_dotenv(BASE_DIR / '.env')
-except ImportError:
-    pass  # python-dotenv not installed
+env_path = BASE_DIR / '.env'
+if os.path.exists(env_path):
+    print(f"Found .env file at: {env_path}")
+    load_dotenv(dotenv_path=env_path, verbose=True)
+    # Check immediately if the key is loaded after this
+    GEMINI_API_KEY_SETTINGS_CHECK = os.environ.get('GEMINI_API_KEY')
+    if GEMINI_API_KEY_SETTINGS_CHECK:
+        print(f"GEMINI_API_KEY loaded in settings.py: Present (length: {len(GEMINI_API_KEY_SETTINGS_CHECK)})")
+    else:
+        print("GEMINI_API_KEY NOT loaded in settings.py immediately after load_dotenv.")
+else:
+    print(f"WARNING: .env file not found at {env_path}")
+# --- End of .env loading ---
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-x+ewof#94net5w(rk8j)w6c0%2sr=+gm60@tsqj578vo5!-%l_')
