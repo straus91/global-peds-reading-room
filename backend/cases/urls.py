@@ -2,7 +2,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views # Import views from the current directory
-from .views import AIReportFeedbackView # ***** IMPORT YOUR NEW VIEW *****
+from .views import AIReportFeedbackView, AIFeedbackRatingCreateView # UPDATED: Import AIFeedbackRatingCreateView
 
 # Create a router and register our viewsets with it.
 router = DefaultRouter()
@@ -24,8 +24,8 @@ urlpatterns = [
     # Existing URL patterns
     path('reports/', views.ReportCreateView.as_view(), name='report-create'),
     path('my-reports/', views.MyReportsListView.as_view(), name='my-reports-list'),
-
-    # ***** ADD NEW URL PATTERN FOR AI FEEDBACK *****
     path('reports/<int:report_id>/ai-feedback/', AIReportFeedbackView.as_view(), name='report-ai-feedback'),
-    # ***** END OF NEW URL PATTERN *****
+
+    # NEW URL PATTERN for creating AI Feedback Ratings
+    path('ai-feedback-ratings/', AIFeedbackRatingCreateView.as_view(), name='ai-feedback-rating-create'),
 ]

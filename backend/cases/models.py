@@ -3,6 +3,7 @@ from django.db import models
 from django.conf import settings # To get the User model
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+import uuid # For potentially unique parts of case_identifier
 
 # --- Choices (can be at the top) ---
 
@@ -44,7 +45,15 @@ class CaseStatusChoices(models.TextChoices):
     PUBLISHED = 'published', _('Active (Published)')
     ARCHIVED = 'archived', _('Archived')
 
-# --- Models (Reordered for correct ForeignKey references) ---
+# NEW Patient Sex Choices
+class PatientSexChoices(models.TextChoices):
+    MALE = 'Male', _('Male')
+    FEMALE = 'Female', _('Female')
+    OTHER = 'Other', _('Other')
+    UNKNOWN = 'Unknown', _('Unknown')
+
+
+# --- Models ---
 
 class Language(models.Model):
     code = models.CharField(max_length=5, unique=True, help_text="Language code (e.g., 'en', 'es')")
@@ -67,7 +76,7 @@ class MasterTemplate(models.Model):
     )
     body_part = models.CharField(
         max_length=5,
-        choices=SubspecialtyChoices.choices, # Using SubspecialtyChoices for body_part as per original file
+        choices=SubspecialtyChoices.choices,
         default=SubspecialtyChoices.OT,
         help_text="Primary body part or region this template is for."
     )
@@ -93,7 +102,7 @@ class MasterTemplate(models.Model):
 
 class MasterTemplateSection(models.Model):
     master_template = models.ForeignKey(
-        MasterTemplate, # MasterTemplate is now defined above
+        MasterTemplate,
         on_delete=models.CASCADE,
         related_name='sections',
         help_text="The master template this section belongs to."
@@ -111,12 +120,23 @@ class MasterTemplateSection(models.Model):
 
     class Meta:
         ordering = ['master_template', 'order', 'name']
-        unique_together = ('master_template', 'name') # A section name should be unique within a given master template
+        unique_together = ('master_template', 'name')
         verbose_name = "Master Template Section"
         verbose_name_plural = "Master Template Sections"
 
 class Case(models.Model):
-    title = models.CharField(max_length=255)
+    # Admin-facing title for organization
+    title = models.CharField(max_length=255, help_text="Internal title for admin organization.")
+    
+    # Human-readable, non-spoiling case identifier
+    case_identifier = models.CharField(
+        max_length=100,
+        unique=True,
+        blank=True, 
+        null=True, # <<< *** ADDED null=True HERE ***
+        help_text="Human-readable unique ID (e.g., NR-MR-2025-0001). Auto-generated if left blank."
+    )
+    
     subspecialty = models.CharField(
         max_length=5,
         choices=SubspecialtyChoices.choices,
@@ -138,11 +158,21 @@ class Case(models.Model):
         default=CaseStatusChoices.DRAFT
     )
     patient_age = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., '5 years', '3 months', 'Neonate'")
+    
+    patient_sex = models.CharField(
+        max_length=10,
+        choices=PatientSexChoices.choices,
+        blank=True,
+        null=True,
+        help_text="Patient's biological sex if relevant and known"
+    )
+
     clinical_history = models.TextField()
-    key_findings = models.TextField(blank=True, null=True, help_text="Expert's key imaging findings.")
-    diagnosis = models.TextField(blank=True, null=True, help_text="Expert's final diagnosis.")
-    discussion = models.TextField(blank=True, null=True, help_text="Expert's discussion points.")
-    references = models.TextField(blank=True, null=True, help_text="References or further reading.")
+    key_findings = models.TextField(blank=True, null=True, help_text="Expert's key imaging findings summary for THIS CASE (semicolon-separated phrases recommended for AI use).")
+    diagnosis = models.TextField(blank=True, null=True, help_text="Expert's final diagnosis for THIS CASE.")
+    discussion = models.TextField(blank=True, null=True, help_text="Expert's discussion points for THIS CASE.")
+    references = models.TextField(blank=True, null=True, help_text="References or further reading (URLs/citations, one per line).")
+    
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -150,7 +180,7 @@ class Case(models.Model):
         related_name='cases_created'
     )
     master_template = models.ForeignKey(
-        MasterTemplate, # MasterTemplate is now defined above
+        MasterTemplate,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='cases',
@@ -158,25 +188,23 @@ class Case(models.Model):
     )
     viewed_by = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        through='UserCaseView', # Will define UserCaseView below
+        through='UserCaseView',
         related_name='viewed_cases',
         blank=True
     )
-    # ***** YOUR NEW FIELD - Correctly placed within Case model *****
     orthanc_study_uid = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        unique=False,
+        unique=False, 
         help_text="The DICOM StudyInstanceUID for the primary study in Orthanc associated with this case."
     )
-    # ***** END NEW FIELD *****
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True, help_text="Date when the case becomes publicly visible.")
 
     def __str__(self):
-        return self.title
+        return self.case_identifier if self.case_identifier else f"Case {self.id} (No Identifier) - {self.title}"
 
     class Meta:
         ordering = ['-created_at']
@@ -184,11 +212,68 @@ class Case(models.Model):
     def save(self, *args, **kwargs):
         if self.status == CaseStatusChoices.PUBLISHED and not self.published_at:
             self.published_at = timezone.now()
+        
+        if not self.case_identifier:
+            # Determine abbreviations safely
+            sub_abbr = "GEN" # Default
+            if self.subspecialty:
+                try:
+                    sub_abbr = self.get_subspecialty_display().split(' - ')[0]
+                except: # Catch any error if display format is unexpected
+                    sub_abbr = self.subspecialty[:3].upper() if self.subspecialty else "GEN"
+
+            mod_abbr = "MOD" # Default
+            if self.modality:
+                try:
+                    mod_abbr = self.get_modality_display().split(' - ')[0]
+                except:
+                    mod_abbr = self.modality[:3].upper() if self.modality else "MOD"
+            
+            year_str = timezone.now().strftime("%Y")
+            
+            # Simplified sequence for this attempt, focusing on uniqueness rather than strict daily sequence
+            # For a truly robust sequential ID under high concurrency, a database sequence or more complex locking might be needed.
+            # This approach relies on the unique constraint and retries with a UUID component if a simple counter collides.
+            
+            # Get a base for counting. This is not perfectly atomic for high concurrency daily sequences.
+            # A simpler approach for now: use total count or a timestamp component.
+            # Let's use a simpler year-based sequence for now.
+            base_id_prefix = f"{sub_abbr}-{mod_abbr}-{year_str}-"
+            
+            # Find the highest sequence number for this prefix this year
+            last_case_with_prefix = Case.objects.filter(case_identifier__startswith=base_id_prefix).order_by('case_identifier').last()
+            next_seq = 1
+            if last_case_with_prefix and last_case_with_prefix.case_identifier:
+                try:
+                    last_seq_str = last_case_with_prefix.case_identifier.split('-')[-1]
+                    # Check if it's purely numeric before trying to convert
+                    if last_seq_str.isdigit():
+                        next_seq = int(last_seq_str) + 1
+                    # If it has an underscore (from previous collision handling), parse that
+                    elif '_' in last_seq_str and last_seq_str.split('_')[0].isdigit():
+                         next_seq = int(last_seq_str.split('_')[0]) + 1
+                except (ValueError, IndexError):
+                    # If parsing fails, fallback to a simple counter or UUID based approach
+                    pass # next_seq remains 1 or consider another strategy
+
+            temp_id = f"{base_id_prefix}{next_seq:04d}"
+            counter = 0
+            # Check for uniqueness, excluding self if updating
+            while Case.objects.filter(case_identifier=temp_id).exclude(pk=self.pk).exists():
+                counter += 1
+                # If simple sequence collides, try adding a small counter, then fallback to UUID
+                if counter <= 5: # Try a few simple increments
+                     temp_id = f"{base_id_prefix}{next_seq+counter:04d}"
+                else: # Fallback to ensure uniqueness if many collisions
+                    temp_id = f"{base_id_prefix}{next_seq:04d}_{uuid.uuid4().hex[:4]}"
+                    break 
+            self.case_identifier = temp_id
+            
         super().save(*args, **kwargs)
 
 class CaseTemplate(models.Model):
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='applied_expert_templates') # Case is defined above
-    language = models.ForeignKey(Language, on_delete=models.PROTECT, help_text="Language of this expert-filled template.") # Language is defined above
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='applied_expert_templates')
+    language = models.ForeignKey(Language, on_delete=models.PROTECT, help_text="Language of this expert-filled template.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -197,7 +282,7 @@ class CaseTemplate(models.Model):
         return self.section_contents.all().order_by('master_section__order')
 
     def __str__(self):
-        return f"Expert Template for '{self.case.title}' in {self.language.name}"
+        return f"Expert Template for '{self.case.case_identifier if self.case.case_identifier else self.case.title}' in {self.language.name}"
 
     class Meta:
         unique_together = ('case', 'language')
@@ -206,13 +291,19 @@ class CaseTemplate(models.Model):
         verbose_name_plural = "Expert-Filled Case Templates"
 
 class CaseTemplateSectionContent(models.Model):
-    case_template = models.ForeignKey(CaseTemplate, on_delete=models.CASCADE, related_name='section_contents') # CaseTemplate defined above
+    case_template = models.ForeignKey(CaseTemplate, on_delete=models.CASCADE, related_name='section_contents')
     master_section = models.ForeignKey(
-        MasterTemplateSection, # MasterTemplateSection defined above
+        MasterTemplateSection,
         on_delete=models.CASCADE,
         help_text="The corresponding section from the MasterTemplate."
     )
     content = models.TextField(blank=True, help_text="The expert-filled content for this section.")
+    
+    key_concepts_text = models.TextField(
+        blank=True, 
+        null=True, 
+        help_text="Admin-defined, case-specific key concepts for this section of this expert template (semicolon-separated phrases)."
+    )
 
     def __str__(self):
         return f"Content for '{self.master_section.name}' in {self.case_template}"
@@ -224,7 +315,7 @@ class CaseTemplateSectionContent(models.Model):
         verbose_name_plural = "Expert Template Section Contents"
 
 class Report(models.Model):
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='reports') # Case defined above
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='reports')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reports')
     structured_content = models.JSONField(
         default=list,
@@ -235,7 +326,7 @@ class Report(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Report by {self.user.username} for {self.case.title}"
+        return f"Report by {self.user.username} for {self.case.case_identifier if self.case.case_identifier else self.case.title}"
 
     class Meta:
         ordering = ['-submitted_at']
@@ -243,12 +334,48 @@ class Report(models.Model):
 
 class UserCaseView(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    case = models.ForeignKey(Case, on_delete=models.CASCADE) # Case defined above
-    timestamp = models.DateTimeField(auto_now_add=True) # Renamed from viewed_at to match migration 0002
+    case = models.ForeignKey(Case, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} viewed {self.case.title} at {self.timestamp}"
+        return f"{self.user.username} viewed {self.case.case_identifier if self.case.case_identifier else self.case.title} at {self.timestamp}"
 
     class Meta:
         unique_together = ('user', 'case')
         ordering = ['-timestamp']
+
+class AIFeedbackRating(models.Model):
+    report = models.ForeignKey(
+        Report, 
+        on_delete=models.CASCADE, 
+        related_name='ai_feedback_ratings',
+        help_text="The user report for which AI feedback was provided and is being rated."
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='ai_feedback_ratings_given',
+        help_text="The user who is providing the rating for the AI feedback."
+    )
+    star_rating = models.IntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)], # 1 to 5 stars
+        help_text="User's star rating for the AI feedback (1-5)."
+    )
+    comment = models.TextField(
+        blank=True, 
+        null=True,
+        help_text="Optional textual comment from the user about the AI feedback."
+    )
+    rated_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when the rating was submitted."
+    )
+
+    def __str__(self):
+        return f"Rating for AI feedback on Report ID {self.report.id} by {self.user.username}: {self.star_rating} stars"
+
+    class Meta:
+        ordering = ['-rated_at']
+        unique_together = ('report', 'user') 
+        verbose_name = "AI Feedback Rating"
+        verbose_name_plural = "AI Feedback Ratings"

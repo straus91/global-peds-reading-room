@@ -1,12 +1,13 @@
-# cases/serializers.py
+# backend/cases/serializers.py
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.db import models, transaction # Ensure models is imported if using models.QuerySet
+from django.db import models, transaction 
 from .models import (
     Case, Report, UserCaseView, Language, CaseStatusChoices,
-    SubspecialtyChoices, ModalityChoices, DifficultyChoices,
+    SubspecialtyChoices, ModalityChoices, DifficultyChoices, PatientSexChoices, # <<< *** ADDED PatientSexChoices HERE ***
     MasterTemplate, MasterTemplateSection,
-    CaseTemplate, CaseTemplateSectionContent
+    CaseTemplate, CaseTemplateSectionContent,
+    AIFeedbackRating # Make sure AIFeedbackRating is imported if used below
 )
 
 # Attempt to import UserSerializer, but provide a fallback if it's not there
@@ -98,11 +99,16 @@ class MasterTemplateSerializer(serializers.ModelSerializer):
 # --- Serializers for Case-Specific Template Application (Expert Filled Templates) ---
 
 class CaseTemplateSectionContentSerializer(serializers.ModelSerializer):
+    """
+    Serializer for reading CaseTemplateSectionContent, including the new key_concepts_text.
+    """
     master_section_id = serializers.IntegerField(source='master_section.id', read_only=True)
     master_section_name = serializers.CharField(source='master_section.name', read_only=True)
     master_section_placeholder = serializers.CharField(source='master_section.placeholder_text', read_only=True, allow_null=True)
     master_section_order = serializers.IntegerField(source='master_section.order', read_only=True)
     master_section_is_required = serializers.BooleanField(source='master_section.is_required', read_only=True)
+    key_concepts_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
 
     class Meta:
         model = CaseTemplateSectionContent
@@ -110,7 +116,8 @@ class CaseTemplateSectionContentSerializer(serializers.ModelSerializer):
             'id', 'master_section_id',
             'master_section_name', 'master_section_placeholder',
             'master_section_order', 'master_section_is_required',
-            'content'
+            'content', 
+            'key_concepts_text' 
         ]
 
 class CaseTemplateSerializer(serializers.ModelSerializer):
@@ -165,7 +172,8 @@ class AdminCaseTemplateSetupSerializer(serializers.Serializer):
                 CaseTemplateSectionContent.objects.create(
                     case_template=case_template,
                     master_section=ms_loop_var,
-                    content=ms_loop_var.placeholder_text or ""
+                    content=ms_loop_var.placeholder_text or "",
+                    key_concepts_text=None 
                 )
         return case_template
 
@@ -174,10 +182,12 @@ class AdminCaseTemplateSetupSerializer(serializers.Serializer):
 
 class CaseTemplateSectionContentUpdateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
+    key_concepts_text = serializers.CharField(required=False, allow_blank=True, allow_null=True, trim_whitespace=True)
+
 
     class Meta:
         model = CaseTemplateSectionContent
-        fields = ['id', 'content']
+        fields = ['id', 'content', 'key_concepts_text'] 
 
 
 class BulkCaseTemplateSectionContentUpdateSerializer(serializers.ListSerializer):
@@ -194,11 +204,10 @@ class BulkCaseTemplateSectionContentUpdateSerializer(serializers.ListSerializer)
 
         updated_instances = []
         errors = []
-
+        
         for data_item in validated_data_list:
             section_content_id = data_item.get('id')
-            new_content = data_item.get('content')
-
+            
             if section_content_id is None:
                 errors.append(f"Missing 'id' in one of the data items: {data_item}")
                 continue
@@ -208,8 +217,23 @@ class BulkCaseTemplateSectionContentUpdateSerializer(serializers.ListSerializer)
                 errors.append(f"CaseTemplateSectionContent with ID {section_content_id} not found for this CaseTemplate.")
                 continue
 
-            instance_to_update.content = new_content
-            instance_to_update.save(update_fields=['content'])
+            current_update_fields = []
+            
+            if 'content' in data_item:
+                new_content = data_item.get('content')
+                if instance_to_update.content != new_content:
+                    instance_to_update.content = new_content
+                    current_update_fields.append('content')
+            
+            if 'key_concepts_text' in data_item:
+                new_key_concepts = data_item.get('key_concepts_text')
+                if instance_to_update.key_concepts_text != new_key_concepts:
+                    instance_to_update.key_concepts_text = new_key_concepts
+                    current_update_fields.append('key_concepts_text')
+
+            if current_update_fields: 
+                instance_to_update.save(update_fields=current_update_fields)
+            
             updated_instances.append(instance_to_update)
 
         if errors:
@@ -218,107 +242,86 @@ class BulkCaseTemplateSectionContentUpdateSerializer(serializers.ListSerializer)
 
 # --- Core App Serializers (Report, Language, Case) ---
 
-# --- UPDATED ReportSerializer ---
 class ReportSectionDetailSerializer(serializers.Serializer):
-    """
-    Serializer for individual section details within a report.
-    This is used as a child serializer for the 'section_details' field in ReportSerializer.
-    """
     master_template_section_id = serializers.IntegerField(
         help_text="The ID of the MasterTemplateSection this content corresponds to."
     )
     content = serializers.CharField(
-        allow_blank=True, # User might submit empty content for a non-required section
-        trim_whitespace=False, # Preserve whitespace as entered by user
+        allow_blank=True, 
+        trim_whitespace=False, 
         help_text="The user-entered content for this section."
     )
 
     def validate_master_template_section_id(self, value):
-        """
-        Check that the master_template_section_id corresponds to an existing MasterTemplateSection.
-        """
         if not MasterTemplateSection.objects.filter(id=value).exists():
             raise serializers.ValidationError(f"MasterTemplateSection with id {value} does not exist.")
         return value
 
 class ReportSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True) # Display user details, but don't allow setting via API
+    user = UserSerializer(read_only=True) 
     case_id = serializers.PrimaryKeyRelatedField(
         queryset=Case.objects.all(),
-        source='case', # This maps the 'case_id' input to the 'case' model field
+        source='case', 
         write_only=True,
         help_text="The ID of the case this report is for."
     )
-    case_title = serializers.CharField(source='case.title', read_only=True)
+    case_title = serializers.CharField(source='case.title', read_only=True) 
+    case_identifier_display = serializers.CharField(source='case.case_identifier', read_only=True, allow_null=True)
 
-    # This field will accept the array of section details from the frontend
+
     section_details = ReportSectionDetailSerializer(
         many=True,
-        write_only=True, # This data is used for creation, not typically re-displayed in this exact input format
+        write_only=True, 
         help_text="Array of section contents, each with 'master_template_section_id' and 'content'."
     )
-
-    # 'structured_content' is the JSONField in the model.
-    # It will be populated from 'section_details' during creation.
-    # For GET requests, it will show the stored JSON.
     structured_content = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Report
         fields = [
             'id',
-            'case',             # Read-only, populated via case_id on write
-            'case_id',          # Write-only, for creating/linking the report
-            'case_title',       # Read-only, for context
-            'user',             # Read-only
-            'section_details',  # Write-only, for input
-            'structured_content', # Read-only (or read-write if you want to allow direct JSON updates)
+            'case',             
+            'case_id',          
+            'case_title',       
+            'case_identifier_display', 
+            'user',             
+            'section_details',  
+            'structured_content', 
             'submitted_at',
             'updated_at',
         ]
-        read_only_fields = ('id', 'user', 'case', 'case_title', 'structured_content', 'submitted_at', 'updated_at')
+        read_only_fields = ('id', 'user', 'case', 'case_title', 'case_identifier_display', 'structured_content', 'submitted_at', 'updated_at')
 
     def create(self, validated_data):
         user = self.context['request'].user
-        case_instance = validated_data.pop('case') # Extracted by source='case' from 'case_id'
-        section_details_data = validated_data.pop('section_details', []) # Get the list of section details
+        case_instance = validated_data.pop('case') 
+        section_details_data = validated_data.pop('section_details', []) 
 
-        # Basic validation: Ensure the case has a master_template if sections are provided
         if section_details_data and not case_instance.master_template:
             raise serializers.ValidationError(
                 "Cannot submit section details for a case that has no master template associated."
             )
         
-        # You might want to add further validation here:
-        # - Ensure all required sections from the case's master_template are present in section_details_data.
-        # - Ensure master_template_section_ids in section_details_data actually belong to the case's master_template.
-
         report = Report.objects.create(
             user=user,
             case=case_instance,
-            structured_content=section_details_data, # Save the processed list directly
-            **validated_data # Any other direct fields on Report model
+            structured_content=section_details_data, 
+            **validated_data 
         )
         return report
 
     def to_representation(self, instance):
-        """
-        Customize how the Report is displayed.
-        We might want to enrich 'structured_content' with section names for easier reading.
-        """
         representation = super().to_representation(instance)
         
-        # Enrich structured_content with master section names if possible
-        # This makes the API response more informative when GETting a report.
         structured_content_enriched = []
         if instance.structured_content and isinstance(instance.structured_content, list):
             section_ids = [item.get('master_template_section_id') for item in instance.structured_content if item.get('master_template_section_id') is not None]
-            master_sections = MasterTemplateSection.objects.filter(id__in=section_ids).in_bulk() # Efficiently get sections by ID
+            master_sections = MasterTemplateSection.objects.filter(id__in=section_ids).in_bulk() 
 
             for item_data in instance.structured_content:
                 section_id = item_data.get('master_template_section_id')
                 master_section_obj = master_sections.get(section_id)
-                enriched_item = item_data.copy() # Start with existing data (id, content)
+                enriched_item = item_data.copy() 
                 if master_section_obj:
                     enriched_item['section_name'] = master_section_obj.name
                     enriched_item['section_order'] = master_section_obj.order
@@ -326,10 +329,9 @@ class ReportSerializer(serializers.ModelSerializer):
                     enriched_item['section_name'] = "Unknown/Orphaned Section"
                 structured_content_enriched.append(enriched_item)
             
-            # Sort by order for consistent display
             representation['structured_content'] = sorted(structured_content_enriched, key=lambda x: x.get('section_order', float('inf')))
         else:
-            representation['structured_content'] = instance.structured_content # Should be a list from the model default
+            representation['structured_content'] = instance.structured_content 
 
         return representation
 
@@ -345,11 +347,15 @@ class CaseSerializer(serializers.ModelSerializer):
     modality_display = serializers.CharField(source='get_modality_display', read_only=True)
     difficulty_display = serializers.CharField(source='get_difficulty_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    patient_sex_display = serializers.CharField(source='get_patient_sex_display', read_only=True, allow_null=True)
+
 
     subspecialty = serializers.ChoiceField(choices=SubspecialtyChoices.choices)
     modality = serializers.ChoiceField(choices=ModalityChoices.choices)
     difficulty = serializers.ChoiceField(choices=DifficultyChoices.choices, required=False)
     status = serializers.ChoiceField(choices=CaseStatusChoices.choices, required=False)
+    patient_sex = serializers.ChoiceField(choices=PatientSexChoices.choices, allow_blank=True, allow_null=True, required=False)
+
 
     created_by = UserSerializer(read_only=True, required=False)
     is_viewed_by_user = serializers.SerializerMethodField()
@@ -365,24 +371,23 @@ class CaseSerializer(serializers.ModelSerializer):
     )
     master_template_details = MasterTemplateSerializer(source='master_template', read_only=True)
 
-    # ***** ADD 'orthanc_study_uid' TO THE META FIELDS LIST *****
     class Meta:
         model = Case
         fields = [
-            'id', 'title', 'subspecialty', 'modality', 'difficulty', 'status',
-            'patient_age', 'clinical_history',
+            'id', 'title', 'case_identifier', 
+            'subspecialty', 'modality', 'difficulty', 'status',
+            'patient_age', 'patient_sex', 
+            'clinical_history',
             'key_findings', 'diagnosis', 'discussion', 'references',
             'created_by', 'created_at', 'updated_at', 'published_at',
-            'subspecialty_display', 'modality_display', 'difficulty_display', 'status_display',
+            'subspecialty_display', 'modality_display', 'difficulty_display', 'status_display', 'patient_sex_display', 
             'is_viewed_by_user', 'is_reported_by_user',
             'master_template', 'master_template_details',
             'applied_templates',
-            'orthanc_study_uid'  # <<< --- ADDED HERE
+            'orthanc_study_uid'  
         ]
-        read_only_fields = ('id', 'created_by', 'created_at', 'updated_at', 'published_at', 'applied_templates', 'master_template_details')
-    # ***** END OF ADDITION *****
+        read_only_fields = ('id', 'created_by', 'created_at', 'updated_at', 'published_at', 'applied_templates', 'master_template_details', 'case_identifier') 
 
-    # ... (the rest of your CaseSerializer methods like get_is_viewed_by_user, create, update remain the same) ...
     def get_is_viewed_by_user(self, obj):
         request = self.context.get('request')
         if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
@@ -400,13 +405,12 @@ class CaseSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             validated_data['created_by'] = request.user
-        # orthanc_study_uid will be in validated_data if sent from frontend
         case = super().create(validated_data)
         return case
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        # orthanc_study_uid will be in validated_data if sent from frontend
+        validated_data.pop('case_identifier', None) 
         return super().update(instance, validated_data)
     
 class CaseListSerializer(serializers.ModelSerializer):
@@ -417,11 +421,13 @@ class CaseListSerializer(serializers.ModelSerializer):
     is_viewed_by_user = serializers.SerializerMethodField()
     is_reported_by_user = serializers.SerializerMethodField()
     has_master_template = serializers.SerializerMethodField()
+    case_identifier = serializers.CharField(read_only=True) 
 
     class Meta:
         model = Case
         fields = [
-            'id', 'title', 'subspecialty', 'modality', 'difficulty', 'status',
+            'id', 'title', 'case_identifier', 
+            'subspecialty', 'modality', 'difficulty', 'status',
             'created_at', 'published_at',
             'is_viewed_by_user', 'is_reported_by_user', 'has_master_template',
         ]
@@ -442,5 +448,37 @@ class CaseListSerializer(serializers.ModelSerializer):
 class AdminCaseListSerializer(CaseListSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True, allow_null=True)
 
-    class Meta(CaseListSerializer.Meta):
+    class Meta(CaseListSerializer.Meta): 
         fields = CaseListSerializer.Meta.fields + ['created_by_username']
+
+
+class AIFeedbackRatingSerializer(serializers.ModelSerializer): # Corrected indentation
+    user = UserSerializer(read_only=True, default=serializers.CurrentUserDefault())
+    report_id = serializers.IntegerField(write_only=True, help_text="ID of the report for which AI feedback is being rated.")
+
+    class Meta:
+        model = AIFeedbackRating # Corrected: This should be AIFeedbackRating
+        fields = ['id', 'report', 'report_id', 'user', 'star_rating', 'comment', 'rated_at']
+        read_only_fields = ('id', 'user', 'report', 'rated_at') 
+
+    def validate_report_id(self, value):
+        request = self.context.get('request')
+        try:
+            report = Report.objects.get(pk=value)
+        except Report.DoesNotExist:
+            raise serializers.ValidationError("Report not found.")
+        return value
+
+    def create(self, validated_data):
+        report_id = validated_data.pop('report_id')
+        report_instance = Report.objects.get(pk=report_id)
+        
+        if AIFeedbackRating.objects.filter(report=report_instance, user=self.context['request'].user).exists():
+            raise serializers.ValidationError({"detail": "You have already rated the AI feedback for this report."})
+
+        rating = AIFeedbackRating.objects.create(
+            report=report_instance, 
+            user=self.context['request'].user, 
+            **validated_data
+        )
+        return rating
