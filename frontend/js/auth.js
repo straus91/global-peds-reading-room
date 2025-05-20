@@ -213,29 +213,20 @@ async function fetchUserDetailsAndRedirect() {
     try {
         const userData = await apiRequest('/users/me/');
         if (userData && userData.profile) {
-            sessionStorage.setItem('user', JSON.stringify({ 
-                id: userData.id, 
-                name: `${userData.first_name} ${userData.last_name}`.trim() || userData.username, 
-                email: userData.email, 
-                role: userData.profile.role, 
-                isAdmin: userData.is_admin 
-            }));
+             sessionStorage.setItem('user', JSON.stringify({ id: userData.id, name: `${userData.first_name} ${userData.last_name}`.trim() || userData.username, email: userData.email, role: userData.profile.role, isAdmin: userData.is_admin }));
             showToast('Login successful!', 'success');
             
-            // Fixed paths - use correct relative paths
+            // Build absolute path from the root
+            const origin = window.location.origin;
+            const pathToFrontend = window.location.pathname.substring(0, window.location.pathname.indexOf('/frontend/') + '/frontend/'.length);
+            
             if (userData.is_admin) { 
-                window.location.href = 'admin/dashboard.html'; 
+                window.location.href = origin + pathToFrontend + 'admin/dashboard.html'; 
             } else { 
-                window.location.href = 'index.html'; 
+                window.location.href = origin + pathToFrontend + 'index.html'; 
             }
-        } else { 
-            throw new Error("User data or profile missing in response."); 
-        }
-    } catch (error) { 
-        console.error("Failed to fetch user details after login:", error); 
-        showToast("Login successful, but failed to retrieve user details. Please try refreshing.", "warning"); 
-        clearAuthTokens(); 
-    }
+        } else { throw new Error("User data or profile missing in response."); }
+    } catch (error) { console.error("Failed to fetch user details after login:", error); showToast("Login successful, but failed to retrieve user details. Please try refreshing.", "warning"); clearAuthTokens(); }
 }
 // Load countries for the register form
 function loadCountries() {

@@ -1,91 +1,89 @@
 // frontend/js/admin-case-edit.js
 // Handles adding and editing radiology cases in the admin panel.
-// This script is initialized by admin.js after successful admin authentication.
 
 // --- Global module-level variables ---
-let currentCaseId = null; // Stores the ID of the case being edited, if any.
-let availableMasterTemplates = []; // Caches master templates for the dropdown.
-let availableLanguages = []; // Caches available languages for expert templates.
+let currentCaseId = null; 
+let availableMasterTemplates = []; 
+let availableLanguages = []; 
 let activeExpertTemplate = null; // Stores data of the expert template currently being edited.
-let loadedCaseDataForEdit = null; // Caches the full case data when in edit mode.
+let loadedCaseDataForEdit = null; 
 
 /**
  * Main initialization function for the Add/Edit Case page.
- * This function is assigned to window.initializeCurrentAdminPage and called by admin.js.
  */
 async function initializeAddCasePage() {
     console.log("[CaseEdit] Admin auth confirmed. Initializing Add/Edit Case Page logic...");
 
-    // Setup static event listeners for elements always present in the HTML.
     initCommonFormElements();
     
-    // Asynchronously load data needed for the form.
-    // These calls will use window.showLoading and window.showToast from admin.js.
     await loadMasterTemplatesForDropdown();
     await loadAvailableLanguages();
 
-    // Determine if we are in "add new" or "edit" mode based on URL parameters.
     const urlParams = new URLSearchParams(window.location.search);
     currentCaseId = urlParams.get('edit_id');
 
+    const pageTitleElement = document.querySelector('title');
     const formTitleElement = document.querySelector('.admin-content .admin-header h1');
     const submitButton = document.querySelector('#addCaseForm button[type="submit"]');
+    const caseIdentifierDisplay = document.getElementById('caseIdentifierDisplay');
 
     if (currentCaseId) {
-        // --- Edit Mode ---
         console.log(`[CaseEdit] Edit mode for case ID: ${currentCaseId}`);
-        if (formTitleElement) formTitleElement.textContent = 'Edit Case';
-        document.title = `Edit Case (ID: ${currentCaseId}) - Global Peds Reading Room`;
+        if (formTitleElement) formTitleElement.textContent = `Edit Case (ID: ${currentCaseId})`;
+        if (pageTitleElement) pageTitleElement.textContent = `Edit Case (ID: ${currentCaseId}) - Global Peds Reading Room`;
         if (submitButton) submitButton.textContent = 'Update Case';
         
-        await loadCaseForEditing(currentCaseId); // Load existing case data into the form.
-        await loadAndDisplayExpertTemplates(currentCaseId); // Load expert templates for this case.
+        await loadCaseForEditing(currentCaseId); 
+        await loadAndDisplayExpertTemplates(currentCaseId); 
     } else {
-        // --- Add New Case Mode ---
         console.log("[CaseEdit] Add New Case mode.");
         if (formTitleElement) formTitleElement.textContent = 'Add New Case';
-        document.title = `Add New Case - Global Peds Reading Room`;
+        if (pageTitleElement) pageTitleElement.textContent = `Add New Case - Global Peds Reading Room`;
         if (submitButton) submitButton.textContent = 'Create Case';
+        if (caseIdentifierDisplay) caseIdentifierDisplay.value = "Will be auto-generated upon saving.";
         
-        // Ensure at least one finding input field is present.
         const findingsContainer = document.getElementById('findingsContainer');
         if (findingsContainer && findingsContainer.children.length === 0) {
-            handleAddFinding(false); // Add one initial finding input, don't focus.
+            handleAddFinding(false); 
         } else {
-            updateFindingsRemoveButtonsState(); // Ensure button state is correct if HTML already has one.
+            updateFindingsRemoveButtonsState(); 
         }
-        updateExpertTemplatesDisplay([]); // Display "No expert templates" message.
+        updateExpertTemplatesDisplay([]); 
     }
 
-    // Attach the main form submission handler.
     const caseForm = document.getElementById('addCaseForm');
     if (caseForm) {
-        caseForm.removeEventListener('submit', handleCaseFormSubmit); // Prevent duplicates
+        caseForm.removeEventListener('submit', handleCaseFormSubmit); 
         caseForm.addEventListener('submit', handleCaseFormSubmit);
     } else {
         console.error("[CaseEdit] CRITICAL: Form #addCaseForm not found in HTML!");
         window.showToast("Error: Case form is missing. Page may not work correctly.", "error");
     }
 
-    // Attach listener for adding new expert language templates.
     const addLangTemplateBtn = document.getElementById('addLangTemplateBtn');
     if (addLangTemplateBtn) {
-        addLangTemplateBtn.removeEventListener('click', handleAddLanguageTemplateClick); // Prevent duplicates
+        addLangTemplateBtn.removeEventListener('click', handleAddLanguageTemplateClick); 
         addLangTemplateBtn.addEventListener('click', handleAddLanguageTemplateClick);
     }
+
+    // Save Draft Button
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', () => {
+            const form = document.getElementById('addCaseForm');
+            handleCaseFormSubmit({ preventDefault: () => {}, target: form }, true); // true for saveAsDraft
+        });
+    }
+
     console.log("[CaseEdit] Page initialization complete.");
 }
 
-// Assign the main initializer to the global scope so admin.js can call it.
 window.initializeCurrentAdminPage = initializeAddCasePage;
 
-/**
- * Initializes event listeners for static form elements like buttons and select dropdowns.
- */
 function initCommonFormElements() {
     console.log("[CaseEdit] Initializing common form element listeners...");
 
-    document.getElementById('addFindingBtn')?.addEventListener('click', handleAddFinding);
+    document.getElementById('addFindingBtn')?.addEventListener('click', () => handleAddFinding(true)); // Focus new input
     document.getElementById('reportTemplate')?.addEventListener('change', function() {
         loadAndDisplayTemplateSummary(this.value);
     });
@@ -96,7 +94,7 @@ function initCommonFormElements() {
         const params = new URLSearchParams({ action: 'create' });
         if (modality) params.append('modality', modality);
         if (subspecialty) {
-            const bodyPart = getBodyPartFromSubspecialty(subspecialty); // Helper to map if needed
+            const bodyPart = getBodyPartFromSubspecialty(subspecialty); 
             if (bodyPart) params.append('bodyPart', bodyPart);
         }
         window.location.href = `manage-templates.html?${params.toString()}`;
@@ -110,29 +108,14 @@ function initCommonFormElements() {
             window.showToast('Please select a master template to preview.', 'warning');
         }
     });
-    updateFindingsRemoveButtonsState(); // Initial state for findings remove button
+    updateFindingsRemoveButtonsState(); 
 }
 
-/**
- * Helper to map a case's subspecialty code to a body part code for template pre-filling.
- * @param {string} subspecialtyCode - The subspecialty code (e.g., 'NR', 'CH').
- * @returns {string} The corresponding body part code or the original code.
- */
 function getBodyPartFromSubspecialty(subspecialtyCode) {
-    // This mapping should align with your SubspecialtyChoices and how they relate to template body parts.
-    const mapping = {
-        'NR': 'NR', // Neuroradiology often maps to Brain or Head/Neck body parts in templates
-        'CH': 'CH', // Chest Radiology -> Chest template
-        'MK': 'MK', // Musculoskeletal
-        'PD': 'PD', // Pediatric
-        // Add more specific mappings if 'body_part' in MasterTemplate uses different codes than case 'subspecialty'
-    };
-    return mapping[subspecialtyCode] || subspecialtyCode; // Fallback
+    const mapping = { 'NR': 'NR', 'CH': 'CH', 'MK': 'MK', 'PD': 'PD' };
+    return mapping[subspecialtyCode] || subspecialtyCode; 
 }
 
-/**
- * Fetches active master templates from the API and populates the dropdown.
- */
 async function loadMasterTemplatesForDropdown() {
     const reportTemplateSelect = document.getElementById('reportTemplate');
     if (!reportTemplateSelect) {
@@ -140,13 +123,12 @@ async function loadMasterTemplatesForDropdown() {
         return;
     }
     reportTemplateSelect.innerHTML = '<option value="">Loading templates...</option>';
-    clearTemplateSummaryDisplay(); // Clear any old summary
+    clearTemplateSummaryDisplay(); 
 
     try {
-        window.showLoading(true, 'Loading master templates...');
-        // Fetch all active templates, assuming pagination is handled or page_size is large enough
+        if (window.showLoading) window.showLoading(true, 'Loading master templates...');
         const response = await apiRequest('/cases/admin/templates/?is_active=true&page_size=1000');
-        availableMasterTemplates = response.results || []; // Store for potential re-use
+        availableMasterTemplates = response.results || []; 
 
         reportTemplateSelect.innerHTML = '<option value="">Select Master Template</option>';
         if (availableMasterTemplates.length === 0) {
@@ -160,71 +142,55 @@ async function loadMasterTemplatesForDropdown() {
             });
         }
 
-        // If editing a case and its data is already loaded, try to set the selected template
         if (loadedCaseDataForEdit && loadedCaseDataForEdit.master_template) {
             reportTemplateSelect.value = loadedCaseDataForEdit.master_template;
-            // Verify if the value was actually set (i.e., the option exists)
             if (reportTemplateSelect.value === String(loadedCaseDataForEdit.master_template)) {
                 loadAndDisplayTemplateSummary(loadedCaseDataForEdit.master_template);
             } else {
                 console.warn(`[CaseEdit] Previously associated master template (ID: ${loadedCaseDataForEdit.master_template}) is not in the active list.`);
-                // Optionally, you could try to fetch and display details for an inactive associated template
-                // but the select dropdown would still not show it as a selectable option.
             }
         }
     } catch (error) {
         console.error("[CaseEdit] Error fetching master templates for dropdown:", error);
         reportTemplateSelect.innerHTML = '<option value="">Error loading templates</option>';
-        window.showToast(`Failed to load report templates: ${error.message || 'Unknown error'}`, 'error');
+        if (window.showToast) window.showToast(`Failed to load report templates: ${error.message || 'Unknown error'}`, 'error');
     } finally {
-        window.showLoading(false);
+        if (window.showLoading) window.showLoading(false);
     }
 }
 
-/**
- * Fetches available active languages from the API.
- */
 async function loadAvailableLanguages() {
     try {
-        const response = await apiRequest('/cases/admin/languages/?is_active=true');
-        // API might return paginated results or a direct list. Handle both.
+        const response = await apiRequest('/cases/admin/languages/?is_active=true&page_size=100'); // Fetch more languages
         availableLanguages = (Array.isArray(response.results) ? response.results : (Array.isArray(response) ? response : []));
         console.log("[CaseEdit] Available active languages loaded:", availableLanguages);
     } catch (error) {
         console.error("[CaseEdit] Error fetching available languages:", error);
-        window.showToast("Could not load available languages for expert templates.", "error");
-        availableLanguages = []; // Ensure it's an empty array on error
+        if (window.showToast) window.showToast("Could not load available languages for expert templates.", "error");
+        availableLanguages = []; 
     }
 }
 
-/**
- * Fetches data for a specific case (in edit mode) and populates the form.
- * @param {string|number} caseId - The ID of the case to load.
- */
 async function loadCaseForEditing(caseId) {
     console.log(`[CaseEdit] Loading case data for ID: ${caseId}`);
-    window.showLoading(true, `Loading case ${caseId}...`);
+    if (window.showLoading) window.showLoading(true, `Loading case ${caseId}...`);
     try {
-        const caseData = await apiRequest(`/cases/admin/cases/${caseId}/`); // Endpoint for single case admin view
-        loadedCaseDataForEdit = caseData; // Cache the loaded data
+        const caseData = await apiRequest(`/cases/admin/cases/${caseId}/`); 
+        loadedCaseDataForEdit = caseData; 
         populateFormWithCaseData(caseData);
     } catch (error) {
         console.error(`[CaseEdit] Error loading case ${caseId} for editing:`, error);
         loadedCaseDataForEdit = null;
-        window.showToast(`Error loading case data: ${error.message || 'Unknown error'}`, 'error');
+        if (window.showToast) window.showToast(`Error loading case data: ${error.message || 'Unknown error'}`, 'error');
         const formContainer = document.querySelector('.admin-content .admin-form');
-        if (formContainer) { // Display error directly in form area
+        if (formContainer) { 
             formContainer.innerHTML = `<p style="color:red; text-align:center;">Could not load case data. Please check the case ID or try again.</p><p style="text-align:center;"><a href="manage-cases.html" class="btn">Back to Manage Cases</a></p>`;
         }
     } finally {
-        window.showLoading(false);
+        if (window.showLoading) window.showLoading(false);
     }
 }
 
-/**
- * Populates the main case form with data from a fetched case object.
- * @param {object} caseData - The case data object from the API.
- */
 function populateFormWithCaseData(caseData) {
     console.log("[CaseEdit] Populating form with fetched case data:", caseData);
     const form = document.getElementById('addCaseForm');
@@ -234,79 +200,84 @@ function populateFormWithCaseData(caseData) {
     }
 
     form.elements['title'].value = caseData.title || '';
-    form.elements['subspecialty'].value = caseData.subspecialty || ''; // Assumes backend sends abbreviation
-    form.elements['modality'].value = caseData.modality || '';     // Assumes backend sends abbreviation
+    
+    // Display case_identifier
+    const caseIdentifierDisplay = document.getElementById('caseIdentifierDisplay');
+    if (caseIdentifierDisplay) {
+        caseIdentifierDisplay.value = caseData.case_identifier || "Will be auto-generated upon saving.";
+    }
+
+    form.elements['subspecialty'].value = caseData.subspecialty || ''; 
+    form.elements['modality'].value = caseData.modality || '';     
     form.elements['difficulty'].value = caseData.difficulty || '';
 
-    // Populate Patient Age (number and unit)
     const patientAgeValueInput = form.elements['patientAgeValue'];
     const patientAgeUnitSelect = form.elements['patientAgeUnit'];
     if (caseData.patient_age && patientAgeValueInput && patientAgeUnitSelect) {
         const ageString = String(caseData.patient_age).toLowerCase();
-        const parts = ageString.match(/^(\d+)\s*(years|months|days|neonate)$/i); // Updated regex
+        const parts = ageString.match(/^(\d+)\s*(years|months|days|neonate)$/i); 
         if (parts) {
-            patientAgeValueInput.value = parts[1]; // The number part
-            const unit = parts[2].toLowerCase();   // The unit part
-            // Check if the unit exists in the dropdown options
+            patientAgeValueInput.value = parts[1]; 
+            const unit = parts[2].toLowerCase();   
             if (Array.from(patientAgeUnitSelect.options).some(opt => opt.value === unit)) {
                 patientAgeUnitSelect.value = unit;
             } else {
                 console.warn(`[CaseEdit] Age unit "${unit}" from DB not in select. Defaulting.`);
-                patientAgeUnitSelect.value = 'years'; // Default if unit not found
+                patientAgeUnitSelect.value = 'years'; 
             }
-        } else if (ageString === "neonate") { // Handle if patient_age is just "Neonate"
-            patientAgeValueInput.value = ''; // Or a conventional value like 0 or 1
+        } else if (ageString === "neonate") { 
+            patientAgeValueInput.value = ''; 
             patientAgeUnitSelect.value = 'neonate';
         } else {
             console.warn(`[CaseEdit] Could not parse patient_age string: '${caseData.patient_age}'. Clearing fields.`);
             patientAgeValueInput.value = '';
             patientAgeUnitSelect.value = 'years';
         }
-    } else if (patientAgeValueInput && patientAgeUnitSelect) { // If no age data, clear/default
+    } else if (patientAgeValueInput && patientAgeUnitSelect) { 
         patientAgeValueInput.value = '';
         patientAgeUnitSelect.value = 'years';
+    }
+
+    // Populate patient_sex
+    if (form.elements['patient_sex']) {
+        form.elements['patient_sex'].value = caseData.patient_sex || "";
     }
 
     form.elements['clinical_history'].value = caseData.clinical_history || '';
     form.elements['image_description_placeholder'].value = caseData.image_description_placeholder || '';
     form.elements['image_url_placeholder'].value = caseData.image_url_placeholder || '';
 
-    // ***** NEWLY ADDED: Populate Orthanc Study UID field *****
-    if (form.elements['orthanc_study_uid']) { // Check if the element exists on the form
+    if (form.elements['orthanc_study_uid']) { 
         form.elements['orthanc_study_uid'].value = caseData.orthanc_study_uid || '';
     }
-    // ***** END OF ADDITION *****
-
-    // Populate Key Findings
+    
     const findingsContainer = document.getElementById('findingsContainer');
-    findingsContainer.innerHTML = ''; // Clear previous findings
+    findingsContainer.innerHTML = ''; 
     if (caseData.key_findings) {
         const findingsArray = String(caseData.key_findings).split('\n').filter(f => f.trim() !== '');
         if (findingsArray.length > 0) {
             findingsArray.forEach(findingText => {
-                const newInputGroup = handleAddFinding(false); // Add new input group, don't focus
+                const newInputGroup = handleAddFinding(false); 
                 if (newInputGroup) {
                     const newFindingInput = newInputGroup.querySelector('.finding-input');
                     if (newFindingInput) newFindingInput.value = findingText;
                 }
             });
         } else {
-            handleAddFinding(false); // Add one empty field if key_findings was an empty string
+            handleAddFinding(false); 
         }
     } else {
-        handleAddFinding(false); // Add one empty field if key_findings is null/undefined
+        handleAddFinding(false); 
     }
-    updateFindingsRemoveButtonsState(); // Correctly enable/disable remove buttons
+    updateFindingsRemoveButtonsState(); 
 
     form.elements['diagnosis'].value = caseData.diagnosis || '';
     form.elements['discussion'].value = caseData.discussion || '';
     form.elements['references'].value = caseData.references || '';
 
-    // Set Master Template dropdown
-    const reportTemplateSelect = form.elements['master_template']; // HTML name is master_template
-    if (caseData.master_template) { // master_template here is the ID
+    const reportTemplateSelect = form.elements['master_template']; 
+    if (caseData.master_template) { 
         reportTemplateSelect.value = caseData.master_template;
-        // If the value was successfully set (i.e., the option exists in the dropdown)
         if (reportTemplateSelect.value === String(caseData.master_template)) {
              loadAndDisplayTemplateSummary(caseData.master_template);
         } else {
@@ -314,21 +285,17 @@ function populateFormWithCaseData(caseData) {
             clearTemplateSummaryDisplay();
         }
     } else {
-        reportTemplateSelect.value = ""; // Clear selection if no master_template on case
+        reportTemplateSelect.value = ""; 
         clearTemplateSummaryDisplay();
     }
 
     form.elements['status'].value = caseData.status || 'draft';
-    form.elements['published_at'].value = caseData.published_at ? caseData.published_at.substring(0, 10) : ''; // Format YYYY-MM-DD
+    form.elements['published_at'].value = caseData.published_at ? caseData.published_at.substring(0, 10) : ''; 
 
     console.log("[CaseEdit] Form population complete.");
 }
 
 
-/**
- * Fetches and displays the list of expert-filled language templates for the current case.
- * @param {string|number} caseId - The ID of the current case.
- */
 async function loadAndDisplayExpertTemplates(caseId) {
     const container = document.getElementById('languageTemplatesContainer');
     if (!container) {
@@ -338,60 +305,51 @@ async function loadAndDisplayExpertTemplates(caseId) {
     container.innerHTML = '<p>Loading expert templates...</p>';
 
     try {
-        window.showLoading(true, 'Loading expert templates for case...');
-        // This endpoint should list CaseTemplate instances for the given case.
+        if (window.showLoading) window.showLoading(true, 'Loading expert templates for case...');
         const response = await apiRequest(`/cases/admin/cases/${caseId}/expert-templates/`);
-        // The response might be paginated or a direct list.
-        // Assuming it's { results: [...] } or directly [...]
         const expertTemplates = response.results || response || [];
         console.log("[ExpertTpl] Fetched expert templates:", expertTemplates);
         updateExpertTemplatesDisplay(expertTemplates, caseId);
     } catch (error) {
         console.error(`[ExpertTpl] Error loading expert templates for case ${caseId}:`, error);
         container.innerHTML = `<p style="color:red;">Could not load expert templates: ${error.message || 'Unknown error'}</p>`;
-        window.showToast(`Error loading expert templates: ${error.message || 'Unknown error'}`, 'error');
+        if (window.showToast) window.showToast(`Error loading expert templates: ${error.message || 'Unknown error'}`, 'error');
     } finally {
-        window.showLoading(false);
+        if (window.showLoading) window.showLoading(false);
     }
 }
 
-/**
- * Renders the list of expert-filled language templates in the UI.
- * @param {Array} expertTemplates - Array of expert template objects.
- * @param {string|number} caseId - The ID of the current case (for delete action context).
- */
 function updateExpertTemplatesDisplay(expertTemplates, caseId) {
     const container = document.getElementById('languageTemplatesContainer');
-    const noTemplatesMsgEl = document.getElementById('noTemplatesMsg'); // Get existing message element
+    const noTemplatesMsgEl = document.getElementById('noTemplatesMsg'); 
 
     if (!container) return;
-    container.innerHTML = ''; // Clear previous content
+    container.innerHTML = ''; 
 
     if (!expertTemplates || expertTemplates.length === 0) {
         if (noTemplatesMsgEl) {
-            container.appendChild(noTemplatesMsgEl); // Re-add the existing message element
-            noTemplatesMsgEl.style.display = 'block'; // Make sure it's visible
-        } else { // Fallback if the #noTemplatesMsg was somehow removed from HTML
+            container.appendChild(noTemplatesMsgEl); 
+            noTemplatesMsgEl.style.display = 'block'; 
+        } else { 
             const p = document.createElement('p');
-            p.id = 'noTemplatesMsg'; // Assign ID for future reference
+            p.id = 'noTemplatesMsg'; 
             p.style.cssText = 'font-style: italic; color: #777;';
             p.textContent = 'No expert language templates added yet. Select a Master Template and click "+ Add Language Version".';
             container.appendChild(p);
         }
-        // Clear any active editor for expert template sections
-        const activeEditor = document.querySelector('.expert-template-sections-active-editor'); // A hypothetical class for the active editor container
+        const activeEditor = document.querySelector('.expert-template-sections-active-editor'); 
         if (activeEditor) activeEditor.innerHTML = '';
         activeExpertTemplate = null;
         return;
     }
 
-    if (noTemplatesMsgEl) noTemplatesMsgEl.style.display = 'none'; // Hide if templates exist
+    if (noTemplatesMsgEl) noTemplatesMsgEl.style.display = 'none'; 
 
     expertTemplates.forEach(et => {
         const div = document.createElement('div');
         div.className = 'language-template-block';
-        div.dataset.expertTemplateId = et.id; // This is the CaseTemplate ID
-        div.dataset.languageCode = et.language_code; // language_code should come from CaseTemplateSerializer
+        div.dataset.expertTemplateId = et.id; 
+        div.dataset.languageCode = et.language_code; 
 
         const sectionsDisplayContainerId = `expert-sections-for-${et.id}`;
 
@@ -412,44 +370,34 @@ function updateExpertTemplatesDisplay(expertTemplates, caseId) {
     });
 }
 
-/**
- * Handles the click event for the "+ Add Language Version" button.
- * Shows a modal for selecting a language.
- */
-// In frontend/js/admin-case-edit.js
-
 async function handleAddLanguageTemplateClick() {
     const masterTemplateId = document.getElementById('reportTemplate').value;
     if (!masterTemplateId) {
-        window.showToast("Please select a Master Report Template for this case first.", "warning");
+        if (window.showToast) window.showToast("Please select a Master Report Template for this case first.", "warning");
         return;
     }
 
-    // Ensure current case ID exists, save as draft if not
     if (!currentCaseId) {
-        window.showToast("Saving case as draft before adding language versions...", "info");
+        if (window.showToast) window.showToast("Saving case as draft before adding language versions...", "info");
         const form = document.getElementById('addCaseForm');
         try {
-            // Assuming handleCaseFormSubmit is async and updates currentCaseId
-            await handleCaseFormSubmit({ preventDefault: () => {}, target: form }, true); // true for saveAsDraft
+            await handleCaseFormSubmit({ preventDefault: () => {}, target: form }, true); 
 
             if (!currentCaseId) {
-                window.showToast("Failed to save the case as a draft. Please save manually and try again.", "error");
+                if (window.showToast) window.showToast("Failed to save the case as a draft. Please save manually and try again.", "error");
                 return;
             }
         } catch (error) {
-            window.showToast("Error saving case as draft. Please try manually.", "error");
+            if (window.showToast) window.showToast("Error saving case as draft. Please try manually.", "error");
             console.error("Error during auto-draft save:", error);
             return;
         }
     }
 
-    // ***** ADDED: Re-fetch available languages just in case they changed or initial load failed *****
     await loadAvailableLanguages();
-    // ***** END ADDED SECTION *****
-
+    
     if (availableLanguages.length === 0) {
-        window.showToast("No active languages are defined in the system. Please add/activate languages in the Django admin.", "warning");
+        if (window.showToast) window.showToast("No active languages are defined in the system. Please add/activate languages in the Django admin.", "warning");
         return;
     }
 
@@ -461,7 +409,7 @@ async function handleAddLanguageTemplateClick() {
     });
 
     if (availableLangsForModal.length === 0) {
-        window.showToast("All available languages have already been added for this case.", "info");
+        if (window.showToast) window.showToast("All available languages have already been added for this case.", "info");
         return;
     }
 
@@ -470,73 +418,40 @@ async function handleAddLanguageTemplateClick() {
 
     if (!modal || !selectEl) {
         console.error("[CaseEdit] Add language modal or its select element not found.");
-        window.showToast("Error: Could not open language selection dialog.", "error");
+        if (window.showToast) window.showToast("Error: Could not open language selection dialog.", "error");
         return;
     }
 
-    selectEl.innerHTML = '<option value="">-- Select Language --</option>'; // Clear previous options
+    selectEl.innerHTML = '<option value="">-- Select Language --</option>'; 
     console.log("Data for language dropdown:", JSON.stringify(availableLangsForModal, null, 2));
 
     availableLangsForModal.forEach(lang => {
         const option = document.createElement('option');
-        option.value = lang.id; // Use the Language ID for the API call
+        option.value = lang.id; 
         option.textContent = `${lang.name} (${lang.code})`;
         selectEl.appendChild(option);
     });
 
     const confirmBtn = document.getElementById('confirmAddLangBtn');
-    // Clone and replace to remove old event listeners and prevent multiple calls
     const newConfirmBtn = confirmBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
 
-    newConfirmBtn.onclick = async () => { // Make this async
+    newConfirmBtn.onclick = async () => { 
         const selectedLangId = selectEl.value;
         if (selectedLangId) {
-            await createNewExpertTemplate(currentCaseId, selectedLangId); // Await this
-            window.closeModal('addLanguageModal'); // Use global closeModal
+            await createNewExpertTemplate(currentCaseId, selectedLangId); 
+            if (window.closeModal) window.closeModal('addLanguageModal'); 
         } else {
-            window.showToast("Please select a language.", "warning");
+            if (window.showToast) window.showToast("Please select a language.", "warning");
         }
     };
-    window.openModal('addLanguageModal'); // Use global openModal
+    if (window.openModal) window.openModal('addLanguageModal'); 
 }
 
-// New helper function to call the main save logic as a draft
-async function triggerSaveAsDraft() {
-    const form = document.getElementById('addCaseForm');
-    if (!form) return false;
-
-    // We need to replicate the data gathering and API call from handleCaseFormSubmit
-    // or refactor handleCaseFormSubmit to be more generally callable.
-    // For now, let's assume a refactor of handleCaseFormSubmit is too much.
-    // The most direct way is to ensure handleCaseFormSubmit is robust.
-
-    // The previous approach of saveButton.click() was problematic due to event handler restoration timing.
-    // Let's try to make handleCaseFormSubmit more directly callable for "save as draft"
-    // The main challenge is that it's an event handler.
-
-    // If `handleCaseFormSubmit` can be called programmatically (e.g., by passing a mock event or null):
-    // This is a simplification and might need `handleCaseFormSubmit` to be robust to `event` being null or a simple object.
-    // Let's assume for a moment that `handleCaseFormSubmit(null, true)` would work.
-    await handleCaseFormSubmit({
-        preventDefault: () => {}, // Mock preventDefault
-        target: form // Provide the form as the target
-    }, true); // true for saveAsDraft
-
-    return !!currentCaseId; // Return true if currentCaseId was set (meaning save likely succeeded)
-}
-
-/**
- * Makes an API call to create a new expert-filled template for a given case and language.
- * @param {string|number} caseId - The ID of the case.
- * @param {string|number} languageId - The ID of the language.
- */
 async function createNewExpertTemplate(caseId, languageId) {
     console.log(`[ExpertTpl] Creating new expert template for case ${caseId}, language ID ${languageId}`);
-    window.showLoading(true, 'Adding language version...');
+    if (window.showLoading) window.showLoading(true, 'Adding language version...');
     try {
-        // API endpoint from project doc: POST /api/cases/admin/cases/<case_pk>/expert-templates/
-        // Body: {language: <lang_id>}
         const newExpertTemplate = await apiRequest(
             `/cases/admin/cases/${caseId}/expert-templates/`,
             {
@@ -544,44 +459,36 @@ async function createNewExpertTemplate(caseId, languageId) {
                 body: JSON.stringify({ language: parseInt(languageId) })
             }
         );
-        window.showToast(`Expert template for ${newExpertTemplate.language_name || 'the selected language'} added successfully.`, 'success');
-        await loadAndDisplayExpertTemplates(caseId); // Refresh the list of expert templates
+        if (window.showToast) window.showToast(`Expert template for ${newExpertTemplate.language_name || 'the selected language'} added successfully.`, 'success');
+        await loadAndDisplayExpertTemplates(caseId); 
 
-        // Optionally, find the newly added template block and open its editor
         const newTemplateBlock = document.querySelector(`.language-template-block[data-expert-template-id="${newExpertTemplate.id}"]`);
         if (newTemplateBlock) {
             const sectionsDisplayContainerId = `expert-sections-for-${newExpertTemplate.id}`;
-            handleEditExpertTemplateContent(newExpertTemplate, sectionsDisplayContainerId); // Open editor
+            handleEditExpertTemplateContent(newExpertTemplate, sectionsDisplayContainerId); 
         }
     } catch (error) {
         console.error('[ExpertTpl] Error creating new expert template:', error);
         const errorDetail = error.data?.detail || (error.data && typeof error.data === 'object' ? JSON.stringify(error.data) : error.message) || 'Unknown error';
-        window.showToast(`Failed to add language version: ${errorDetail}`, 'error');
+        if (window.showToast) window.showToast(`Failed to add language version: ${errorDetail}`, 'error');
     } finally {
-        window.showLoading(false);
+        if (window.showLoading) window.showLoading(false);
     }
 }
 
-/**
- * Makes an API call to delete an expert-filled template.
- * @param {string|number} expertTemplateId - The ID of the CaseTemplate to delete.
- * @param {string|number} caseId - The ID of the parent case (for refreshing the list).
- */
 async function handleDeleteExpertTemplate(expertTemplateId, caseId) {
     if (!confirm(`Are you sure you want to delete this expert template version (ID: ${expertTemplateId})? All its content will be lost.`)) {
         return;
     }
     console.log(`[ExpertTpl] Deleting expert template ID: ${expertTemplateId} for case ID: ${caseId}`);
-    window.showLoading(true, 'Deleting expert template version...');
+    if (window.showLoading) window.showLoading(true, 'Deleting expert template version...');
     try {
-        // API endpoint from project doc: DELETE /api/cases/admin/cases/<case_pk>/expert-templates/<case_template_pk>/
         await apiRequest(`/cases/admin/cases/${caseId}/expert-templates/${expertTemplateId}/`, {
             method: 'DELETE'
         });
-        window.showToast('Expert template version deleted successfully.', 'success');
-        await loadAndDisplayExpertTemplates(caseId); // Refresh the list
+        if (window.showToast) window.showToast('Expert template version deleted successfully.', 'success');
+        await loadAndDisplayExpertTemplates(caseId); 
 
-        // If the deleted template was being edited, clear its editor display
         if (activeExpertTemplate && activeExpertTemplate.id === expertTemplateId) {
             const activeEditorContainer = document.getElementById(`expert-sections-for-${expertTemplateId}`);
             if (activeEditorContainer) {
@@ -592,18 +499,12 @@ async function handleDeleteExpertTemplate(expertTemplateId, caseId) {
         }
     } catch (error) {
         console.error('[ExpertTpl] Error deleting expert template:', error);
-        window.showToast(`Failed to delete expert template version: ${error.message || 'Unknown error'}`, 'error');
+        if (window.showToast) window.showToast(`Failed to delete expert template version: ${error.message || 'Unknown error'}`, 'error');
     } finally {
-        window.showLoading(false);
+        if (window.showLoading) window.showLoading(false);
     }
 }
 
-/**
- * Handles the "Edit Content" button click for an expert template.
- * Toggles the display of the section editor for that template.
- * @param {object} expertTemplateData - The data of the expert template to edit.
- * @param {string} containerId - The ID of the div that will hold the section editor.
- */
 function handleEditExpertTemplateContent(expertTemplateData, containerId) {
     console.log('[ExpertTpl] Toggling edit content for:', expertTemplateData, "Target container ID:", containerId);
     const targetFieldsContainer = document.getElementById(containerId);
@@ -612,56 +513,43 @@ function handleEditExpertTemplateContent(expertTemplateData, containerId) {
         return;
     }
 
-    // Collapse all other open expert template editors on the page
     document.querySelectorAll('#languageTemplatesContainer .template-fields-container').forEach(fc => {
-        if (fc.id !== containerId && fc.style.display === 'block') { // If it's another container and it's visible
+        if (fc.id !== containerId && fc.style.display === 'block') { 
             fc.style.display = 'none';
             fc.innerHTML = '<p class="template-placeholder">Click "Edit Content" to load sections.</p>';
         }
     });
     
-    // Toggle display of the clicked editor
     if (targetFieldsContainer.style.display === 'block' && activeExpertTemplate && activeExpertTemplate.id === expertTemplateData.id) {
-        // If it's already open and is the active one, close it
         targetFieldsContainer.style.display = 'none';
         targetFieldsContainer.innerHTML = '<p class="template-placeholder">Click "Edit Content" to load sections.</p>';
         activeExpertTemplate = null;
     } else {
-        // Open it (or switch to it if another was open)
         targetFieldsContainer.style.display = 'block';
-        targetFieldsContainer.innerHTML = '<p>Loading sections content...</p>'; // Placeholder while fetching
-        activeExpertTemplate = expertTemplateData; // Set this as the one being edited
+        targetFieldsContainer.innerHTML = '<p>Loading sections content...</p>'; 
+        activeExpertTemplate = expertTemplateData; 
         renderExpertTemplateSectionsForEditing(expertTemplateData, targetFieldsContainer);
     }
 }
 
-/**
- * Fetches (if needed) and renders the sections of an expert template for editing.
- * @param {object} expertTemplate - The CaseTemplate object (might be summary or detailed).
- * @param {HTMLElement} containerElement - The DOM element to render the sections into.
- */
 async function renderExpertTemplateSectionsForEditing(expertTemplate, containerElement) {
     let sectionsToRender = expertTemplate.section_contents;
 
-    // If section_contents are not present or empty (might be a summary object from list view),
-    // fetch the full CaseTemplate details.
     if ((!sectionsToRender || sectionsToRender.length === 0) && expertTemplate.id) {
         try {
-            window.showLoading(true, `Loading sections for ${expertTemplate.language_name || expertTemplate.language_code}...`);
-            // API endpoint from project doc: GET /api/cases/admin/case-templates/<case_template_pk>/
+            if (window.showLoading) window.showLoading(true, `Loading sections for ${expertTemplate.language_name || expertTemplate.language_code}...`);
             const detailedTemplate = await apiRequest(`/cases/admin/case-templates/${expertTemplate.id}/`);
-            sectionsToRender = detailedTemplate.section_contents; // Update with full data
-            // Update activeExpertTemplate if it was a summary object, to ensure it has full section data
+            sectionsToRender = detailedTemplate.section_contents; 
             if (activeExpertTemplate && activeExpertTemplate.id === expertTemplate.id) {
-                activeExpertTemplate = detailedTemplate; // Now activeExpertTemplate has full section_contents
+                activeExpertTemplate = detailedTemplate; 
             }
         } catch (err) {
             console.error("Failed to fetch detailed sections for expert template:", err);
             containerElement.innerHTML = `<p style="color:red;">Could not load sections: ${err.message || 'Unknown error'}</p>`;
-            window.showLoading(false);
+            if (window.showLoading) window.showLoading(false);
             return;
         } finally {
-            window.showLoading(false);
+            if (window.showLoading) window.showLoading(false);
         }
     }
     
@@ -671,9 +559,8 @@ async function renderExpertTemplateSectionsForEditing(expertTemplate, containerE
     }
 
     let sectionsHTML = '';
-    // sectionsToRender should already be ordered if sourced from 'section_contents_ordered' in CaseTemplateSerializer
     sectionsToRender.forEach(secContent => {
-        // secContent.id is the ID of the CaseTemplateSectionContent record
+        // NEW: Add input for key_concepts_text
         sectionsHTML += `
             <div class="form-group template-section-item" data-casetemplatesectioncontent-id="${secContent.id}">
                 <label for="expert_sec_content_${secContent.id}">
@@ -682,6 +569,15 @@ async function renderExpertTemplateSectionsForEditing(expertTemplate, containerE
                 </label>
                 <textarea id="expert_sec_content_${secContent.id}" class="form-control expert-section-content-input" 
                           rows="4" placeholder="${secContent.master_section_placeholder || ''}">${secContent.content || ''}</textarea>
+                
+                <div style="margin-top: 8px;">
+                    <label for="expert_sec_key_concepts_${secContent.id}" style="font-size: 0.9em; color: #555;">
+                        Case-Specific Key Concepts for this Section (Optional):
+                    </label>
+                    <textarea id="expert_sec_key_concepts_${secContent.id}" class="form-control expert-section-key-concepts-input" 
+                              rows="2" placeholder="Semicolon-separated phrases, e.g., large mass; renal claw sign present">${secContent.key_concepts_text || ''}</textarea>
+                    <p class="field-hint" style="font-size:0.8em;">These help guide AI feedback for this specific case and section.</p>
+                </div>
             </div>
         `;
     });
@@ -695,51 +591,56 @@ async function renderExpertTemplateSectionsForEditing(expertTemplate, containerE
     `;
     containerElement.innerHTML = sectionsHTML;
 
-    // Add event listener to the save button for this specific editor instance
     const saveBtn = containerElement.querySelector('.save-this-expert-content-btn');
     if (saveBtn) {
         saveBtn.addEventListener('click', (e) => {
             const caseTemplateId = e.target.dataset.casetemplateId;
-            handleSaveExpertTemplateContent(caseTemplateId, containerElement); // Pass container to find inputs
+            handleSaveExpertTemplateContent(caseTemplateId, containerElement); 
         });
     }
 }
 
-/**
- * Handles saving the edited content of an expert template's sections.
- * @param {string|number} caseTemplateId - The ID of the CaseTemplate being saved.
- * @param {HTMLElement} fieldsContainer - The DOM element containing the section input fields.
- */
 async function handleSaveExpertTemplateContent(caseTemplateId, fieldsContainer) {
     if (!caseTemplateId) {
-        window.showToast("Cannot save: No active expert template specified.", "error");
+        if (window.showToast) window.showToast("Cannot save: No active expert template specified.", "error");
         return;
     }
-    if (!fieldsContainer) { // Should be the specific div holding this template's sections
-        window.showToast("Cannot save: Content editor container not found.", "error");
+    if (!fieldsContainer) { 
+        if (window.showToast) window.showToast("Cannot save: Content editor container not found.", "error");
         return;
     }
 
-    const sectionInputs = fieldsContainer.querySelectorAll('.expert-section-content-input');
-    const payload = []; // Array of {id: CaseTemplateSectionContent_id, content: "..."}
+    const sectionItems = fieldsContainer.querySelectorAll('.template-section-item'); // Get each section item
+    const payload = []; 
 
-    sectionInputs.forEach(input => {
-        const sectionItemDiv = input.closest('.template-section-item');
-        const caseTemplateSectionContentId = sectionItemDiv.dataset.casetemplatesectioncontentId;
-        const content = input.value; // No trim, preserve user formatting
-        payload.push({
-            id: parseInt(caseTemplateSectionContentId),
-            content: content
-        });
+    sectionItems.forEach(item => {
+        const caseTemplateSectionContentId = item.dataset.casetemplatesectioncontentId;
+        const contentInput = item.querySelector('.expert-section-content-input');
+        const keyConceptsInput = item.querySelector('.expert-section-key-concepts-input'); // NEW
+
+        if (contentInput && keyConceptsInput) { // Check if keyConceptsInput exists
+            payload.push({
+                id: parseInt(caseTemplateSectionContentId),
+                content: contentInput.value, 
+                key_concepts_text: keyConceptsInput.value.trim() // NEW: Get value from key concepts input
+            });
+        } else if (contentInput) { // Fallback if keyConceptsInput somehow isn't there (shouldn't happen)
+             payload.push({
+                id: parseInt(caseTemplateSectionContentId),
+                content: contentInput.value,
+                key_concepts_text: "" // Default to empty if input not found
+            });
+        }
     });
 
     const langName = activeExpertTemplate?.language_name || activeExpertTemplate?.language_code || 'template';
     console.log(`[ExpertTpl] Saving content for CaseTemplate ID ${caseTemplateId} (${langName}). Payload:`, payload);
-    window.showLoading(true, `Saving content for ${langName}...`);
+    if (window.showLoading) window.showLoading(true, `Saving content for ${langName}...`);
 
     try {
-        // API from project doc: PUT /api/cases/admin/case-templates/<case_template_pk>/update-sections/
-        // Body: list of {"id": <ctsc_id>, "content": "new_text"}
+        // Backend API needs to accept 'key_concepts_text' in the payload for each section.
+        // The BulkCaseTemplateSectionContentUpdateSerializer and its child CaseTemplateSectionContentUpdateSerializer
+        // will need to be updated to handle this new field.
         const updatedCaseTemplateWithSections = await apiRequest(
             `/cases/admin/case-templates/${caseTemplateId}/update-sections/`, 
             {
@@ -747,34 +648,27 @@ async function handleSaveExpertTemplateContent(caseTemplateId, fieldsContainer) 
                 body: JSON.stringify(payload)
             }
         );
-        window.showToast(`${langName} content saved successfully!`, 'success');
+        if (window.showToast) window.showToast(`${langName} content saved successfully!`, 'success');
         
-        // Update the local activeExpertTemplate object with the newly saved section_contents
-        // This is important if the user continues to edit or if other parts of the UI depend on it.
         if (activeExpertTemplate && activeExpertTemplate.id.toString() === caseTemplateId.toString()) {
             activeExpertTemplate.section_contents = updatedCaseTemplateWithSections.section_contents;
+            // Also update key_concepts_text on the activeExpertTemplate if the API returns it per section
+            // This depends on the serializer for CaseTemplateSectionContent including key_concepts_text
         }
-        // The textareas already reflect the new content visually. No re-render of inputs is strictly necessary
-        // unless the API response could change IDs or order, which is not expected for this endpoint.
-
     } catch (error) {
         console.error('[ExpertTpl] Error saving expert template content:', error);
         const errorDetail = error.data?.detail || (error.data && typeof error.data === 'object' ? JSON.stringify(error.data) : error.message) || 'Unknown error';
-        window.showToast(`Failed to save content: ${errorDetail}`, 'error');
+        if (window.showToast) window.showToast(`Failed to save content: ${errorDetail}`, 'error');
     } finally {
-        window.showLoading(false);
+        if (window.showLoading) window.showLoading(false);
     }
 }
 
-/**
- * Handles the submission of the main case form (create or update).
- */
 async function handleCaseFormSubmit(event, saveAsDraft = false) {
     event.preventDefault();
     console.log(`[CaseEdit] Main case form submitted. Edit Mode: ${!!currentCaseId}, Save as Draft: ${saveAsDraft}`);
     const form = event.target || document.getElementById('addCaseForm');
 
-    // Consolidate Patient Age
     const patientAgeValue = form.elements['patientAgeValue'].value;
     const patientAgeUnit = form.elements['patientAgeUnit'].value;
     let combinedPatientAge = "";
@@ -784,30 +678,30 @@ async function handleCaseFormSubmit(event, saveAsDraft = false) {
         combinedPatientAge = `${patientAgeValue} ${patientAgeUnit}`;
     }
 
-    // Consolidate Key Findings
     const findingsInputs = form.querySelectorAll('input[name="key_findings_list_item"]');
     const findingsArray = Array.from(findingsInputs).map(input => input.value.trim()).filter(value => value !== "");
     const combinedKeyFindings = findingsArray.join('\n');
 
-    // Build the payload
     const formData = new FormData(form);
     const caseDataPayload = {};
     for (let [key, value] of formData.entries()) {
-        if (['key_findings_list_item', 'patientAgeValue', 'patientAgeUnit'].includes(key)) {
+        if (['key_findings_list_item', 'patientAgeValue', 'patientAgeUnit', 'case_identifier_display'].includes(key)) { // Exclude display field
             continue;
         }
         if (key === 'master_template') {
             caseDataPayload[key] = value ? parseInt(value, 10) : null;
         } else if (key === 'published_at') {
             caseDataPayload[key] = value || null;
-        } else {
+        } else if (key === 'patient_sex') { // Ensure patient_sex is included
+             caseDataPayload[key] = value || null; // Send null if empty, backend handles blank=True
+        }
+         else {
             caseDataPayload[key] = typeof value === 'string' ? value.trim() : value;
         }
     }
     caseDataPayload['patient_age'] = combinedPatientAge || null;
     caseDataPayload['key_findings'] = combinedKeyFindings;
 
-    // Force draft status if saveAsDraft is true
     if (saveAsDraft) {
         caseDataPayload['status'] = 'draft';
     } else if (!caseDataPayload['status']) {
@@ -820,34 +714,39 @@ async function handleCaseFormSubmit(event, saveAsDraft = false) {
     const endpoint = currentCaseId ? `/cases/admin/cases/${currentCaseId}/` : '/cases/admin/cases/';
     const actionText = currentCaseId ? 'Updating' : 'Creating';
 
-    window.showLoading(true, `${actionText} case...`);
+    if (window.showLoading) window.showLoading(true, `${actionText} case...`);
     try {
         const response = await apiRequest(endpoint, {
             method: method,
             body: JSON.stringify(caseDataPayload),
         });
         console.log(`[CaseEdit] Case ${actionText.toLowerCase()} successful:`, response);
-        window.showToast(`Case ${actionText.toLowerCase().replace(/ing$/, 'ed')} successfully!`, 'success');
+        if (window.showToast) window.showToast(`Case ${actionText.toLowerCase().replace(/ing$/, 'ed')} successfully!`, 'success');
         
-        loadedCaseDataForEdit = response;
+        loadedCaseDataForEdit = response; // Update with response which should include generated case_identifier
+
+        // Update the caseIdentifierDisplay field
+        const caseIdentifierDisplayEl = document.getElementById('caseIdentifierDisplay');
+        if (caseIdentifierDisplayEl && response.case_identifier) {
+            caseIdentifierDisplayEl.value = response.case_identifier;
+        }
+
 
         if (!currentCaseId && response.id) {
-            currentCaseId = response.id; // Store the new case ID
+            currentCaseId = response.id; 
             
-            // Update the URL without reloading if we just created a new case
             const newUrl = `add-case.html?edit_id=${response.id}`;
             window.history.replaceState({}, document.title, newUrl);
             
-            // Update the form title and button
             const formTitleElement = document.querySelector('.admin-content .admin-header h1');
             const submitButton = document.querySelector('#addCaseForm button[type="submit"]');
-            if (formTitleElement) formTitleElement.textContent = 'Edit Case';
+            if (formTitleElement) formTitleElement.textContent = `Edit Case (ID: ${response.id})`;
             if (submitButton) submitButton.textContent = 'Update Case';
             
-            // Load expert templates for the new case
             await loadAndDisplayExpertTemplates(currentCaseId);
         } else if (currentCaseId) {
-            populateFormWithCaseData(response);
+            // Re-populate form to ensure all fields (like case_identifier_display) are fresh
+            populateFormWithCaseData(response); 
             await loadAndDisplayExpertTemplates(currentCaseId);
         }
     } catch (error) {
@@ -860,17 +759,12 @@ async function handleCaseFormSubmit(event, saveAsDraft = false) {
         } else if (error.message) {
             errorMsg = error.message;
         }
-        window.showToast(`Error: ${errorMsg}`, 'error', 5000);
+        if (window.showToast) window.showToast(`Error: ${errorMsg}`, 'error', 5000);
     } finally {
-        window.showLoading(false);
+        if (window.showLoading) window.showLoading(false);
     }
 }
 
-/**
- * Adds a new input field for a key finding.
- * @param {boolean} focusNewInput - Whether to focus the newly added input field.
- * @returns {HTMLElement|null} The newly created finding input group element, or null if container not found.
- */
 function handleAddFinding(focusNewInput = true) {
     const findingsContainer = document.getElementById('findingsContainer');
     if (!findingsContainer) {
@@ -883,7 +777,6 @@ function handleAddFinding(focusNewInput = true) {
 
     const newInputGroup = document.createElement('div');
     newInputGroup.className = 'finding-input-group';
-    // Ensure the name attribute is consistent for collecting findings
     newInputGroup.innerHTML = `
         <input type="text" name="key_findings_list_item" class="finding-input" placeholder="Enter key finding #${newIndex}" required>
         <button type="button" class="remove-finding-btn">Remove</button>
@@ -893,25 +786,30 @@ function handleAddFinding(focusNewInput = true) {
     const removeBtn = newInputGroup.querySelector('.remove-finding-btn');
 
     removeBtn.addEventListener('click', function() {
-        this.parentElement.remove(); // Remove the entire group
+        this.parentElement.remove(); 
         updateFindingsRemoveButtonsState();
-        // Optional: re-number placeholders after removal if desired
-        // reNumberFindingPlaceholders(); 
+        reNumberFindingPlaceholders(); 
     });
 
     findingsContainer.appendChild(newInputGroup);
-    updateFindingsRemoveButtonsState(); // Update button states after adding
+    updateFindingsRemoveButtonsState(); 
 
     if (focusNewInput && newFindingInput) {
         newFindingInput.focus();
     }
-    return newInputGroup; // Return the group for potential value setting (e.g., in populateForm)
+    return newInputGroup; 
 }
 
-/**
- * Enables or disables the "Remove" button for key findings based on how many exist.
- * The first finding cannot be removed.
- */
+function reNumberFindingPlaceholders() {
+    const findingsContainer = document.getElementById('findingsContainer');
+    if (!findingsContainer) return;
+    const allFindingInputs = findingsContainer.querySelectorAll('.finding-input');
+    allFindingInputs.forEach((input, index) => {
+        input.placeholder = `Enter key finding #${index + 1}`;
+    });
+}
+
+
 function updateFindingsRemoveButtonsState() {
     const findingsContainer = document.getElementById('findingsContainer');
     if (!findingsContainer) return;
@@ -925,10 +823,6 @@ function updateFindingsRemoveButtonsState() {
     });
 }
 
-/**
- * Fetches and displays a summary of the selected master template.
- * @param {string|number} templateId - The ID of the master template.
- */
 async function loadAndDisplayTemplateSummary(templateId) {
     const templateSummaryDiv = document.getElementById('templateSummary');
     if (!templateSummaryDiv) return;
@@ -971,13 +865,10 @@ async function loadAndDisplayTemplateSummary(templateId) {
     } catch (error) {
         console.error(`[CaseEdit] Failed to load full template info for ID ${templateId}:`, error);
         templateSummaryDiv.innerHTML = '<p class="empty-template-message" style="color:red;">Could not load template details.</p>';
-        window.showToast(`Error loading template details: ${error.message || 'Unknown error'}`, 'error');
+        if (window.showToast) window.showToast(`Error loading template details: ${error.message || 'Unknown error'}`, 'error');
     }
 }
 
-/**
- * Clears the master template summary display area.
- */
 function clearTemplateSummaryDisplay() {
     const templateSummaryDiv = document.getElementById('templateSummary');
     if (templateSummaryDiv) {
@@ -985,10 +876,6 @@ function clearTemplateSummaryDisplay() {
     }
 }
 
-/**
- * Handles the preview of a selected master template in a modal.
- * @param {string|number} templateId - The ID of the master template to preview.
- */
 async function previewSelectedMasterTemplate(templateId) {
     console.log(`[CaseEdit] Previewing master template ID: ${templateId}`);
     try {
@@ -998,7 +885,7 @@ async function previewSelectedMasterTemplate(templateId) {
 
         if (modal && modalPreviewContainer && typeof generateMasterTemplatePreviewHTML === 'function') { 
             modalPreviewContainer.innerHTML = generateMasterTemplatePreviewHTML(template);
-            window.openModal('templatePreviewModal'); // Use global openModal from admin.js
+            if (window.openModal) window.openModal('templatePreviewModal'); 
         } else {
              console.warn("[CaseEdit] Preview modal elements or 'generateMasterTemplatePreviewHTML' function not found. Using alert fallback.");
              let previewText = `Previewing Master Template: ${template.name || 'Unknown'}\n`;
@@ -1010,16 +897,11 @@ async function previewSelectedMasterTemplate(templateId) {
             alert(previewText);
         }
     } catch (error) {
-        window.showToast("Could not load template preview data.", "error");
+        if (window.showToast) window.showToast("Could not load template preview data.", "error");
         console.error("[CaseEdit] Error previewing master template:", error);
     }
 }
 
-/**
- * Generates HTML for previewing a master template's structure.
- * @param {object} template - The master template data object.
- * @returns {string} HTML string for the preview.
- */
 function generateMasterTemplatePreviewHTML(template) {
     let sectionsHtml = '<h6>Sections:</h6>';
     if (template.sections && template.sections.length > 0) {
@@ -1047,6 +929,3 @@ function generateMasterTemplatePreviewHTML(template) {
     `;
 }
 
-// Note: showLoading, showToast, openModal, closeModal are expected to be globally available
-// from admin.js. If they are not, define simple fallbacks here or ensure admin.js loads first
-// and provides them on the window object.

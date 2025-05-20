@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New Case - Global Peds Reading Room</title>
-    <link rel="stylesheet" href="../css/styles.css">
+    <title>Add/Edit Case - Global Peds Reading Room</title> <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/admin.css">
     <style>
         /* Style for dynamically added findings */
@@ -114,18 +113,22 @@
             text-align: center;
             padding: 15px;
         }
-        /* UPDATED: Styles for new Patient Age input */
         .patient-age-group {
             display: flex;
-            gap: 10px; /* Space between number input and unit select */
-            align-items: center; /* Align items vertically */
+            gap: 10px; 
+            align-items: center; 
         }
         .patient-age-group input[type="number"] {
-            flex-grow: 1; /* Allow number input to take available space */
-            min-width: 80px; /* Ensure it has some base width */
+            flex-grow: 1; 
+            min-width: 80px; 
         }
         .patient-age-group select {
-            min-width: 100px; /* Adjust as needed for unit select */
+            min-width: 100px; 
+        }
+        .field-hint { /* For help text below fields */
+            font-size: 0.85em;
+            color: #777;
+            margin-top: 4px;
         }
     </style>
 </head>
@@ -172,8 +175,7 @@
                         </a>
                         <a href="add-case.html" class="active">
                             <span class="menu-icon">➕</span>
-                            Add New Case
-                        </a>
+                            Add/Edit Case </a>
                         <a href="manage-users.html">
                             <span class="menu-icon">👥</span>
                             Manage Users
@@ -191,40 +193,47 @@
 
                 <section class="admin-content">
                     <div class="admin-header">
-                        <h1>Add New Case</h1>
-                        <p>Create a new radiology case for the Global Peds Reading Room.</p>
+                        <h1>Add New Case</h1> <p>Create or modify a radiology case for the Global Peds Reading Room.</p>
                     </div>
 
                     <div class="admin-form">
                         <form id="addCaseForm">
                             <div class="form-section">
-                                <h3>Case Information</h3>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="caseTitle">Case Title</label>
-                                        <input type="text" id="caseTitle" name="title" required>
-                                    </div>
+                                <h3>Case Identification & Organization</h3>
+                                <div class="form-group">
+                                    <label for="caseTitle">Internal Case Title (Admin Use)</label>
+                                    <input type="text" id="caseTitle" name="title" required>
+                                    <p class="field-hint">Descriptive title for admin organization (e.g., "Teaching Case - Wilms Tumor vs Neuroblastoma"). Not shown directly to users if it might spoil the case.</p>
                                 </div>
+                                <div class="form-group">
+                                    <label for="caseIdentifierDisplay">Case Identifier (User-Facing)</label>
+                                    <input type="text" id="caseIdentifierDisplay" name="case_identifier_display" readonly disabled>
+                                    <p class="field-hint">Auto-generated upon saving (e.g., NR-MR-2025-0001). This is what users will see.</p>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>Case Classification</h3>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="caseSubspecialty">Subspecialty</label>
                                         <select id="caseSubspecialty" name="subspecialty" required>
                                             <option value="">Select Subspecialty</option>
-                                            <option value="BR">BR - Breast (Imaging and Interventional)</option>
-                                            <option value="CA">CA - Cardiac Radiology</option>
-                                            <option value="CH">CH - Chest Radiology</option>
-                                            <option value="ER">ER - Emergency Radiology</option>
-                                            <option value="GI">GI - Gastrointestinal Radiology</option>
-                                            <option value="GU">GU - Genitourinary Radiology</option>
+                                            <option value="BR">BR - Breast</option>
+                                            <option value="CA">CA - Cardiac</option>
+                                            <option value="CH">CH - Chest</option>
+                                            <option value="ER">ER - Emergency</option>
+                                            <option value="GI">GI - Gastrointestinal</option>
+                                            <option value="GU">GU - Genitourinary</option>
                                             <option value="HN">HN - Head and Neck</option>
-                                            <option value="IR">IR - Interventional Radiology</option>
-                                            <option value="MK">MK - Musculoskeletal Radiology</option>
+                                            <option value="IR">IR - Interventional</option>
+                                            <option value="MK">MK - Musculoskeletal</option>
                                             <option value="NM">NM - Nuclear Medicine (Subspecialty)</option>
                                             <option value="NR">NR - Neuroradiology</option>
-                                            <option value="OB">OB - Obstetric/Gynecologic Radiology</option>
+                                            <option value="OB">OB - Obstetric/Gynecologic</option>
                                             <option value="OI">OI - Oncologic Imaging</option>
-                                            <option value="VA">VA - Vascular Radiology</option>
-                                            <option value="PD">PD - Pediatric Radiology</option>
+                                            <option value="VA">VA - Vascular</option>
+                                            <option value="PD">PD - Pediatric</option>
                                             <option value="OT">OT - Other</option>
                                         </select>
                                     </div>
@@ -255,21 +264,34 @@
                             </div>
 
                             <div class="form-section">
-                                <h3>Clinical Information</h3>
-                                <div class="form-group">
-                                    <label for="patientAgeValue">Patient Age</label>
-                                    <div class="patient-age-group">
-                                        <input type="number" id="patientAgeValue" name="patientAgeValue" min="0" placeholder="Age" style="width: 100px;" required>
-                                        <select id="patientAgeUnit" name="patientAgeUnit" required>
-                                            <option value="years">Years</option>
-                                            <option value="months">Months</option>
-                                            <option value="days">Days</option>
-                                            <option value="neonate">Neonate</option> </select>
+                                <h3>Patient & Clinical Information (for AI Context & User Display)</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="patientAgeValue">Patient Age</label>
+                                        <div class="patient-age-group">
+                                            <input type="number" id="patientAgeValue" name="patientAgeValue" min="0" placeholder="Age" style="width: 100px;" required>
+                                            <select id="patientAgeUnit" name="patientAgeUnit" required>
+                                                <option value="years">Years</option>
+                                                <option value="months">Months</option>
+                                                <option value="days">Days</option>
+                                                <option value="neonate">Neonate</option> 
+                                            </select>
+                                        </div>
                                     </div>
-                                    <input type="hidden" id="patient_age_combined" name="patient_age"> </div>
+                                    <div class="form-group">
+                                        <label for="patientSex">Patient Sex</label>
+                                        <select id="patientSex" name="patient_sex"> <option value="">Select Sex (Optional)</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                            <option value="Unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="form-group">
                                     <label for="clinicalInfo">Clinical History</label>
                                     <textarea id="clinicalInfo" name="clinical_history" rows="4" required></textarea>
+                                    <p class="field-hint">Provide concise and relevant clinical history. This will be shown to users and used by the AI for context.</p>
                                 </div>
                             </div>
                             
@@ -292,29 +314,29 @@
                             </div>
 
                             <div class="form-section">
-                                <h3>Teaching Points (Expert Input)</h3>
+                                <h3>Expert Content for This Case (for AI Context & User Learning)</h3>
                                 <div class="form-group">
-                                    <label>Key Imaging Findings</label>
+                                    <label>Key Imaging Findings (Expert Summary for this Case)</label>
                                     <div id="findingsContainer">
-                                        <div class="finding-input-group">
-                                            <input type="text" name="key_findings_list_item" class="finding-input" placeholder="Enter key finding #1" required>
-                                            <button type="button" class="remove-finding-btn" disabled>Remove</button>
                                         </div>
-                                    </div>
                                     <button type="button" id="addFindingBtn" class="btn btn-secondary btn-sm" style="margin-top: 10px;">+ Add Finding</button>
+                                    <p class="field-hint">List the most crucial, non-negotiable findings for THIS specific case. Use distinct, short phrases (e.g., semicolon-separated or one per line via '+ Add Finding'). This is critical for AI feedback guidance.</p>
                                     <input type="hidden" id="key_findings_combined" name="key_findings"> 
                                 </div>
                                 <div class="form-group">
-                                    <label for="diagnosis">Diagnosis (Expert)</label>
+                                    <label for="diagnosis">Final Diagnosis (Expert Conclusion for this Case)</label>
                                     <input type="text" id="diagnosis" name="diagnosis" required>
+                                    <p class="field-hint">The definitive diagnosis. This is a key reference for the AI.</p>
                                 </div>
                                 <div class="form-group">
-                                    <label for="discussion">Discussion (Expert)</label>
+                                    <label for="discussion">Discussion (Expert Elaboration for this Case)</label>
                                     <textarea id="discussion" name="discussion" rows="6" required></textarea>
+                                    <p class="field-hint">Expert's reasoning, teaching points, or elaboration on the diagnosis and findings for this specific case. Used for AI context.</p>
                                 </div>
                                 <div class="form-group">
-                                    <label for="references">References</label>
-                                    <textarea id="references" name="references" rows="3"></textarea>
+                                    <label for="references">References (Bibliography for this Case)</label>
+                                    <textarea id="references" name="references" rows="3" placeholder="Enter URLs or citations, one per line."></textarea>
+                                    <p class="field-hint">These will be displayed to users for further reading.</p>
                                 </div>
                             </div>
 
@@ -337,8 +359,8 @@
                             </div>
 
                             <div class="form-section">
-                                <h3>Expert-Filled Template Languages</h3>
-                                <p class="note">Manage language versions of the expert report for this case, based on the selected Master Template.</p>
+                                <h3>Expert-Filled Template Languages (for this Case)</h3>
+                                <p class="note">Manage language versions of the expert report for this case, based on the selected Master Template. Admins can define case-specific, section-linked 'Key Concepts' here to guide AI feedback.</p>
                                 <div id="languageTemplatesContainer">
                                     <p id="noTemplatesMsg" style="font-style: italic; color: #777;">No expert language templates added yet for this case. Select a Master Template above first.</p>
                                 </div>
@@ -365,7 +387,6 @@
                             </div>
 
                             <div class="form-actions">
-                                <button type="button" class="btn btn-secondary" id="previewCaseBtn">Preview Case (Not Implemented)</button>
                                 <button type="button" class="btn btn-secondary" id="saveDraftBtn">Save as Draft</button>
                                 <button type="submit" class="btn">Create Case</button> </div>
                         </form>
@@ -387,7 +408,7 @@
                     <ul class="footer-links">
                         <li><a href="dashboard.html">Dashboard</a></li>
                         <li><a href="manage-cases.html">Manage Cases</a></li>
-                        <li><a href="add-case.html">Add New Case</a></li>
+                        <li><a href="add-case.html">Add/Edit Case</a></li>
                         <li><a href="manage-users.html">Manage Users</a></li>
                         <li><a href="manage-templates.html">Manage Templates</a></li>
                         <li><a href="settings.html">Settings</a></li>
@@ -446,7 +467,6 @@
     </div>
 
     <script src="../js/api.js"></script>
-    <script src="../js/admin.js"></script>
-    <script src="../js/admin-case-edit.js"></script>
+    <script src="../js/admin.js"></script> <script src="../js/admin-case-edit.js"></script>
 </body>
 </html>
