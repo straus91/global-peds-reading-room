@@ -1,13 +1,14 @@
 # backend/cases/serializers.py
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db import models, transaction 
 from .models import (
     Case, Report, UserCaseView, Language, CaseStatusChoices,
-    SubspecialtyChoices, ModalityChoices, DifficultyChoices, PatientSexChoices, # <<< *** ADDED PatientSexChoices HERE ***
+    SubspecialtyChoices, ModalityChoices, DifficultyChoices, PatientSexChoices,
     MasterTemplate, MasterTemplateSection,
     CaseTemplate, CaseTemplateSectionContent,
-    AIFeedbackRating # Make sure AIFeedbackRating is imported if used below
+    AIFeedbackRating
 )
 
 # Attempt to import UserSerializer, but provide a fallback if it's not there
@@ -107,7 +108,7 @@ class CaseTemplateSectionContentSerializer(serializers.ModelSerializer):
     master_section_placeholder = serializers.CharField(source='master_section.placeholder_text', read_only=True, allow_null=True)
     master_section_order = serializers.IntegerField(source='master_section.order', read_only=True)
     master_section_is_required = serializers.BooleanField(source='master_section.is_required', read_only=True)
-    key_concepts_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    key_concepts_text = serializers.CharField(required=False, allow_blank=True, allow_null=True, trim_whitespace=True)
 
 
     class Meta:
@@ -275,6 +276,8 @@ class ReportSerializer(serializers.ModelSerializer):
         help_text="Array of section contents, each with 'master_template_section_id' and 'content'."
     )
     structured_content = serializers.JSONField(read_only=True)
+    ai_feedback_content = serializers.JSONField(read_only=True) # <<< ADD THIS LINE
+
 
     class Meta:
         model = Report
@@ -287,10 +290,11 @@ class ReportSerializer(serializers.ModelSerializer):
             'user',             
             'section_details',  
             'structured_content', 
+            'ai_feedback_content', # <<< ADD THIS LINE
             'submitted_at',
             'updated_at',
         ]
-        read_only_fields = ('id', 'user', 'case', 'case_title', 'case_identifier_display', 'structured_content', 'submitted_at', 'updated_at')
+        read_only_fields = ('id', 'user', 'case', 'case_title', 'case_identifier_display', 'structured_content', 'ai_feedback_content', 'submitted_at', 'updated_at') # <<< ADD 'ai_feedback_content' HERE
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -452,12 +456,12 @@ class AdminCaseListSerializer(CaseListSerializer):
         fields = CaseListSerializer.Meta.fields + ['created_by_username']
 
 
-class AIFeedbackRatingSerializer(serializers.ModelSerializer): # Corrected indentation
+class AIFeedbackRatingSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True, default=serializers.CurrentUserDefault())
     report_id = serializers.IntegerField(write_only=True, help_text="ID of the report for which AI feedback is being rated.")
 
     class Meta:
-        model = AIFeedbackRating # Corrected: This should be AIFeedbackRating
+        model = AIFeedbackRating
         fields = ['id', 'report', 'report_id', 'user', 'star_rating', 'comment', 'rated_at']
         read_only_fields = ('id', 'user', 'report', 'rated_at') 
 

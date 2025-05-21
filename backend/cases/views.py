@@ -1,11 +1,12 @@
 # backend/cases/views.py
+
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db import transaction, models # <<< *** ADDED models HERE ***
+from django.db import transaction, models
 import re # For parsing LLM output
 
 # Updated model imports
@@ -13,20 +14,20 @@ from .models import (
     Case, Report, Language, UserCaseView, CaseStatusChoices,
     MasterTemplate, MasterTemplateSection,
     CaseTemplate, CaseTemplateSectionContent,
-    AIFeedbackRating # Ensure AIFeedbackRating is imported
+    AIFeedbackRating
 )
 # Updated serializer imports
 from .serializers import (
     CaseSerializer, CaseListSerializer, AdminCaseListSerializer, ReportSerializer, LanguageSerializer,
     MasterTemplateSerializer,
-    CaseTemplateSerializer, 
-    AdminCaseTemplateSetupSerializer, 
+    CaseTemplateSerializer,
+    AdminCaseTemplateSetupSerializer,
     BulkCaseTemplateSectionContentUpdateSerializer,
-    AIFeedbackRatingSerializer # Ensure AIFeedbackRatingSerializer is imported
+    AIFeedbackRatingSerializer
 )
 
 from .llm_feedback_service import get_feedback_from_llm
-from .utils import generate_report_comparison_summary # NEW: Import the utility function
+from .utils import generate_report_comparison_summary
 
 # --- ViewSets ---
 
@@ -104,6 +105,121 @@ class AdminCaseViewSet(viewsets.ModelViewSet):
 
 class AIReportFeedbackView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    # Use GET to retrieve previously saved AI feedback
+    def get(self, request, report_id, format=None):
+        try:
+            user_report = Report.objects.select_related('case', 'case__master_template', 'user').get(pk=report_id, user=request.user)
+        except Report.DoesNotExist:
+            return Response(
+                {"error": "Report not found or you do not have permission to access it."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if AI feedback is already saved
+        if user_report.ai_feedback_content and user_report.ai_feedback_content != {}: # Check if not empty dict
+            return Response(user_report.ai_feedback_content, status=status.HTTP_200_OK)
+        else:
+            # If no feedback content exists, return a 404 to indicate it needs to be generated
+            return Response({"error": "AI feedback not yet generated for this report. Please generate it using a POST request."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Use POST to generate and save new AI feedback
+    def post(self, request, report_id, format=None):
+        try:
+            user_report = Report.objects.select_related('case', 'case__master_template', 'user').get(pk=report_id, user=request.user)
+        except Report.DoesNotExist:
+            return Response(
+                {"error": "Report not found or you do not have permission to access it."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        case_instance = user_report.case
+        if not case_instance.master_template:
+            return Response(
+                {"error": "This case does not have an associated master template. AI feedback cannot be generated without a structure."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer_context = {'request': request}
+        # Fetch user's report content with enriched section names/orders from ReportSerializer
+        user_report_data = ReportSerializer(user_report, context=serializer_context).data
+        user_report_sections_for_llm = user_report_data.get('structured_content', [])
+
+        if not user_report_sections_for_llm:
+            return Response(
+                {"error": "User's report content is missing or empty. Cannot generate feedback."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get expert template (prefer English, fallback to any if English not found)
+        expert_template_instance = CaseTemplate.objects.select_related('language') \
+                                   .prefetch_related(
+                                       models.Prefetch(
+                                           'section_contents',
+                                           queryset=CaseTemplateSectionContent.objects.select_related('master_section').order_by('master_section__order')
+                                       )
+                                   ).filter(case=case_instance, language__code='en').first()
+
+        if not expert_template_instance:
+            expert_template_instance = CaseTemplate.objects.select_related('language') \
+                                       .prefetch_related(
+                                           models.Prefetch(
+                                               'section_contents',
+                                               queryset=CaseTemplateSectionContent.objects.select_related('master_section').order_by('master_section__order')
+                                           )
+                                       ).filter(case=case_instance).first()
+            if not expert_template_instance:
+                return Response(
+                    {"error": "No expert template found for this case. AI feedback cannot be generated."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                print(f"Warning: English expert template not found for case {case_instance.id}. Using expert template in language: {expert_template_instance.language.code}")
+
+        expert_report_data_for_llm = CaseTemplateSerializer(expert_template_instance, context=serializer_context).data
+        expert_report_sections_for_llm = expert_report_data_for_llm.get('section_contents', [])
+        
+        expert_section_content_objects = expert_template_instance.section_contents_ordered
+
+        if not expert_report_sections_for_llm:
+             return Response(
+                {"error": "Expert report content is missing or empty. Cannot generate feedback."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        programmatic_pre_analysis = generate_report_comparison_summary(
+            user_report_structured_content=user_report_sections_for_llm, 
+            expert_section_contents=expert_section_content_objects, 
+            case_diagnosis_text=case_instance.diagnosis or ""
+        )
+        
+        ai_feedback_text = get_feedback_from_llm(
+            user_report_sections=user_report_sections_for_llm,
+            expert_report_sections=expert_report_sections_for_llm, 
+            programmatic_pre_analysis_summary=programmatic_pre_analysis,
+            case_identifier_for_llm=case_instance.case_identifier or f"Case ID {case_instance.id}",
+            case_patient_age=str(case_instance.patient_age) if case_instance.patient_age else "",
+            case_patient_sex=case_instance.patient_sex or "",
+            case_clinical_history=case_instance.clinical_history or "",
+            case_expert_key_findings=case_instance.key_findings or "",
+            case_expert_diagnosis=case_instance.diagnosis or "",
+            case_expert_discussion=case_instance.discussion or "",
+            case_difficulty=case_instance.get_difficulty_display() or ""
+        )
+
+        structured_llm_feedback = self._parse_llm_feedback_text(ai_feedback_text)
+
+        # Save the generated AI feedback to the Report instance
+        user_report.ai_feedback_content = {
+            "raw_llm_feedback": ai_feedback_text,
+            "structured_feedback": structured_llm_feedback
+        }
+        user_report.save() # Persist the changes to the database
+
+        return Response(
+            user_report.ai_feedback_content, # Return the newly saved content
+            status=status.HTTP_200_OK
+        )
 
     def _parse_llm_feedback_text(self, feedback_text):
         """
@@ -197,110 +313,18 @@ class AIReportFeedbackView(APIView):
         return parsed_feedback
 
 
-    def get(self, request, report_id, format=None):
-        try:
-            user_report = Report.objects.select_related('case', 'case__master_template', 'user').get(pk=report_id, user=request.user)
-        except Report.DoesNotExist:
-            return Response(
-                {"error": "Report not found or you do not have permission to access it."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        case_instance = user_report.case
-        if not case_instance.master_template:
-            return Response(
-                {"error": "This case does not have an associated master template. AI feedback cannot be generated without a structure."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        serializer_context = {'request': request}
-        user_report_data = ReportSerializer(user_report, context=serializer_context).data
-        user_report_sections_for_llm = user_report_data.get('structured_content', [])
-
-        if not user_report_sections_for_llm:
-            return Response(
-                {"error": "User's report content is missing or empty. Cannot generate feedback."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        expert_template_instance = CaseTemplate.objects.select_related('language') \
-                                   .prefetch_related(
-                                       models.Prefetch( # Corrected: models.Prefetch
-                                           'section_contents',
-                                           queryset=CaseTemplateSectionContent.objects.select_related('master_section').order_by('master_section__order')
-                                       )
-                                   ).filter(case=case_instance, language__code='en').first()
-
-        if not expert_template_instance:
-            expert_template_instance = CaseTemplate.objects.select_related('language') \
-                                       .prefetch_related(
-                                           models.Prefetch( # Corrected: models.Prefetch
-                                               'section_contents',
-                                               queryset=CaseTemplateSectionContent.objects.select_related('master_section').order_by('master_section__order')
-                                           )
-                                       ).filter(case=case_instance).first()
-            if not expert_template_instance:
-                return Response(
-                    {"error": "No expert template found for this case. AI feedback cannot be generated."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            else:
-                print(f"Warning: English expert template not found for case {case_instance.id}. Using expert template in language: {expert_template_instance.language.code}")
-
-        expert_report_data_for_llm = CaseTemplateSerializer(expert_template_instance, context=serializer_context).data
-        expert_report_sections_for_llm = expert_report_data_for_llm.get('section_contents', [])
-        
-        expert_section_content_objects = expert_template_instance.section_contents_ordered 
-
-        if not expert_report_sections_for_llm:
-             return Response(
-                {"error": "Expert report content is missing or empty. Cannot generate feedback."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        programmatic_pre_analysis = generate_report_comparison_summary(
-            user_report_structured_content=user_report_sections_for_llm, 
-            expert_section_contents=expert_section_content_objects, 
-            case_diagnosis_text=case_instance.diagnosis or ""
-        )
-        
-        ai_feedback_text = get_feedback_from_llm(
-            user_report_sections=user_report_sections_for_llm,
-            expert_report_sections=expert_report_sections_for_llm, 
-            programmatic_pre_analysis_summary=programmatic_pre_analysis,
-            case_identifier_for_llm=case_instance.case_identifier or f"Case ID {case_instance.id}",
-            case_patient_age=str(case_instance.patient_age) if case_instance.patient_age else "",
-            case_patient_sex=case_instance.patient_sex or "",
-            case_clinical_history=case_instance.clinical_history or "",
-            case_expert_key_findings=case_instance.key_findings or "",
-            case_expert_diagnosis=case_instance.diagnosis or "",
-            case_expert_discussion=case_instance.discussion or "",
-            case_difficulty=case_instance.get_difficulty_display() or ""
-        )
-
-        structured_llm_feedback = self._parse_llm_feedback_text(ai_feedback_text)
-
-        return Response(
-            {
-                "report_id": user_report.id,
-                "raw_llm_feedback": ai_feedback_text, 
-                "structured_feedback": structured_llm_feedback
-            },
-            status=status.HTTP_200_OK
-        )
-
-class CaseTemplateViewSet(viewsets.ViewSet): 
+class CaseTemplateViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAdminUser]
-    serializer_class = CaseTemplateSerializer 
+    serializer_class = CaseTemplateSerializer
 
-    def get_queryset(self): 
+    def get_queryset(self):
         return CaseTemplate.objects.all()
 
     def get_serializer_context(self):
         return {'request': self.request}
 
     @action(detail=True, methods=['put'], url_path='update-sections')
-    def update_sections_content(self, request, pk=None): 
+    def update_sections_content(self, request, pk=None):
         case_template = get_object_or_404(CaseTemplate.objects.prefetch_related('section_contents__master_section'), pk=pk)
         existing_sections_qs = case_template.section_contents.all()
         
@@ -383,7 +407,7 @@ class MyReportsListView(generics.ListAPIView):
     def get_serializer_context(self):
         return {'request': self.request, **super().get_serializer_context()}
     
-class AIFeedbackRatingCreateView(generics.CreateAPIView): # Corrected Indentation
+class AIFeedbackRatingCreateView(generics.CreateAPIView): 
     queryset = AIFeedbackRating.objects.all()
     serializer_class = AIFeedbackRatingSerializer
     permission_classes = [permissions.IsAuthenticated]

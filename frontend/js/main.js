@@ -2,6 +2,13 @@
 
 // Assume api.js is loaded first (provides apiRequest, getAuthTokens, clearAuthTokens)
 
+// Helper functions (MOVED TO TOP LEVEL for global accessibility)
+const getDisplayValue = (value, fallback = 'N/A') => value || fallback;
+const getSubspecialtyDisplay = (data) => getDisplayValue(data.subspecialty_display || data.subspecialty);
+const getModalityDisplay = (data) => getDisplayValue(data.modality_display || data.modality);
+const getDifficultyDisplay = (data) => getDisplayValue(data.difficulty_display || data.difficulty);
+
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("--- DOMContentLoaded event fired ---");
 
@@ -175,7 +182,6 @@ function handleLogout() {
     setTimeout(() => { window.location.href = 'login.html'; }, 1000);
 }
 // --- Load Case List View ---
-// --- Load Case List View ---
 async function loadCaseList(url = '/cases/cases/') {
     console.log(`--- loadCaseList called with url: ${url} ---`);
     const mainContent = document.getElementById('mainContent');
@@ -310,7 +316,7 @@ function renderCaseGrid(container, cases) {
                 Subspecialty: ${caseData.subspecialty || 'N/A'}
             </p>
             <div class="tags">
-                <span class="tag difficulty-${(caseData.difficulty || 'unknown').toLowerCase().replace(/\\s+/g, '-')}">
+                <span class="tag difficulty-${(caseData.difficulty || 'unknown').toLowerCase().replace(/\s+/g, '-')}">
                     ${caseData.difficulty || 'Unknown Difficulty'}
                 </span>
                 ${caseData.is_reported_by_user ? '<span class="tag status-reported">Reported</span>' : ''}
@@ -463,19 +469,61 @@ async function viewCase(caseId) {
         
         const reportSubmissionSection = document.getElementById('reportSubmissionSection');
         const caseReviewTabsContainer = document.getElementById('caseReviewTabsContainer');
-        const userSubmittedReportContentDiv = document.getElementById('userSubmittedReportSectionContent'); // The content div for user report
-        
+        const userSubmittedReportContentDiv = document.getElementById('userSubmittedReportSectionContent');
+        const aiFeedbackTabContent = document.getElementById('aiFeedbackTabContent'); // To reset AI feedback tab
+        const expertReportTabContent = document.getElementById('expertReportTabContent'); // To reset Expert report tab
+
+        let userReportForCase = null; // Declare a variable to hold the user's report data
+
         if (caseData.is_reported_by_user) {
             if (reportSubmissionSection) reportSubmissionSection.style.display = 'none';
             if (caseReviewTabsContainer) caseReviewTabsContainer.style.display = 'block';
-            
-            // Ensure the target for displayUserSubmittedReport is the new content div inside the tab
-            if (userSubmittedReportContentDiv) {
-                 await displayUserSubmittedReport(caseData.id, userSubmittedReportContentDiv); // Pass the target div
-            } else {
-                console.error("User submitted report content div not found for populating.");
+
+            // Fetch user's reports once
+            const myReportsResponse = await apiRequest('/cases/my-reports/');
+            let allUserReports = [];
+            if (myReportsResponse && Array.isArray(myReportsResponse.results)) {
+                allUserReports = myReportsResponse.results;
+            } else if (myReportsResponse && Array.isArray(myReportsResponse)) {
+                allUserReports = myReportsResponse;
             }
-            populateExpertLanguageSelector(caseData.id, caseData.applied_templates || []);
+
+            userReportForCase = allUserReports.find(report => 
+                String(report.case) === String(caseData.id) || 
+                (report.case && typeof report.case === 'object' && String(report.case.id) === String(caseData.id)) ||
+                (report.case_id && String(report.case_id) === String(caseData.id))
+            );
+
+            if (userSubmittedReportContentDiv && userReportForCase) {
+                 displayUserSubmittedReport(userReportForCase, userSubmittedReportContentDiv); // Pass the report object
+            } else if (userSubmittedReportContentDiv) {
+                userSubmittedReportContentDiv.innerHTML = `<h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4><p>Could not load your submitted report for this case.</p>`;
+            }
+
+            // Reset AI Feedback and Expert tabs to initial states
+            if (aiFeedbackTabContent) aiFeedbackTabContent.innerHTML = `
+                <h4 class="tab-content-title">AI Feedback Analysis</h4>
+                <div id="aiFeedbackDisplayArea">
+                    <p>Request AI feedback to see analysis.</p>
+                </div>
+                <div id="aiFeedbackRatingSection" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display:none;">
+                    <h4>Rate this AI Feedback:</h4>
+                    <div class="stars">
+                        <span>☆</span><span>☆</span><span>☆</span><span>☆</span><span>☆</span>
+                    </div>
+                    <textarea placeholder="Optional comments..." style="width:100%; min-height:60px; margin-top:5px;"></textarea>
+                    <button class="btn btn-sm btn-secondary" style="margin-top:5px;">Submit Rating</button>
+                </div>`;
+            if (expertReportTabContent) expertReportTabContent.innerHTML = `
+                <h4 class="tab-content-title">Expert Report</h4>
+                <div id="expertLanguageSelector" style="margin-bottom:10px;"></div>
+                <div id="expertTemplateContentContainer">
+                    <p>Select a language to view expert analysis.</p>
+                </div>
+                <p><strong>Key Findings (Expert):</strong> ${getDisplayValue(caseData.key_findings)}</p>`;
+
+
+            populateExpertLanguageSelector(caseData.id, caseData.applied_templates || [], userReportForCase); // Pass userReportForCase here
              // Activate the "Your Submitted Report" tab by default
             document.querySelector('.info-tab-button[data-tab-target="#userSubmittedReportSectionContent"]')?.click();
         } else {
@@ -568,12 +616,6 @@ function renderCaseDetail(caseData) {
         console.error("renderCaseDetail: Main content area not found.");
         return;
     }
-
-    // Helper to safely get display values
-    const getDisplayValue = (value, fallback = 'N/A') => value || fallback;
-    const getSubspecialtyDisplay = (data) => getDisplayValue(data.subspecialty_display || data.subspecialty);
-    const getModalityDisplay = (data) => getDisplayValue(data.modality_display || data.modality);
-    const getDifficultyDisplay = (data) => getDisplayValue(data.difficulty_display || data.difficulty);
 
     mainContent.innerHTML = `
         <div id="caseDetailView">
@@ -753,8 +795,9 @@ function setupInfoTabs() {
         console.log("Listener attached to button:", button.textContent.trim());
     });
 }
-// Display user's submitted report with AI feedback integration
-async function displayUserSubmittedReport(caseId, targetContainerElement) { // Added targetContainerElement parameter
+// Function to display user's submitted report with AI feedback integration
+// Renamed parameter to userReportData (the full report object)
+async function displayUserSubmittedReport(userReportData, targetContainerElement) { 
     if (!targetContainerElement) {
         console.error("Target container for user's submitted report not provided.");
         return;
@@ -763,168 +806,236 @@ async function displayUserSubmittedReport(caseId, targetContainerElement) { // A
     targetContainerElement.innerHTML = `
         <h4 class="tab-content-title">Your Submitted Report</h4>
         <p>Loading your submitted report...</p>`;
-    // targetContainerElement.style.display = 'block'; // Display is handled by tab click
 
-    try {
-        const myReportsResponse = await apiRequest('/cases/my-reports/');
-        let reports = [];
+    // Remove the API call to my-reports as data is passed directly
+    // This function will now directly use userReportData
+
+    if (userReportData && userReportData.structured_content && Array.isArray(userReportData.structured_content)) {
+        let html = `<h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>`;
         
-        if (myReportsResponse && Array.isArray(myReportsResponse.results)) {
-            reports = myReportsResponse.results;
-        } else if (myReportsResponse && Array.isArray(myReportsResponse)) {
-            reports = myReportsResponse;
+        if (userReportData.submitted_at) {
+            html += `<p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
+                Submitted on: ${new Date(userReportData.submitted_at).toLocaleString()}</p>`;
         }
-
-        const reportForThisCase = reports.find(report => 
-            String(report.case) === String(caseId) || 
-            (report.case && typeof report.case === 'object' && String(report.case.id) === String(caseId)) ||
-            (report.case_id && String(report.case_id) === String(caseId))
-        );
-
-        if (reportForThisCase && reportForThisCase.structured_content && Array.isArray(reportForThisCase.structured_content)) {
-            let html = `<h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>`;
+        
+        html += '<ul style="list-style: none; padding-left: 0;">';
+        
+        userReportData.structured_content.forEach(section => {
+            const sectionName = section.section_name || `Section ID ${section.master_template_section_id || 'N/A'}`;
+            const sectionContent = section.content || '<em>No content submitted for this section.</em>';
             
-            if (reportForThisCase.submitted_at) {
-                html += `<p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
-                    Submitted on: ${new Date(reportForThisCase.submitted_at).toLocaleString()}</p>`;
-            }
-            
-            html += '<ul style="list-style: none; padding-left: 0;">';
-            
-            reportForThisCase.structured_content.forEach(section => {
-                const sectionName = section.section_name || `Section ID ${section.master_template_section_id || 'N/A'}`;
-                const sectionContent = section.content || '<em>No content submitted for this section.</em>';
-                
-                html += `
-                    <li style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted #ddd;">
-                        <strong style="display: block; margin-bottom: 5px; font-size: 1.05em;">${sectionName}:</strong>
-                        <div style="padding-left: 10px; white-space: pre-wrap; word-wrap: break-word;">${sectionContent}</div>
-                    </li>`;
-            });
-            html += '</ul>';
-
-            // Add AI Feedback button - this button will now live within the "Your Submitted Report" tab
-            // It will trigger loading feedback into the "AI Feedback" tab.
             html += `
-                <div style="text-align: right; margin-top: 20px; padding-top:15px; border-top: 1px solid #ddd;">
-                    <button class="btn btn-secondary btn-sm get-ai-feedback-btn" data-report-id="${reportForThisCase.id}">
-                        Get/Refresh AI Feedback
-                    </button>
-                </div>`;
-            // Note: The #aiFeedbackContainerForReport_${reportForThisCase.id} is now #aiFeedbackDisplayArea in a different tab.
-            // The requestAIFeedback function will need to target that.
+                <li style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted #ddd;">
+                    <strong style="display: block; margin-bottom: 5px; font-size: 1.05em;">${sectionName}:</strong>
+                    <div style="padding-left: 10px; white-space: pre-wrap; word-wrap: break-word;">${sectionContent}</div>
+                </li>`;
+        });
+        html += '</ul>';
 
-            targetContainerElement.innerHTML = html;
+        html += `
+            <div style="text-align: right; margin-top: 20px; padding-top:15px; border-top: 1px solid #ddd;">
+                <button class="btn btn-secondary btn-sm get-ai-feedback-btn" data-report-id="${userReportData.id}">
+                    Get/Refresh AI Feedback
+                </button>
+            </div>`;
 
-            const aiFeedbackBtn = targetContainerElement.querySelector(`.get-ai-feedback-btn[data-report-id="${reportForThisCase.id}"]`);
-            if (aiFeedbackBtn) {
-                aiFeedbackBtn.addEventListener('click', () => {
-                    requestAIFeedback(reportForThisCase.id);
-                    // Optionally, switch to the AI Feedback tab
-                    document.querySelector('.info-tab-button[data-tab-target="#aiFeedbackTabContent"]')?.click();
-                });
-            }
+        targetContainerElement.innerHTML = html;
 
-        } else {
-            targetContainerElement.innerHTML = `
-                <h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>
-                <p>You have not submitted a report for this case, or your report could not be loaded.</p>`;
+        const aiFeedbackBtn = targetContainerElement.querySelector(`.get-ai-feedback-btn[data-report-id="${userReportData.id}"]`);
+        if (aiFeedbackBtn) {
+            aiFeedbackBtn.addEventListener('click', () => {
+                requestAIFeedback(userReportData.id);
+                document.querySelector('.info-tab-button[data-tab-target="#aiFeedbackTabContent"]')?.click();
+            });
         }
-    } catch (error) {
-        console.error("Error fetching or displaying user's submitted report:", error);
+
+    } else {
         targetContainerElement.innerHTML = `
             <h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>
-            <p style="color:red;">Error loading your report: ${error.message || 'Unknown error'}</p>`;
+            <p>You have not submitted a report for this case, or your report could not be loaded.</p>`;
     }
 }
 
 // Function to request AI feedback for a report
 async function requestAIFeedback(reportId) {
-    const feedbackContainer = document.getElementById(`aiFeedbackContainerForReport_${reportId}`);
-    const loadingMessage = feedbackContainer?.querySelector('.ai-feedback-loading-message');
-    const feedbackContent = feedbackContainer?.querySelector('.ai-feedback-content');
+    // Correctly identify the target elements based on renderCaseDetail HTML structure
+    const aiFeedbackTabContent = document.getElementById('aiFeedbackTabContent');
+    const aiFeedbackDisplayArea = document.getElementById('aiFeedbackDisplayArea');
     const feedbackBtn = document.querySelector(`.get-ai-feedback-btn[data-report-id="${reportId}"]`);
     
-    if (!feedbackContainer || !loadingMessage || !feedbackContent || !feedbackBtn) {
-        console.error("Required elements for AI feedback not found");
-        showToast("Error: Could not display AI feedback", "error");
+    // Check if all required elements are found
+    if (!aiFeedbackTabContent || !aiFeedbackDisplayArea || !feedbackBtn) {
+        console.error("Required elements for AI feedback not found in the DOM (aiFeedbackTabContent or aiFeedbackDisplayArea or feedbackBtn).");
+        showToast("Error: Could not display AI feedback due to missing UI elements.", "error");
         return;
     }
-    
-    // Display the container and loading message
-    feedbackContainer.style.display = 'block';
-    loadingMessage.style.display = 'block';
-    feedbackContent.innerHTML = '';
-    feedbackBtn.disabled = true;
-    feedbackBtn.textContent = "Getting Feedback...";
-    
+
+    // Attempt to retrieve saved AI feedback first (using GET request)
     try {
-        console.log(`Requesting AI feedback for report ID: ${reportId}`);
-        const response = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`);
+        aiFeedbackDisplayArea.innerHTML = '<p class="ai-feedback-loading-message" style="text-align:center; padding:20px;">Checking for saved AI feedback...</p>';
+        feedbackBtn.disabled = true;
+        feedbackBtn.textContent = "Checking...";
+
+        const savedResponse = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`, { method: 'GET' });
         
-        if (response) {
-            console.log("AI feedback response:", response);
-            
-            // Check for different possible response formats
-            let feedbackText = '';
-            
-            if (response.raw_llm_feedback) {
-                feedbackText = response.raw_llm_feedback;
-            } else if (response.structured_feedback) {
-                // Handle structured feedback with sections
-                const structured = response.structured_feedback;
-                
-                if (structured.overall_impression_alignment) {
-                    feedbackText += `Overall Impression Alignment:\n${structured.overall_impression_alignment}\n\n`;
-                }
-                
-                if (structured.section_feedback && structured.section_feedback.length > 0) {
-                    feedbackText += "Section-by-Section Analysis:\n";
-                    structured.section_feedback.forEach(sf => {
-                        if (sf.severity_level_from_llm === "Consistent") {
-                            feedbackText += `${sf.section_name}: ${sf.discrepancy_summary_from_llm}\n`;
-                        } else {
-                            feedbackText += `${sf.section_name}: (${sf.severity_level_from_llm}) ${sf.discrepancy_summary_from_llm}\n`;
-                        }
-                    });
-                    feedbackText += "\n";
-                }
-                
-                if (structured.key_learning_points && structured.key_learning_points.length > 0) {
-                    feedbackText += "Key Learning Points:\n";
-                    structured.key_learning_points.forEach((lp, index) => {
-                        feedbackText += `${index+1}. ${lp.point}\n   Advice: ${lp.advice}\n`;
-                        if (lp.topics_for_study) {
-                            feedbackText += `   Further Study: ${lp.topics_for_study}\n`;
-                        }
-                    });
-                }
-            } else {
-                // Fallback for any other response format containing feedback
-                feedbackText = response.feedback || JSON.stringify(response, null, 2);
-            }
-            
-            // Display the feedback
-            if (feedbackText) {
-                feedbackContent.innerText = feedbackText; // Use innerText to preserve formatting
-            } else {
-                feedbackContent.innerHTML = '<p>No feedback was provided by the AI.</p>';
-            }
+        console.log("Saved AI feedback retrieved:", savedResponse);
+        if (savedResponse) {
+            displayAIResponseBody(savedResponse, aiFeedbackDisplayArea);
+            showToast("Saved AI feedback loaded successfully!", "success");
+            document.getElementById('aiFeedbackRatingSection').style.display = 'block'; // Show rating section
         } else {
-            feedbackContent.innerHTML = '<p>Received an empty response from the AI feedback service.</p>';
+            // This path should ideally not be taken if backend returns 404 for no feedback
+            aiFeedbackDisplayArea.innerHTML = '<p>No saved AI feedback found. Click "Get/Refresh AI Feedback" to generate new feedback.</p>';
+            document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
         }
+
     } catch (error) {
-        console.error("Error fetching AI feedback:", error);
-        feedbackContent.innerHTML = `<p style="color:red;">Error fetching AI feedback: ${error.message || 'Unknown error'}</p>`;
+        console.warn("No saved AI feedback found or error retrieving:", error);
+        // If GET request returns 404 (no saved feedback), then offer to generate via POST
+        // or if it's an actual error, display it.
+        if (error.status === 404 || error.message.includes("not yet generated")) {
+            aiFeedbackDisplayArea.innerHTML = '<p>No saved AI feedback found. Click "Get/Refresh AI Feedback" to generate new feedback.</p>';
+            document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
+            feedbackBtn.textContent = "Get/Refresh AI Feedback"; // Reset button text
+            feedbackBtn.addEventListener('click', () => generateNewAIReportFeedback(reportId)); // Attach listener for generating
+        } else {
+            console.error("Error retrieving saved AI feedback:", error);
+            aiFeedbackDisplayArea.innerHTML = `<p style="color:red;">Error loading saved AI feedback: ${error.message || 'Unknown error'}</p>`;
+            document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
+        }
     } finally {
-        loadingMessage.style.display = 'none';
         feedbackBtn.disabled = false;
-        feedbackBtn.textContent = "Get AI Feedback";
+        feedbackBtn.textContent = "Get/Refresh AI Feedback"; // Ensure button is re-enabled and text reset
     }
 }
 
+// New function to handle generating new AI feedback (POST request)
+async function generateNewAIReportFeedback(reportId) {
+    const aiFeedbackTabContent = document.getElementById('aiFeedbackTabContent');
+    const aiFeedbackDisplayArea = document.getElementById('aiFeedbackDisplayArea');
+    const feedbackBtn = document.querySelector(`.get-ai-feedback-btn[data-report-id="${reportId}"]`);
+
+    if (!aiFeedbackTabContent || !aiFeedbackDisplayArea || !feedbackBtn) {
+        console.error("Required elements for AI feedback not found for generation (aiFeedbackTabContent or aiFeedbackDisplayArea or feedbackBtn).");
+        showToast("Error: Could not display AI feedback due to missing UI elements.", "error");
+        return;
+    }
+
+    aiFeedbackDisplayArea.innerHTML = '<p class="ai-feedback-loading-message" style="text-align:center; padding:20px;">Generating new AI feedback, this may take a moment...</p>';
+    feedbackBtn.disabled = true;
+    feedbackBtn.textContent = "Generating...";
+
+    try {
+        console.log(`Generating new AI feedback for report ID: ${reportId}`);
+        const response = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`, { method: 'POST' });
+        
+        if (response) {
+            console.log("New AI feedback generated and saved:", response);
+            displayAIResponseBody(response, aiFeedbackDisplayArea);
+            showToast("AI feedback generated and saved successfully!", "success");
+            document.getElementById('aiFeedbackRatingSection').style.display = 'block'; // Show rating section
+        } else {
+            aiFeedbackDisplayArea.innerHTML = '<p>Received an empty response when generating AI feedback.</p>';
+            document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
+        }
+
+    } catch (error) {
+        console.error("Error generating new AI feedback:", error);
+        aiFeedbackDisplayArea.innerHTML = `<p style="color:red;">Error generating new AI feedback: ${error.message || 'Unknown error'}</p>`;
+        document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
+    } finally {
+        feedbackBtn.disabled = false;
+        feedbackBtn.textContent = "Get/Refresh AI Feedback";
+    }
+}
+
+
+// Helper to display AI response content into the AI Feedback tab
+function displayAIResponseBody(response, targetElement) {
+    let feedbackHtml = '';
+    
+    // Prioritize structured feedback for display
+    if (response.structured_feedback) {
+        const structured = response.structured_feedback;
+        
+        // Overall Impression Alignment
+        if (structured.overall_impression_alignment) {
+            feedbackHtml += `
+                <div class="feedback-section">
+                    <strong>Overall Impression Alignment:</strong>
+                    <p>${structured.overall_impression_alignment}</p>
+                </div>`;
+        }
+        
+        // Section-by-Section Analysis
+        if (structured.section_feedback && structured.section_feedback.length > 0) {
+            feedbackHtml += `
+                <div class="feedback-section">
+                    <strong>Section-by-Section Analysis:</strong>
+                    <ul>`;
+            structured.section_feedback.forEach(sf => {
+                let severityClass = '';
+                if (sf.severity_level_from_llm === "Critical") {
+                    severityClass = 'feedback-critical';
+                } else if (sf.severity_level_from_llm === "Moderate") {
+                    severityClass = 'feedback-moderate';
+                } else if (sf.severity_level_from_llm === "Consistent") {
+                    severityClass = 'feedback-consistent';
+                }
+
+                feedbackHtml += `
+                    <li class="${severityClass}">
+                        <strong>${sf.section_name}:</strong> ${sf.discrepancy_summary_from_llm}
+                        ${sf.severity_level_from_llm && sf.severity_level_from_llm !== "Consistent" ? `(Severity: ${sf.severity_level_from_llm})` : ''}
+                    </li>`;
+            });
+            feedbackHtml += `
+                    </ul>
+                </div>`;
+        }
+        
+        // Key Learning Points
+        if (structured.key_learning_points && structured.key_learning_points.length > 0) {
+            feedbackHtml += `
+                <div class="feedback-section">
+                    <strong>Key Learning Points & Actionable Advice:</strong>
+                    <ul>`;
+            structured.key_learning_points.forEach(lp => {
+                feedbackHtml += `
+                    <li>
+                        <strong>Point:</strong> ${lp.point}<br>
+                        <strong>Advice:</strong> ${lp.advice}`;
+                if (lp.topics_for_study) {
+                    feedbackHtml += `<br><strong>Further Study:</strong> ${lp.topics_for_study}`;
+                }
+                feedbackHtml += `</li>`;
+            });
+            feedbackHtml += `
+                    </ul>
+                </div>`;
+        }
+        
+        // Fallback to raw if structured is empty but raw exists
+        if (!feedbackHtml && response.raw_llm_feedback) {
+            feedbackHtml = `<p><em>Structured feedback parsing failed. Displaying raw AI response:</em></p><pre>${response.raw_llm_feedback}</pre>`;
+        } else if (!feedbackHtml) {
+             feedbackHtml = '<p>No detailed feedback was provided by the AI.</p>';
+        }
+
+    } else if (response.raw_llm_feedback) {
+        // If only raw feedback is available
+        feedbackHtml = `<p><em>Structured feedback not available. Displaying raw AI response:</em></p><pre>${response.raw_llm_feedback}</pre>`;
+    } else {
+        // Fallback for any other response format
+        feedbackHtml = `<p>Received an unexpected response from the AI feedback service:</p><pre>${JSON.stringify(response, null, 2)}</pre>`;
+    }
+    
+    targetElement.innerHTML = feedbackHtml;
+}
+
+
 // Populate expert language selector
-async function populateExpertLanguageSelector(caseId, appliedTemplates) {
+async function populateExpertLanguageSelector(caseId, appliedTemplates, userReportData) { 
     const selectorContainer = document.getElementById('expertLanguageSelector');
     const contentContainer = document.getElementById('expertTemplateContentContainer');
     if (!selectorContainer || !contentContainer) return;
@@ -933,8 +1044,17 @@ async function populateExpertLanguageSelector(caseId, appliedTemplates) {
 
     if (!appliedTemplates || appliedTemplates.length === 0) {
         selectorContainer.innerHTML += ' <span>No expert versions available.</span>';
-        contentContainer.innerHTML = '';
+        contentContainer.innerHTML = '<p>No expert templates are available for this case.</p>';
         return;
+    }
+
+    // This map is no longer used for rendering in this function, as per the new requirement,
+    // but kept as a placeholder if future logic needs it.
+    const userReportSectionsMap = {}; 
+    if (userReportData && userReportData.structured_content) {
+        userReportData.structured_content.forEach(section => {
+            userReportSectionsMap[section.master_template_section_id] = section;
+        });
     }
 
     appliedTemplates.forEach((template, index) => {
@@ -954,16 +1074,21 @@ async function populateExpertLanguageSelector(caseId, appliedTemplates) {
                 const expertContent = await apiRequest(`/cases/cases/${caseId}/expert-templates/${template.language_code}/`);
                 
                 if (expertContent && expertContent.section_contents) {
-                    let html = '<ul>';
-                    expertContent.section_contents.forEach(section => {
+                    let html = '<ul class="expert-report-sections">';
+                    expertContent.section_contents.forEach(expertSection => {
+                        const expertSectionContent = expertSection.content || '<em>No content provided.</em>';
+
                         html += `
-                            <li>
-                                <strong>${section.master_section_name}:</strong>
-                                <p>${section.content || '<em>No content provided.</em>'}</p>
+                            <li class="expert-section-item">
+                                <strong>${expertSection.master_section_name}:</strong>
+                                <div class="expert-content-display" style="white-space:pre-wrap; word-wrap:break-word;">
+                                    <p>${expertSectionContent}</p>
+                                </div>
                             </li>`;
                     });
                     html += '</ul>';
                     contentContainer.innerHTML = html;
+
                 } else {
                     contentContainer.innerHTML = '<p>Could not load expert report content.</p>';
                 }
@@ -1156,11 +1281,41 @@ async function handleReportSubmit(event) {
             if (updatedCaseData && typeof updatedCaseData.id !== 'undefined') {
                 console.log("Refreshed case data after report submission:", updatedCaseData);
                 
-                // Show expert language selector with updated data
-                populateExpertLanguageSelector(caseId, updatedCaseData.applied_templates || []);
-                
-                // Display the user's submitted report
-                await displayUserSubmittedReport(caseId);
+                // Fetch the newly submitted report to get its AI feedback content
+                const myReportsResponse = await apiRequest('/cases/my-reports/');
+                let allUserReports = [];
+                if (myReportsResponse && Array.isArray(myReportsResponse.results)) {
+                    allUserReports = myReportsResponse.results;
+                } else if (myReportsResponse && Array.isArray(myReportsResponse)) {
+                    allUserReports = myReportsResponse;
+                }
+                const newUserReportForCase = allUserReports.find(report => 
+                    String(report.case) === String(caseId) || 
+                    (report.case && typeof report.case === 'object' && String(report.case.id) === String(caseId)) ||
+                    (report.case_id && String(report.case_id) === String(caseId))
+                );
+
+                if(newUserReportForCase){
+                    const reportSubmissionSection = document.getElementById('reportSubmissionSection');
+                    const caseReviewTabsContainer = document.getElementById('caseReviewTabsContainer');
+                    const userSubmittedReportContentDiv = document.getElementById('userSubmittedReportSectionContent');
+                    
+                    if (reportSubmissionSection) reportSubmissionSection.style.display = 'none';
+                    if (caseReviewTabsContainer) caseReviewTabsContainer.style.display = 'block';
+                    
+                    // Display user's report (which now might have AI feedback)
+                    displayUserSubmittedReport(newUserReportForCase, userSubmittedReportContentDiv);
+                    // Populate expert language selector
+                    populateExpertLanguageSelector(caseId, updatedCaseData.applied_templates || [], newUserReportForCase);
+                    
+                    // IMPORTANT: Immediately request AI feedback here for the newly submitted report
+                    // This ensures it generates and saves, and then displays.
+                    requestAIFeedback(newUserReportForCase.id); 
+
+                    // Activate the "Your Submitted Report" tab by default
+                    document.querySelector('.info-tab-button[data-tab-target="#userSubmittedReportSectionContent"]')?.click();
+                }
+
             }
         } catch (refreshError) {
             console.warn("Could not refresh case data after report:", refreshError);

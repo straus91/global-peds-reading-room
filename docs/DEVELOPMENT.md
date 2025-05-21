@@ -1,59 +1,16 @@
-# Development Guide
-
-## Setting Up Development Environment
-
-### Backend Setup
-1. Create virtual environment
-2. Install dependencies: `pip install -r requirements.txt`
-3. Configure database in settings.py
-4. Run migrations: `python manage.py migrate`
-5. Create superuser: `python manage.py createsuperuser`
-
-### Frontend Setup
-1. No build process required
-2. Serve files locally or open directly in browser
-3. Update `API_CONFIG.BASE_URL` in js/api.js if needed
-
-## Code Style Guidelines
-
-### Python (Backend)
-- Follow PEP 8
-- Use meaningful variable names
-- Add docstrings to functions
-- Keep views focused and simple
-
-### JavaScript (Frontend)
-- Use const/let instead of var
-- Async/await for API calls
-- Meaningful function names
-- Comment complex logic
-
-## Making Changes
-
-### Before Starting
-1. Pull latest changes
-2. Create feature branch
-3. Update from main regularly
-
-### After Changes
-1. Test thoroughly
-2. Update documentation
-3. Add comments to code
-4. Update PROJECT_MAP.md
-5. Create changelog entry
-
-## Common Tasks
-
-### Adding a New API Endpoint
-1. Create view in views.py
-2. Add serializer if needed
-3. Register URL in urls.py
-4. Update frontend API calls
-5. Document in PROJECT_MAP.md
-
-### Adding Frontend Feature
-1. Create/modify JS file
-2. Update HTML if needed
-3. Add styles to CSS
-4. Test across browsers
-5. Update documentation
+Development GuideThis guide provides comprehensive instructions for setting up your development environment, understanding code style, contributing to the project, and performing common development tasks for the Global Peds Reading Room application.1. Setting Up Your Development EnvironmentTo start developing, you'll need to set up both the backend (Django) and frontend (Vanilla JS) components.1.1 Backend Setup (backend/ directory)The backend is built with Python and Django.Navigate to the Backend Directory:cd backend
+Create a Python Virtual Environment: It's highly recommended to use a virtual environment to manage project dependencies.python -m venv venv
+Activate the Virtual Environment:Windows PowerShell:.\venv\Scripts\Activate.ps1
+Windows Command Prompt:venv\Scripts\activate.bat
+macOS/Linux:source venv/bin/activate
+(You'll know it's active when (venv) appears at the start of your terminal prompt.)Install Dependencies: Install all required Python packages.pip install -r requirements.txt
+Configure Environment Variables:Create a .env file in the backend/ directory if it doesn't exist (you can use backend/.env.example as a template).Populate it with your SECRET_KEY, PostgreSQL database credentials, and your GEMINI_API_KEY.Important: Ensure DEBUG="True" for development.Example .env content (refer to README.md for a full example).Run Database Migrations: Apply all database schema changes.python manage.py migrate
+Create a Superuser (Admin Account): This account will allow you to access the Django admin panel.python manage.py createsuperuser
+Run the Django Development Server:python manage.py runserver
+The backend API will typically be accessible at http://127.0.0.1:8000/.1.2 Frontend Setup (frontend/ directory)The frontend is a static web application built with Vanilla JavaScript, HTML, and CSS.Navigate to the Frontend Directory:cd frontend
+Configure API Base URL: Open frontend/js/api.js and ensure that API_CONFIG.BASE_URL is set to your backend's API URL (e.g., 'http://127.0.0.1:8000/api').Configure Orthanc Viewer URL: If you're using a local Orthanc DICOM server, open frontend/js/main.js. Locate the setupDicomViewer function and verify orthancOhifViewerBaseUrl points to your Orthanc OHIF viewer (default http://localhost:8042/ohif/viewer).Serve the Frontend Files: You can use Python's built-in HTTP server for local development:python -m http.server 5500
+This will serve the frontend files at http://127.0.0.1:5500/. Open http://127.0.0.1:5500/login.html in your web browser to start the application.2. Code Style GuidelinesMaintaining consistent code style is crucial for collaboration and readability.2.1 Python (Backend)PEP 8 Compliance: Adhere to the PEP 8 style guide for Python code. Use linters like flake8 or pylint.Meaningful Naming: Use descriptive variable, function, and class names (e.g., calculate_average_score instead of calc_avg).Docstrings: All functions, methods, and classes should have clear docstrings explaining their purpose, arguments, and return values.Django Best Practices:Keep Django views (especially APIView and ViewSet methods) focused on handling HTTP requests and responses, delegating complex business logic to services or utility functions.Use Django's ORM effectively for database interactions.Write clear and concise serializers.2.2 JavaScript (Frontend)Modern JavaScript: Use const and let instead of var. Prefer arrow functions.Asynchronous Operations: Use async/await for all API calls and other asynchronous operations to ensure readability and proper error handling.Meaningful Naming: Use camelCase for variable and function names (e.g., loadCaseList, handleReportSubmit).Modularity: Organize JavaScript into logical files (e.g., api.js for API calls, main.js for core app logic, admin-*.js for admin-specific features).Comments: Add comments for complex logic, non-obvious solutions, or any areas that might be confusing.DOM Manipulation: Minimize direct DOM manipulation; prefer generating HTML strings or using template literals for larger UI components.2.3 CSSBEM Methodology (Optional but Recommended): Consider using BEM (Block, Element, Modifier) for class naming to create modular and scalable CSS.Variables: Utilize CSS custom properties (--primary, --dark, etc.) for colors, fonts, and spacing to maintain consistency and ease of theming.Responsiveness: Design with a mobile-first approach. Use media queries (@media) to adapt layouts for different screen sizes.Readability: Organize CSS rules logically (e.g., by component, by page, or alphabetically within a block).3. Making Changes and ContributingFollow these steps when making modifications or adding new features to the project.3.1 Before You Start CodingPull Latest Changes: Always start by pulling the latest changes from the main branch to ensure your local repository is up-to-date.git pull origin main
+Create a Feature Branch: Create a new branch for your work. Use descriptive names (e.g., feature/ai-feedback-ratings, fix/login-redirect).git checkout -b feature/your-feature-name
+Keep Your Branch Updated: Regularly rebase or merge main into your feature branch to avoid large merge conflicts later.git fetch origin
+git rebase origin/main # or git merge origin/main
+3.2 After Implementing Your ChangesTest Thoroughly:Backend: Run Django unit tests (python manage.py test). Manually test API endpoints using tools like Postman or by interacting with the frontend.Frontend: Test your changes across different browsers and screen sizes (desktop, tablet, mobile).Update Documentation:Code Comments: Add or update comments within the code to explain new or modified logic.PROJECT_MAP.md: Update the relevant sections in PROJECT_MAP.md to reflect any new files, models, views, serializers, or API endpoints you've added or significantly modified.AI_GUIDE.md: If your changes relate to the AI feedback system, update AI_GUIDE.md with details on new features, prompt changes, or workflow modifications.Other Docs: If your changes impact architecture, deployment, or general development practices, update ARCHITECTURE.md or DEPLOYMENT.md accordingly.Create a Changelog Entry: Add a new entry to CHANGELOG.md under the [Unreleased] section. Describe your changes clearly using the "Added", "Changed", "Fixed" categories. Be concise but informative.4. Common Development TasksThis section outlines common tasks you might perform during development.4.1 Adding a New API Endpoint (Backend)Define Model (if new data): If your endpoint involves new data, define or update models in cases/models.py or users/models.py. Run python manage.py makemigrations and python manage.py migrate.Create/Update Serializer: Define how your data will be serialized/deserialized in cases/serializers.py or users/serializers.py.Create View: Implement the logic for your API endpoint in a views.py file (e.g., cases/views.py, api/views.py). Use Django REST Framework's APIView, generics, or viewsets as appropriate.Register URL: Add a URL pattern in the relevant urls.py file (e.g., cases/urls.py, api/urls.py) to map your view to an accessible endpoint.Update Frontend API Calls: Modify frontend/js/api.js or other frontend JavaScript files to make requests to your new endpoint and handle its responses.Document: Update PROJECT_MAP.md with details of the new endpoint, its purpose, and expected payload/response.4.2 Adding a New Frontend FeatureIdentify/Create HTML Structure: Modify existing HTML files (e.g., index.html, admin/*.html) or create new ones to support the feature's UI.Create/Modify JavaScript Logic: Implement the interactive logic in a new or existing .js file (e.g., main.js, admin-case-edit.js). Break down complex logic into smaller, reusable functions.Apply Styles: Add or update CSS rules in the appropriate stylesheet (styles.css, admin.css, auth.css) to ensure the feature looks good and is responsive.Test Across Browsers: Verify the feature's functionality and appearance across different web browsers (Chrome, Firefox, Safari, Edge) and device types.Document: Update PROJECT_MAP.md to describe the new frontend components and their associated files.

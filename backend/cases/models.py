@@ -1,4 +1,5 @@
 # backend/cases/models.py
+
 from django.db import models
 from django.conf import settings # To get the User model
 from django.utils.translation import gettext_lazy as _
@@ -321,6 +322,11 @@ class Report(models.Model):
         default=list,
         blank=True,
         help_text="Stores the user's report content, structured by master template sections."
+    )
+    ai_feedback_content = models.JSONField( # <<< ADD THIS LINE
+        default=dict,
+        blank=True,
+        help_text="Stores the AI-generated feedback content for this report."
     )
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

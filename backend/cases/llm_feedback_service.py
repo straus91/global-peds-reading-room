@@ -115,81 +115,61 @@ def get_feedback_from_llm(
     case_difficulty = case_difficulty or "Not specified"
 
     prompt = f"""
-You are an expert pediatric radiology educator providing detailed, constructive feedback on a trainee's diagnostic report. Your goal is to help the trainee learn and improve.
+You are an expert pediatric radiology educator providing direct, concise feedback to a trainee on their diagnostic report. Address the trainee directly using "you" and "your".
 
 RELEVANT CASE INFORMATION:
 Case Identifier: "{case_identifier_for_llm}"
 Patient Age: "{case_patient_age}"
 Patient Sex: "{case_patient_sex}"
-Clinical History Provided with Case:
----
-{case_clinical_history}
----
-Case Difficulty Level: "{case_difficulty}"
+Clinical History: "{case_clinical_history}"
 
-EXPERT'S SUMMARY FOR THIS SPECIFIC CASE (Ground Truth):
-This information represents the definitive expert interpretation and key teaching points for this case.
-Expert Key Findings for This Case:
----
-{case_expert_key_findings}
----
-Expert Final Diagnosis for This Case:
----
-{case_expert_diagnosis}
----
-Expert Discussion Summary for This Case:
----
-{case_expert_discussion}
----
-
-AUTOMATED PRE-ANALYSIS OF REPORT DIFFERENCES:
-(This is a preliminary programmatic check. Use your expert judgment to verify, elaborate on these points, and identify any other significant discrepancies. Pay close attention to sections flagged as "Content Differs" or where key concepts appear to be missing, and the overall diagnosis comparison.)
----
-{pre_analysis_str}
----
+EXPERT'S KEY FINDINGS, DIAGNOSIS AND DISCUSSION:
+Key Findings: {case_expert_key_findings}
+Final Diagnosis: {case_expert_diagnosis}
+Discussion: {case_expert_discussion}
 
 TRAINEE'S REPORT:
----
 {user_report_str}
----
 
-EXPERT'S REPORT (Full text for detailed comparison):
----
+EXPERT'S REPORT:
 {expert_report_str}
----
 
-**Your Task: Provide a structured critique of the TRAINEE'S REPORT.**
+AUTOMATED PRE-ANALYSIS SUMMARY:
+{pre_analysis_str}
 
-**Feedback Format and Instructions:**
+FEEDBACK INSTRUCTIONS:
 
-**I. Overall Impression Alignment (Crucial):**
-   - Start by commenting on how well the trainee's overall Impression/Conclusion aligns with the "Expert Final Diagnosis for This Case" provided above.
-   - If there's a misalignment, this is a critical area. Explain the potential reasons for the difference based on the trainee's findings.
+Provide a structured list of ONLY the issues and discrepancies in this exact format:
 
-**II. Section-by-Section Discrepancy Analysis:**
-   - Go through each section present in the TRAINEE'S REPORT (e.g., Findings, Technique, Comparison, Impression).
-   - For each section:
-     1. If the trainee's section is generally consistent with the EXPERT'S REPORT for that section and addresses any relevant "Case-Specific Key Concepts" (highlighted in the pre-analysis), you can state: "[Section Name]: Generally consistent with expert report and addresses key points." or omit detailed comment if no significant issues.
-     2. **If there's a significant discrepancy, omission, or error in a trainee's section compared to the expert's content for that section OR if it fails to address relevant "Case-Specific Key Concepts" (see pre-analysis):**
-        a. State the section name (e.g., "Findings:").
-        b. Clearly describe the main discrepancy, error, or missed key concept.
-        c. **Assign a severity level using an explicit prefix: "Severity: Critical - " OR "Severity: Moderate - ".**
-           - **Critical Discrepancy:** An error or omission that would likely lead to a misdiagnosis, incorrect patient management, or has significant clinical safety implications.
-           - **Moderate Discrepancy:** An error or omission that affects completeness, clarity, or accuracy, potentially leading to minor misinterpretation or requiring clarification, but less likely to directly cause immediate harm.
-        d. Provide a brief (1-2 sentences) justification for the assigned severity and explain the clinical significance or reasoning why this difference matters. Focus on *why* it's an issue.
-     3. **Do NOT report merely stylistic differences or use of exact synonyms as discrepancies if the core clinical meaning is preserved and accurate.** Focus on substantive differences.
+1. CRITICAL DISCREPANCIES:
+   List only findings that would affect patient care or represent a significant diagnostic error. For each:
+   - State exactly what was missed, incorrectly identified, or inappropriately emphasized
+   - Begin each point with "You..." to address the trainee directly
+   - Provide ONE brief sentence (15 words max) explaining why this is clinically important
+   - Include any conceptual errors (e.g., misidentifying organ/structure or misclassifying pathology)
 
-**III. Key Learning Points & Actionable Advice (Concise - 2-3 points maximum):**
-   - Based *only* on the significant discrepancies (Critical or Moderate) you identified above:
-     1. List the most important learning points for the trainee.
-     2. For each learning point, provide a brief, actionable suggestion for improvement or a specific area/topic they should review further. (e.g., "Learning Point: Missed subtle pneumothorax. Advice: Review techniques for optimal pneumothorax detection on supine radiographs. Topics for Further Study: pediatric pneumothorax imaging, supine chest X-ray interpretation.")
+2. NON-CRITICAL DISCREPANCIES:
+   List findings that differ but would not significantly impact immediate patient care. For each:
+   - State the difference concisely, starting with "You..."
+   - No explanation needed unless absolutely necessary for clarity
 
-**General Instructions for Your Output:**
-- Focus on what is different, incorrect, or omitted in the trainee's report compared to the expert standard and the provided case context.
-- Be direct, professional, constructive, and educational.
-- Provide *only* the feedback text, starting with "I. Overall Impression Alignment:". Do not include any conversational preamble or sign-off.
-- Ensure your feedback is well-organized and easy to read using the specified section headers (I, II, III).
-- Give feedback as if you were talking to the trainee directly, do not reference "the trainee", instead reference you.
+Rules:
+- Do NOT include any introduction, conclusion, tips, or suggestions for improvement
+- Do NOT comment on style differences, only substantive content differences
+- Keep explanations extremely brief and focused on clinical significance
+- If a category has no discrepancies, simply write "None identified."
+- If the trainee completely missed the diagnosis, this is always a CRITICAL discrepancy
+- Maximum 3-5 bullet points per category, prioritize the most important discrepancies
+- Pay special attention to contradictions within the trainee's report itself
+- Identify any misattributions (incorrect organ/structure identification) or misclassifications (wrong pathology type)
+
+BEFORE SUBMITTING YOUR FEEDBACK:
+1. Review each point for redundancy, - eliminate any repeated information and make sure critical and non-critical are not redundant (if they are, then keep only the critical)
+2. Verify that each critical discrepancy includes a brief explanation of clinical importance
+3. Check that all discrepancies are properly categorized as critical or non-critical based on patient care impact
+4. Ensure you're addressing the trainee directly using "you" in each point
+5. Remove any teaching advice or improvement suggestions
+6. Confirm you've prioritized the most significant discrepancies if there are many
 """
 
     print(f"---- PROMPT FOR GEMINI LLM (Case ID: '{case_identifier_for_llm}') ----")
