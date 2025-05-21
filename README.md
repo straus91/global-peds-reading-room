@@ -99,3 +99,22 @@ Then access the application, typically starting at http://127.0.0.1:5500/login.h
 └── .gitignore
 └── README.md                 # This file
 DocumentationArchitecture OverviewProject Map (File & API Structure)Development GuideDeployment GuideChangelogAI Assistant Guide (for collaborators interacting with AI dev assistants)Recent Key Updates (Reflecting Backend Enhancements - May 17, 2025)Core Features Implemented (Backend Focus):Enhanced AI-Powered Feedback Backend:AI (Google Gemini) now receives comprehensive case context: non-spoiling case_identifier, patient demographics (age, sex), clinical history, expert-defined key_findings, diagnosis, and discussion for the specific case.Programmatic pre-analysis of user reports against expert templates and admin-defined, case-specific, section-linked "Key Concepts" (from CaseTemplateSectionContent.key_concepts_text) guides the LLM.LLM prompted to provide "Critical" or "Moderate" severity levels with justifications for discrepancies.API endpoint for AI feedback (/api/cases/reports/<report_id>/ai-feedback/) now returns structured JSON (including raw_llm_feedback and structured_feedback with overall alignment, section-by-section analysis, and key learning points).Case Identification: Implemented non-spoiling, human-readable, auto-generated case_identifier (e.g., NR-MRI-2025-0001) for Case model. This is used in user-facing views and for LLM context. Case.title is now primarily for admin internal organization.Patient Demographics: Added patient_sex to the Case model and admin forms.User Feedback on AI Feedback: Backend model (AIFeedbackRating), serializer, view, and API endpoint (/api/cases/ai-feedback-ratings/) created to allow users to submit 1-5 star ratings and optional comments on AI critiques.DICOM Viewing MVP: Remains functional (Orthanc OHIF viewer integration).User registration (admin approval) & JWT authentication.Admin panel for management of Users, Cases (including DICOM linking, new context fields), and Master Report Templates.User ability to view cases and submit structured reports.Pending Frontend Development:Display of the new structured AI feedback (with severity, justifications, learning points).UI for submitting "Feedback on AI Feedback" (star rating, comments).The full "View Case" page UI/UX overhaul as per visual mockups.For a complete list of detailed changes, see
+
+## Recent Updates
+Last updated: May 20, 2025
+
+### Critical Bugs Fixed
+- **API Data Handling**: Fixed loadMyReports to handle both paginated and direct array responses
+- **Event Listeners**: Implemented single initialization pattern to prevent duplicate registrations
+- **Django Admin**: Added proper admin configuration for User and UserProfile models  
+- **Path Consistency**: Resolved navigation path issues between frontend and admin sections
+- **User Management**: Fixed action handlers for edit, delete, and status toggle operations
+- **Case Creation**: Improved draft saving and language version handling
+- **Fixed frontend navigation**: Resolved path duplication in URL redirects
+
+### Infrastructure Improvements
+- Added requirements.txt with all project dependencies
+- Created consolidated .gitignore file at project root
+- Added .env.example template for environment configuration
+
+For a complete list of changes, see [CHANGELOG.md](docs/CHANGELOG.md)

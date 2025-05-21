@@ -168,3 +168,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 ## [Initial Release Candidate] - (Date of that phase)
 *(Archive older items here)*
+
+
+
+5/20/2025:
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## [Unreleased]
+
+### Added
+- Initial documentation structure
+- Consolidated project organization
+- requirements.txt file for Python dependencies
+- .env.example template for environment configuration
+- Proper Django admin configuration for User and UserProfile models
+
+### Changed
+- Moved from separate frontend/backend git repos to unified structure
+- Consolidated multiple .gitignore files into single root file
+- Updated login redirect paths to proper frontend structure
+- Language version handling now auto-saves case as draft first
+
+### Fixed
+- Patient Age and Key Findings saving issues in admin interface
+- Modality and Subspecialty abbreviation handling
+- API data handling for loadMyReports (supports both paginated and direct array responses)
+- Multiple event listener registration issue with single initialization pattern
+- Path consistency issues across the application 
+- Manage Cases table action button alignment and display
+- Admin Users action button handlers (edit, delete, status toggle)
+- Backend now allows DELETE operations for users
+- Case creation form submission to handle draft saving properly
+- Frontend case view button functionality
+- Fixed path duplication issue in frontend navigation
+
+ChangelogAll notable changes to this project will be documented in this file.The format is based on Keep a Changelog.[Unreleased] - Frontend UI Enhancements & FixesAddedSide-by-Side Layout for Case List Page:"Case Grid View" and "Case List View" (table) are now displayed in a two-column, side-by-side layout on desktop screens, stacking vertically on smaller screens.Side-by-Side Layout for Case Viewer Page:"Imaging" column (with DICOM viewer) and "Case Information" column are now displayed in a two-column, side-by-side layout on desktop screens, stacking vertically on smaller screens.Tabbed Interface for Case Information Column (Case Viewer Page):After a user submits a report, the right-hand "Case Information" column displays content in tabs:"Your Submitted Report" (default active after submission)."AI Feedback"."Expert Report".Implemented JavaScript logic for tab switching.Structured Top/Bottom Strips in Case Information Column:Top strip now consistently displays Case ID, patient demographics, clinical history, and highlighted expert diagnosis.Bottom strip displays references.ChangedCSS (styles.css):Major refactoring to implement the side-by-side layouts for Case List and Case Viewer pages.Implemented robust height and overflow management to ensure the Case Viewer's right-hand "Case Information" column (specifically its tab content area) scrolls independently, preventing global page scrollbars and elongation of the DICOM viewer column.Added styles for the new tabbed interface in the Case Viewer.Footer:Simplified HTML structure for the footer across index.html and all admin pages (dashboard.html, manage-cases.html, add-case.html, manage-users.html, manage-templates.html, settings.html).Updated CSS to make the footer more compact, displaying only "Home" and a contact email.JavaScript (main.js):renderCaseDetail(): Heavily modified to generate the new HTML structure for the Case Viewer page, including the top/bottom strips and the tab container. Stray HTML comments removed.loadCaseList(): Modified to generate the HTML structure for the side-by-side Case List page.Added setupInfoTabs() function to manage tab switching logic.Updated viewCase() to correctly show/hide the report submission form vs. the new tabbed review container.Updated displayUserSubmittedReport() to target the correct div within the "Your Submitted Report" tab.Updated requestAIFeedback() to target the correct div within the "AI Feedback" tab.FixedCase Viewer Page Scrolling: Addressed issues where long text in the right-hand "Case Information" column would elongate the entire page and the DICOM viewer. The right column's tabbed content now scrolls independently.Stray HTML Comments: Removed {/* ... */} comments from JavaScript-generated HTML in renderCaseDetail.Admin Page Footers: Ensured admin pages now use the simplified footer structure.[Backend Enhancements & Initial AI Feedback] - 2025-05-17 (Consolidated)AddedEnhanced AI-Powered Feedback Backend:Case model: Added patient_sex, case_identifier.CaseTemplateSectionContent model: Added key_concepts_text.llm_feedback_service.py: Enhanced prompt and context handling.cases/utils.py: Added generate_report_comparison_summary.AIReportFeedbackView: Orchestrates enhanced feedback generation, returns structured JSON.User Feedback on AI Feedback Backend:AIFeedbackRating model and API endpoint.DICOM Viewing MVP:Integrated Orthanc's OHIF viewer.Added orthanc_study_uid to Case model.User Experience Enhancements (Backend Support & Basic Frontend):Display of user's own submitted report.ChangedAdmin interfaces updated for new model fields.Serializers updated for new model fields and structured AI feedback.LLM prompt significantly revised.FixedVarious backend errors related to model fields, imports, and API key loading.Authentication & Navigation redirection paths.Admin Case Management flow for "Add Language Version".[Initial Release Candidate] - (Date of that phase)(Archive older items here)

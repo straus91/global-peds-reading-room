@@ -175,6 +175,7 @@ function handleLogout() {
     setTimeout(() => { window.location.href = 'login.html'; }, 1000);
 }
 // --- Load Case List View ---
+// --- Load Case List View ---
 async function loadCaseList(url = '/cases/cases/') {
     console.log(`--- loadCaseList called with url: ${url} ---`);
     const mainContent = document.getElementById('mainContent');
@@ -183,7 +184,7 @@ async function loadCaseList(url = '/cases/cases/') {
         return;
     }
 
-    // Set HTML structure for case list
+    // Re-introduce case-list-split-view for side-by-side layout
     mainContent.innerHTML = `
         <div class="case-list-header">
             <h2>Radiology Cases</h2>
@@ -197,7 +198,7 @@ async function loadCaseList(url = '/cases/cases/') {
 
         <div class="loading-indicator">Loading cases...</div>
 
-        <div class="case-list-split-view">
+        <div class="case-list-split-view"> 
             <div class="case-grid-panel">
                  <h3>Case Grid View</h3>
                  <div class="case-grid" id="caseGrid"></div>
@@ -235,28 +236,27 @@ async function loadCaseList(url = '/cases/cases/') {
         return;
     }
 
-    // Setup filter dropdowns (placeholder functionality for now)
+    // Setup filter dropdowns
     setupFilters();
 
     try {
-        // Fetch published cases from the backend API endpoint
-        console.log(`Fetching cases from ${url}`);
+        // Fetch published cases
+        console.log(`Workspaceing cases from ${url}`);
         const response = await apiRequest(url);
 
-        loadingIndicator.style.display = 'none'; // Hide loading indicator
+        loadingIndicator.style.display = 'none';
 
         if (response && Array.isArray(response.results)) {
             const cases = response.results;
             console.log(`Received ${cases.length} cases.`);
 
-            if (cases.length === 0 && !response.previous) { // Only show if first page is empty
+            if (cases.length === 0 && !response.previous) {
                 gridContainer.innerHTML = '<p>No published cases found.</p>';
                 tableBody.innerHTML = '<tr><td colspan="6">No published cases found.</td></tr>';
             } else {
                 renderCaseGrid(gridContainer, cases);
                 renderCaseTable(tableBody, cases);
             }
-            // Handle pagination controls
             renderPagination(paginationContainer, response.count, response.next, response.previous);
         } else {
             console.error("Invalid response structure received from API:", response);
@@ -427,7 +427,7 @@ async function handlePaginationClick(event) {
     }
 }
 
-// --- View Case Detail Function ---
+
 async function viewCase(caseId) {
     console.log(`--- viewCase called for caseId: ${caseId} ---`);
     const mainContent = document.getElementById('mainContent');
@@ -436,9 +436,7 @@ async function viewCase(caseId) {
         return;
     }
 
-    // Update URL hash for direct linking to case
     window.location.hash = `case/${caseId}`;
-    
     mainContent.innerHTML = `<div class="loading-indicator" style="padding: 20px;">Loading case details for Case ID ${caseId}...</div>`;
 
     try {
@@ -453,49 +451,37 @@ async function viewCase(caseId) {
             return;
         }
 
-        // Mark case as viewed
         try {
             await apiRequest(`/cases/cases/${caseId}/viewed/`, { method: 'POST' });
             console.log(`Case ${caseId} marked as viewed.`);
         } catch (viewError) {
             console.warn(`Could not mark case ${caseId} as viewed:`, viewError);
-            // Non-critical, so we continue
         }
 
-        // Generate and insert HTML for case detail
-        renderCaseDetail(caseData);
-        
-        // Setup DICOM viewer if available
+        renderCaseDetail(caseData); // This now includes the tab structure
         setupDicomViewer(caseData);
         
-        // Setup report submission form or load existing report
+        const reportSubmissionSection = document.getElementById('reportSubmissionSection');
+        const caseReviewTabsContainer = document.getElementById('caseReviewTabsContainer');
+        const userSubmittedReportContentDiv = document.getElementById('userSubmittedReportSectionContent'); // The content div for user report
+        
         if (caseData.is_reported_by_user) {
-            // User has already reported on this case - hide form, show their report
-            const reportFormSection = document.getElementById('reportSubmissionSection');
-            if (reportFormSection) reportFormSection.style.display = 'none';
+            if (reportSubmissionSection) reportSubmissionSection.style.display = 'none';
+            if (caseReviewTabsContainer) caseReviewTabsContainer.style.display = 'block';
             
-            // Show expert discussion section
-            const expertDiscussionSection = document.getElementById('expertDiscussionSection');
-            if (expertDiscussionSection) expertDiscussionSection.style.display = 'block';
-            
-            // Load expert language selector if templates are available
+            // Ensure the target for displayUserSubmittedReport is the new content div inside the tab
+            if (userSubmittedReportContentDiv) {
+                 await displayUserSubmittedReport(caseData.id, userSubmittedReportContentDiv); // Pass the target div
+            } else {
+                console.error("User submitted report content div not found for populating.");
+            }
             populateExpertLanguageSelector(caseData.id, caseData.applied_templates || []);
-            
-            // Display user's submitted report
-            await displayUserSubmittedReport(caseData.id);
+             // Activate the "Your Submitted Report" tab by default
+            document.querySelector('.info-tab-button[data-tab-target="#userSubmittedReportSectionContent"]')?.click();
         } else {
-            // Show report form, hide expert discussion
-            const reportFormSection = document.getElementById('reportSubmissionSection');
-            if (reportFormSection) reportFormSection.style.display = 'block';
+            if (reportSubmissionSection) reportSubmissionSection.style.display = 'block';
+            if (caseReviewTabsContainer) caseReviewTabsContainer.style.display = 'none';
             
-            // Hide user report and expert sections if they haven't submitted
-            const userReportDisplay = document.getElementById('userSubmittedReportSection');
-            if (userReportDisplay) userReportDisplay.style.display = 'none';
-            
-            const expertDiscussionSection = document.getElementById('expertDiscussionSection');
-            if (expertDiscussionSection) expertDiscussionSection.style.display = 'none';
-            
-            // Render the template form if available
             if (caseData.master_template_details) {
                 renderMasterTemplateForReporting(caseData.master_template_details, 'dynamicReportSectionsContainer');
             } else {
@@ -504,7 +490,7 @@ async function viewCase(caseId) {
                 if (reportContainer) {
                     reportContainer.innerHTML = "<p><em>No report template is associated with this case.</em></p>";
                 }
-                const submitBtn = reportFormSection?.querySelector('button[type="submit"]');
+                const submitBtn = reportSubmissionSection?.querySelector('button[type="submit"]');
                 if (submitBtn) submitBtn.style.display = 'none';
             }
         }
@@ -578,17 +564,26 @@ function setupDicomViewer(caseData) {
 // Render the base HTML for case detail view
 function renderCaseDetail(caseData) {
     const mainContent = document.getElementById('mainContent');
-    if (!mainContent) return;
-    
+    if (!mainContent) {
+        console.error("renderCaseDetail: Main content area not found.");
+        return;
+    }
+
+    // Helper to safely get display values
+    const getDisplayValue = (value, fallback = 'N/A') => value || fallback;
+    const getSubspecialtyDisplay = (data) => getDisplayValue(data.subspecialty_display || data.subspecialty);
+    const getModalityDisplay = (data) => getDisplayValue(data.modality_display || data.modality);
+    const getDifficultyDisplay = (data) => getDisplayValue(data.difficulty_display || data.difficulty);
+
     mainContent.innerHTML = `
         <div id="caseDetailView">
             <div class="case-detail-header-main">
                 <div>
-                    <h2 class="case-detail-title">${caseData.title || 'Untitled Case'}</h2>
+                    <h2 class="case-detail-title">${getDisplayValue(caseData.case_identifier || caseData.title, 'Untitled Case')}</h2>
                     <div class="case-detail-meta">
-                        Subspecialty: <span>${caseData.subspecialty_display || caseData.subspecialty || 'N/A'}</span> |
-                        Modality: <span>${caseData.modality_display || caseData.modality || 'N/A'}</span> |
-                        Difficulty: <span>${caseData.difficulty_display || caseData.difficulty || 'N/A'}</span>
+                        Subspecialty: <span>${getSubspecialtyDisplay(caseData)}</span> |
+                        Modality: <span>${getModalityDisplay(caseData)}</span> |
+                        Difficulty: <span>${getDifficultyDisplay(caseData)}</span>
                     </div>
                 </div>
                 <div>
@@ -599,22 +594,28 @@ function renderCaseDetail(caseData) {
             <div id="caseDetailContainer">
                 <div id="caseImagingColumn">
                     <h3 class="case-section-title">Imaging</h3>
-                    <div id="dicomViewerContainer" style="width:100%; height:600px; border:1px solid #ccc; background-color: #f0f0f0;">
-                        <iframe id="dicomViewerFrame" style="width:100%; height:100%; border:none;" title="DICOM Study Viewer"></iframe>
+                    <div id="dicomViewerContainer">
+                        <iframe id="dicomViewerFrame" title="DICOM Study Viewer"></iframe>
                     </div>
                     <p id="dicomLoadingMessage" style="text-align:center; margin-top:10px; display:none;">Loading DICOM images...</p>
                     <p id="dicomErrorMessage" style="color:red; text-align:center; margin-top:10px; display:none;">Could not load DICOM images.</p>
                 </div>
 
                 <div id="caseInfoColumn">
-                    <div class="case-clinical-info">
-                        <h3 class="case-section-title">Clinical Information</h3>
-                        <p><strong>Patient Age:</strong> ${caseData.patient_age || 'N/A'}</p>
-                        <p><strong>Patient Sex:</strong> ${caseData.patient_sex || 'N/A'}</p>
-                        <p>${caseData.clinical_history || 'No clinical history provided.'}</p>
+                    <div class="case-info-top-strip">
+                        <h3 class="case-section-title">Case Information</h3>
+                        <p><strong>Case ID:</strong> ${getDisplayValue(caseData.case_identifier)}</p>
+                        <p><strong>Patient Age:</strong> ${getDisplayValue(caseData.patient_age)}</p>
+                        <p><strong>Patient Sex:</strong> ${getDisplayValue(caseData.patient_sex)}</p>
+                        <p><strong>Clinical History:</strong></p>
+                        <p class="clinical-history-text">${getDisplayValue(caseData.clinical_history, 'No clinical history provided.')}</p>
+                        <div class="expert-diagnosis-highlight">
+                            <strong>Expert Diagnosis:</strong> 
+                            <span>${getDisplayValue(caseData.diagnosis)}</span>
+                        </div>
                     </div>
 
-                    <div id="reportSubmissionSection" class="case-report-template">
+                    <div id="reportSubmissionSection" class="case-report-template" style="display: block;">
                         <h3 class="case-section-title">Your Report</h3>
                         <form id="reportForm" data-case-id="${caseData.id}">
                             <div id="dynamicReportSectionsContainer">
@@ -625,50 +626,144 @@ function renderCaseDetail(caseData) {
                             </div>
                         </form>
                     </div>
+                    
+                    <div id="caseReviewTabsContainer" style="display: none;">
+                        <div class="info-tabs">
+                            <button class="info-tab-button active" data-tab-target="#userSubmittedReportSectionContent">Your Submitted Report</button>
+                            <button class="info-tab-button" data-tab-target="#aiFeedbackTabContent">AI Feedback</button>
+                            <button class="info-tab-button" data-tab-target="#expertReportTabContent">Expert Report</button>
+                        </div>
 
-                    <div id="userSubmittedReportSection" class="user-submitted-report-content" style="display: none;">
-                        <h3 class="case-section-title">Your Submitted Report</h3>
-                        <p>Loading your report...</p>
+                        <div id="tabContentContainer">
+                            <div id="userSubmittedReportSectionContent" class="info-tab-content active">
+                                <p>Loading your report...</p>
+                            </div>
+
+                            <div id="aiFeedbackTabContent" class="info-tab-content">
+                                <h4 class="tab-content-title">AI Feedback Analysis</h4>
+                                <div id="aiFeedbackDisplayArea">
+                                    <p>Request AI feedback to see analysis.</p>
+                                </div>
+                                <div id="aiFeedbackRatingSection" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display:none;">
+                                    <h4>Rate this AI Feedback:</h4>
+                                    <div class="stars">
+                                        <span>☆</span><span>☆</span><span>☆</span><span>☆</span><span>☆</span>
+                                    </div>
+                                    <textarea placeholder="Optional comments..." style="width:100%; min-height:60px; margin-top:5px;"></textarea>
+                                    <button class="btn btn-sm btn-secondary" style="margin-top:5px;">Submit Rating</button>
+                                </div>
+                            </div>
+
+                            <div id="expertReportTabContent" class="info-tab-content">
+                                <h4 class="tab-content-title">Expert Report</h4>
+                                <div id="expertLanguageSelector" style="margin-bottom:10px;"></div>
+                                <div id="expertTemplateContentContainer">
+                                    <p>Select a language to view expert analysis.</p>
+                                </div>
+                                <p><strong>Key Findings (Expert):</strong> ${getDisplayValue(caseData.key_findings)}</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div id="expertDiscussionSection" class="expert-analysis-content" style="display: none;">
-                        <h3 class="case-section-title">Expert Analysis</h3>
-                        <div id="expertLanguageSelector" style="margin-bottom:10px;"></div>
-                        <div id="expertTemplateContentContainer">
-                            <p>Select a language to view expert analysis.</p>
-                        </div>
-                        <p><strong>Key Findings (Expert):</strong> ${caseData.key_findings || 'Not available.'}</p>
-                        <p><strong>Diagnosis (Expert):</strong> ${caseData.diagnosis || 'Not available.'}</p>
-                        <p><strong>Discussion (Expert):</strong> ${caseData.discussion || 'Not available.'}</p>
+                    <div class="case-info-bottom-strip">
+                        <h3 class="case-section-title">References</h3>
+                        <p>${getDisplayValue(caseData.references, 'No references provided.')}</p>
                     </div>
                 </div>
             </div>
         </div>
     `;
     
-    // Add event listener for back button
     document.getElementById('backToCasesBtn')?.addEventListener('click', () => {
-        // Clear URL hash when going back to case list
         window.location.hash = '';
         loadCaseList();
     });
     
-    // Add form submit event handler
     const reportForm = document.getElementById('reportForm');
     if (reportForm) {
         reportForm.addEventListener('submit', handleReportSubmit);
     }
+
+    setupInfoTabs();
 }
 
-// Display user's submitted report with AI feedback integration
-async function displayUserSubmittedReport(caseId) {
-    const userReportContainer = document.getElementById('userSubmittedReportSection');
-    if (!userReportContainer) return;
 
-    userReportContainer.innerHTML = `
-        <h3 class="case-section-title" style="color: #0056b3;">Your Submitted Report</h3>
+// Function to handle tab switching for the info column
+function setupInfoTabs() {
+    const tabContainer = document.getElementById('caseReviewTabsContainer');
+    if (!tabContainer) {
+        console.warn("setupInfoTabs: Tab container '#caseReviewTabsContainer' not found. Tabs cannot be initialized.");
+        return;
+    }
+
+    const tabButtons = tabContainer.querySelectorAll('.info-tab-button');
+    const tabContents = tabContainer.querySelectorAll('.info-tab-content');
+
+    if (tabButtons.length === 0) {
+        console.warn("setupInfoTabs: No tab buttons found with class '.info-tab-button' inside '#caseReviewTabsContainer'.");
+        return;
+    }
+    if (tabContents.length === 0) {
+        console.warn("setupInfoTabs: No tab content areas found with class '.info-tab-content' inside '#caseReviewTabsContainer'.");
+        return;
+    }
+    console.log(`setupInfoTabs: Found ${tabButtons.length} buttons and ${tabContents.length} content areas. Attaching listeners...`);
+
+    tabButtons.forEach(button => {
+        // Prevent attaching multiple listeners if this function is somehow called more than once
+        if (button.dataset.listenerAttached === 'true') {
+            // console.log("Listener already attached to button:", button.textContent.trim());
+            return;
+        }
+        button.dataset.listenerAttached = 'true'; // Mark as listener attached
+
+        button.addEventListener('click', () => {
+            const targetTabSelector = button.dataset.tabTarget; // Should be like "#someId"
+            console.log("Tab button clicked. Button text:", button.textContent.trim(), "Target selector:", targetTabSelector);
+
+            if (!targetTabSelector || !targetTabSelector.startsWith('#')) {
+                console.error("Button is missing a valid data-tab-target attribute (must start with #):", button);
+                return;
+            }
+
+            const targetContentId = targetTabSelector.substring(1); // Remove '#'
+
+            // Deactivate all buttons
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            // Activate the clicked button
+            button.classList.add('active');
+            console.log("Activated button:", button.textContent.trim());
+
+            let targetFound = false;
+            // Hide all content areas, then show the target one
+            tabContents.forEach(content => {
+                if (content.id === targetContentId) {
+                    content.classList.add('active'); // Assumes CSS handles display:block for .active
+                    targetFound = true;
+                    console.log("Showing content for:", content.id);
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+
+            if (!targetFound) {
+                console.warn("No content area found for target ID:", targetContentId);
+            }
+        });
+        console.log("Listener attached to button:", button.textContent.trim());
+    });
+}
+// Display user's submitted report with AI feedback integration
+async function displayUserSubmittedReport(caseId, targetContainerElement) { // Added targetContainerElement parameter
+    if (!targetContainerElement) {
+        console.error("Target container for user's submitted report not provided.");
+        return;
+    }
+
+    targetContainerElement.innerHTML = `
+        <h4 class="tab-content-title">Your Submitted Report</h4>
         <p>Loading your submitted report...</p>`;
-    userReportContainer.style.display = 'block';
+    // targetContainerElement.style.display = 'block'; // Display is handled by tab click
 
     try {
         const myReportsResponse = await apiRequest('/cases/my-reports/');
@@ -687,7 +782,7 @@ async function displayUserSubmittedReport(caseId) {
         );
 
         if (reportForThisCase && reportForThisCase.structured_content && Array.isArray(reportForThisCase.structured_content)) {
-            let html = `<h3 class="case-section-title" style="color: #0056b3;">Your Submitted Report</h3>`;
+            let html = `<h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>`;
             
             if (reportForThisCase.submitted_at) {
                 html += `<p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
@@ -706,42 +801,39 @@ async function displayUserSubmittedReport(caseId) {
                         <div style="padding-left: 10px; white-space: pre-wrap; word-wrap: break-word;">${sectionContent}</div>
                     </li>`;
             });
-            
             html += '</ul>';
 
-            // Add AI Feedback button and container
+            // Add AI Feedback button - this button will now live within the "Your Submitted Report" tab
+            // It will trigger loading feedback into the "AI Feedback" tab.
             html += `
                 <div style="text-align: right; margin-top: 20px; padding-top:15px; border-top: 1px solid #ddd;">
                     <button class="btn btn-secondary btn-sm get-ai-feedback-btn" data-report-id="${reportForThisCase.id}">
-                        Get AI Feedback
+                        Get/Refresh AI Feedback
                     </button>
-                </div>
-                <div id="aiFeedbackContainerForReport_${reportForThisCase.id}" class="ai-feedback-container" 
-                     style="margin-top: 15px; padding: 15px; background-color: #fff9e6; border: 1px solid #ffecb3; 
-                            border-radius: 6px; display:none;">
-                    <h4 style="color: #b08c00; margin-top:0; margin-bottom:10px;">AI Feedback:</h4>
-                    <p class="ai-feedback-loading-message">Loading feedback...</p>
-                    <div class="ai-feedback-content"></div>
-                </div>
-            `;
+                </div>`;
+            // Note: The #aiFeedbackContainerForReport_${reportForThisCase.id} is now #aiFeedbackDisplayArea in a different tab.
+            // The requestAIFeedback function will need to target that.
 
-            userReportContainer.innerHTML = html;
+            targetContainerElement.innerHTML = html;
 
-            // Add event listener for AI feedback button
-            const aiFeedbackBtn = userReportContainer.querySelector(`.get-ai-feedback-btn[data-report-id="${reportForThisCase.id}"]`);
+            const aiFeedbackBtn = targetContainerElement.querySelector(`.get-ai-feedback-btn[data-report-id="${reportForThisCase.id}"]`);
             if (aiFeedbackBtn) {
-                aiFeedbackBtn.addEventListener('click', () => requestAIFeedback(reportForThisCase.id));
+                aiFeedbackBtn.addEventListener('click', () => {
+                    requestAIFeedback(reportForThisCase.id);
+                    // Optionally, switch to the AI Feedback tab
+                    document.querySelector('.info-tab-button[data-tab-target="#aiFeedbackTabContent"]')?.click();
+                });
             }
 
         } else {
-            userReportContainer.innerHTML = `
-                <h3 class="case-section-title" style="color: #0056b3;">Your Submitted Report</h3>
+            targetContainerElement.innerHTML = `
+                <h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>
                 <p>You have not submitted a report for this case, or your report could not be loaded.</p>`;
         }
     } catch (error) {
         console.error("Error fetching or displaying user's submitted report:", error);
-        userReportContainer.innerHTML = `
-            <h3 class="case-section-title" style="color: #0056b3;">Your Submitted Report</h3>
+        targetContainerElement.innerHTML = `
+            <h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>
             <p style="color:red;">Error loading your report: ${error.message || 'Unknown error'}</p>`;
     }
 }

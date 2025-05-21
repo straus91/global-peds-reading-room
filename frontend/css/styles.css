@@ -8,169 +8,367 @@
     --danger: #e74c3c;
     --warning: #f39c12;
     --success: #27ae60;
+    --medium-gray: #dee2e6; 
+    --dark-gray: #6c757d;   
+    --accent-light: #fff3cd; 
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-body { background-color: var(--light); color: var(--dark); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; }
-.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+}
 
-/* Header */
-header { background-color: var(--white); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); position: fixed; width: 100%; top: 0; z-index: 100; }
-.navbar { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; min-height: 70px; }
-.logo { display: flex; align-items: center; gap: 12px; }
-.logo img { /* Height set inline */ }
-.logo h1 { font-size: 22px; color: var(--primary); margin: 0; }
-.nav-links { display: flex; gap: 20px; align-items: center; }
-.nav-links a { text-decoration: none; color: var(--dark); font-weight: 500; transition: color 0.3s; padding: 5px 0; }
+html, body {
+    height: 100%; 
+    overflow: hidden; 
+}
+
+body { 
+    background-color: var(--light); 
+    color: var(--dark); 
+    line-height: 1.6; 
+    display: flex; 
+    flex-direction: column; 
+    height: 100%; 
+}
+
+.container { 
+    width: 100%; 
+    max-width: 1200px; 
+    margin: 0 auto; 
+    padding: 0 20px; 
+}
+
+@media (min-width: 1201px) {
+    .container {
+        max-width: 95%; 
+    }
+}
+
+header { 
+    background-color: var(--white); 
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); 
+    width: 100%; 
+    z-index: 1000; 
+    flex-shrink: 0; 
+}
+.navbar { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 10px 0; 
+    min-height: 60px; 
+}
+.logo { display: flex; align-items: center; gap: 10px; } 
+.logo img { height: 35px; width: auto; } 
+.logo h1 { font-size: 20px; color: var(--primary); margin: 0; } 
+
+.nav-links { display: flex; gap: 15px; align-items: center; } 
+.nav-links a { text-decoration: none; color: var(--dark); font-weight: 500; transition: color 0.3s; padding: 5px 0; font-size: 0.95em; }
 .nav-links a:hover, .nav-links a.active { color: var(--primary); }
 
-/* User Menu */
-.user-menu { position: relative; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 0; }
-.dropdown-content { display: none; position: absolute; right: 0; top: 95%; background-color: var(--white); min-width: 180px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 6px; z-index: 101; padding-top: 5px; opacity: 0; visibility: hidden; transform: translateY(5px); transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out; }
-.dropdown-content a { padding: 12px 16px; display: block; text-decoration: none; color: var(--dark); transition: background-color 0.3s; white-space: nowrap; }
+.user-menu { position: relative; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 0; } 
+.user-menu img { width: 30px; height: 30px; } 
+.user-menu span { font-size: 0.9em; }
+
+.dropdown-content { display: none; position: absolute; right: 0; top: 95%; background-color: var(--white); min-width: 160px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 6px; z-index: 101; padding-top: 5px; opacity: 0; visibility: hidden; transform: translateY(5px); transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out; }
+.dropdown-content a { padding: 10px 14px; display: block; text-decoration: none; color: var(--dark); transition: background-color 0.3s; white-space: nowrap; font-size: 0.9em;}
 .dropdown-content a:hover { background-color: #f5f5f5; }
 .user-menu:hover .dropdown-content { display: block; opacity: 1; visibility: visible; transform: translateY(0); }
 
-/* Buttons */
 .btn { background-color: var(--primary); color: var(--white); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; transition: background-color 0.3s, box-shadow 0.2s; text-decoration: none; display: inline-block; text-align: center; line-height: 1.4; }
 .btn:hover { background-color: #3a76d8; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 .btn-secondary { background-color: var(--white); color: var(--primary); border: 1px solid var(--primary); }
 .btn-secondary:hover { background-color: #f0f5ff; }
+.btn-sm { padding: 5px 10px; font-size: 0.85em; }
 
-/* Main Content */
-main { flex: 1; padding-top: 100px; padding-bottom: 50px; }
+main { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column;
+    overflow: hidden; /* Prevent main itself from scrolling */
+    padding-top: 10px; 
+    padding-bottom: 10px; 
+    min-height: 0; /* Important for flex layouts */
+}
 
-/* Toast Notifications */
-.toast-container { position: fixed; top: 85px; right: 20px; z-index: 1000; width: auto; max-width: 350px; }
+main > .container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Important for flex layouts */
+    overflow: hidden;
+}
+
+
+.toast-container { position: fixed; top: 75px; right: 20px; z-index: 2000; width: auto; max-width: 350px; }
 .toast { background-color: var(--white); border-left: 4px solid var(--primary); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 15px 20px; border-radius: 4px; margin-bottom: 10px; display: flex; align-items: center; opacity: 0.95; animation: slideInRight 0.4s ease-out; }
 .toast.success { border-left-color: var(--success); }
 .toast.warning { border-left-color: var(--warning); }
 .toast.error { border-left-color: var(--danger); }
 @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 0.95; } }
 
-/* Footer */
-footer { background-color: var(--dark); color: var(--white); padding: 40px 0 20px; margin-top: auto; }
-.footer-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 30px; }
-.footer-section h3 { margin-bottom: 15px; color: var(--accent); font-size: 18px; }
-.footer-links { list-style: none; padding: 0; }
-.footer-links li { margin-bottom: 8px; }
-.footer-links a { color: #ddd; text-decoration: none; transition: color 0.3s; }
-.footer-links a:hover { color: var(--accent); }
-.footer-section p { color: #ddd; }
-.footer-bottom { text-align: center; padding-top: 20px; border-top: 1px solid #444; font-size: 14px; color: #aaa; }
+/* --- Case List Page Specific Styles --- */
+.case-list-header { margin-bottom: 15px; flex-shrink: 0; }
+.filter-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; padding: 10px; background-color: #fdfdfd; border-radius: 6px; border: 1px solid #eee; flex-shrink: 0; }
+.filter-group { display: flex; align-items: center; gap: 5px; }
+.filter-group label { font-weight: 500; white-space: nowrap; color: #555; font-size: 0.9em;}
+.filter-group select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 130px; background-color: var(--white); font-size: 0.9em; }
+.filter-container .btn { padding: 6px 12px; font-size: 0.9em;}
+.loading-indicator { text-align: center; padding: 20px; font-style: italic; color: #777; flex-shrink: 0; }
 
-/* --- Case View General --- */
-#casesListView .cases-header h2 { margin: 0; }
+.case-list-split-view { display: flex; gap: 20px; margin-top: 15px; flex-grow: 1; min-height: 0; overflow: hidden;}
+.case-grid-panel { flex: 1 1 40%; min-width: 0; border: 1px solid #eee; border-radius: 6px; padding: 10px; background-color: var(--white); display: flex; flex-direction: column; overflow: hidden;}
+.case-table-panel { flex: 1 1 58%; min-width: 0; border: 1px solid #eee; border-radius: 6px; padding: 10px; background-color: var(--white); display: flex; flex-direction: column; overflow: hidden;}
+.case-grid-panel h3, .case-table-panel h3 { margin-top: 0; margin-bottom: 10px; font-size: 1em; font-weight: 600; color: var(--dark); border-bottom: 1px solid #ddd; padding-bottom: 6px; flex-shrink: 0; }
 
-/* Filter Container */
-.filter-container { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; padding: 15px; background-color: #fdfdfd; border-radius: 6px; border: 1px solid #eee; }
-.filter-group { display: flex; align-items: center; gap: 8px; }
-.filter-group label { font-weight: 500; white-space: nowrap; color: #555; }
-.filter-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; min-width: 150px; background-color: var(--white); font-size: 14px; }
-.filter-container .btn { padding: 8px 20px; }
-
-/* --- Split View Layout START --- */
-.split-view-container { display: flex; gap: 25px; margin-top: 20px; }
-
-.case-grid-pane {
-    /* ***** MODIFIED: Make grid pane narrower ***** */
-    flex: 1 1 40%; /* Adjust ratio as needed (e.g., 40% for grid) */
-    min-width: 0; border: 1px solid #eee; border-radius: 6px; padding: 15px;
-}
-
-.case-table-pane {
-    /* ***** MODIFIED: Make table pane wider ***** */
-    flex: 1 1 60%; /* Adjust ratio as needed (e.g., 60% for table) */
-    min-width: 0; border: 1px solid #eee; border-radius: 6px; padding: 15px; display: flex; flex-direction: column;
-}
-.case-grid-pane h3, .case-table-pane h3 { margin-top: 0; margin-bottom: 15px; font-size: 16px; font-weight: 600; color: var(--dark); border-bottom: 1px solid #ddd; padding-bottom: 8px; flex-shrink: 0; }
-/* --- Split View Layout END --- */
-
-/* Case Grid Styles */
-.case-grid {
-    display: grid;
-    /* ***** MODIFIED: Smaller min width for thumbnails ***** */
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Smaller minimum */
-    gap: 15px; /* Slightly smaller gap */
-}
-.case-card { background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; display: flex; flex-direction: column; }
-.case-card:hover { transform: translateY(-5px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
-.case-image { height: 120px; /* ***** MODIFIED: Smaller image height ***** */ background-color: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px; overflow: hidden; }
+.case-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
+.case-card { background-color: var(--white); border-radius: 6px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
+.case-card:hover { transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); }
+.case-image { height: 100px; background-color: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; overflow: hidden; }
 .case-image img { width: 100%; height: 100%; object-fit: cover; }
-.case-content { padding: 12px; /* Slightly smaller padding */ flex-grow: 1; display: flex; flex-direction: column; }
-.case-title { margin-bottom: 8px; font-size: 15px; /* Slightly smaller */ color: var(--dark); line-height: 1.3; }
-.case-info { margin-bottom: 10px; font-size: 12px; /* Slightly smaller */ color: #666; flex-grow: 1; }
-.case-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
-.tag { background-color: rgba(74, 134, 232, 0.1); color: var(--primary); font-size: 10px; /* Slightly smaller */ padding: 3px 6px; border-radius: 4px; font-weight: 500; }
+.case-content { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; }
+.case-title { margin-bottom: 6px; font-size: 0.95em; color: var(--dark); line-height: 1.3; }
+.case-info { margin-bottom: 8px; font-size: 0.8em; color: #666; flex-grow: 1; }
+.case-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.tag { background-color: rgba(74, 134, 232, 0.1); color: var(--primary); font-size: 0.75em; padding: 2px 5px; border-radius: 3px; font-weight: 500; }
 .tag.beginner { background-color: rgba(106, 168, 79, 0.1); color: var(--secondary); }
 .tag.intermediate { background-color: rgba(241, 194, 50, 0.1); color: var(--accent); }
 .tag.advanced { background-color: rgba(204, 0, 0, 0.1); color: #cc0000; }
-.case-card .btn { align-self: flex-start; margin-top: auto; padding: 5px 10px; font-size: 12px; } /* Smaller button */
+.case-card .btn { align-self: flex-start; margin-top: auto; padding: 4px 8px; font-size: 0.8em; }
 
-/* --- Case Table Styles START --- */
-.case-list-table-wrapper { overflow-x: auto; flex-grow: 1; }
-.case-list-table {
+.case-table-container { overflow-y: auto; flex-grow: 1; }
+#caseTable { width: 100%; border-collapse: collapse; table-layout: auto; }
+#caseTable th, #caseTable td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; font-size: 0.9em; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; }
+#caseTable th { background-color: #f2f2f2; font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+#caseTable th:hover { background-color: #e8e8e8; }
+#caseTable tbody tr:hover { background-color: #f9f9f9; }
+#caseTable tbody td { color: #333; }
+#caseTable .actions-cell { text-align: center; white-space: nowrap; }
+#caseTable .actions-cell .btn { padding: 3px 6px; font-size: 0.8em; margin: 0 2px; }
+
+/* --- Case Detail Page Styles --- */
+.case-detail-header-main { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px; gap: 15px; flex-wrap: wrap; flex-shrink: 0; }
+.case-detail-title { font-size: 1.25em; color: var(--dark); margin-bottom: 5px; } 
+.case-detail-meta { color: #666; margin-bottom: 8px; font-size: 0.85em; } 
+
+#caseDetailView {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#caseDetailContainer {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
     width: 100%;
-    border-collapse: collapse;
-    /* ***** MODIFIED: Reverted to auto layout ***** */
-    table-layout: auto;
+    flex-grow: 1;
+    overflow: hidden;
+    min-height: 0;
 }
-.case-list-table th,
-.case-list-table td {
-    border: 1px solid #ddd;
-    padding: 10px 12px;
-    text-align: left;
-    font-size: 14px;
-    vertical-align: middle;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    /* ***** MODIFIED: Removed fixed widths ***** */
-    /* width: auto; */ /* Let browser handle width */
-}
-.case-list-table th { background-color: #f2f2f2; font-weight: 600; cursor: pointer; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
-.case-list-table th:hover { background-color: #e8e8e8; }
-.case-list-table tbody tr:hover { background-color: #f9f9f9; }
-.case-list-table tbody td { color: #333; }
-.case-list-table .actions-cell { text-align: center; white-space: nowrap; }
-.case-list-table .actions-cell .btn { padding: 4px 8px; font-size: 12px; margin: 0 2px; }
-.case-list-table .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #ccc; border: 1px solid #bbb; }
-.case-list-table .status-indicator.yes { background-color: var(--success); border-color: var(--secondary); }
-.case-list-table .status-indicator.no { background-color: #eee; border: 1px solid #ccc; }
-/* --- Case Table Styles END --- */
 
-/* Case Detail Styles */
-.case-detail { background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); padding: 30px; margin-bottom: 30px; }
-.case-detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; gap: 20px; flex-wrap: wrap; }
-.case-detail-title { font-size: 24px; color: var(--dark); margin-bottom: 10px; }
-.case-detail-meta { color: #666; margin-bottom: 15px; font-size: 14px; }
-.case-clinical-info, .image-viewer-area, .case-report-template, .case-discussion { margin-bottom: 30px; }
-.case-section-title { font-size: 18px; color: var(--primary); margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; font-weight: 600; }
-.image-placeholder { background-color: #f5f5f5; border: 1px dashed #ccc; border-radius: 6px; padding: 40px; text-align: center; color: #777; margin-bottom: 20px; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.case-report-template { background-color: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 25px; margin-bottom: 30px; }
-.report-section { margin-bottom: 20px; }
-.report-section label { display: block; font-weight: 500; margin-bottom: 8px; font-size: 14px; color: #444; }
-.report-section textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 4px; min-height: 100px; resize: vertical; font-size: 14px; }
-.form-actions { margin-top: 30px; display: flex; justify-content: flex-end; gap: 10px; }
+#caseImagingColumn {
+    flex: 1 1 55%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#caseInfoColumn {
+    flex: 1 1 43%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* This makes the right column scrollable */
+    max-height: 100%; /* Take full height available */
+}
+
+
+#dicomViewerContainer {
+    width: 100%;
+    flex-grow: 1;
+    min-height: 300px;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    position: relative;
+}
+#dicomViewerFrame { width: 100%; height: 100%; border: none; }
+
+#caseImagingColumn .case-section-title,
+#caseInfoColumn .case-section-title {
+    flex-shrink: 0;
+    margin-top: 0;
+    font-size: 1em; 
+    color: var(--primary);
+    margin-bottom: 8px; 
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px; 
+    font-weight: 600;
+}
+
+.case-info-top-strip,
+.case-info-bottom-strip,
+#reportSubmissionSection,
+#caseReviewTabsContainer {
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #e7e7e7;
+    flex-shrink: 0; 
+}
+#caseReviewTabsContainer {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+.case-info-bottom-strip { margin-top: 0; }
+
+.clinical-history-text {
+    white-space: pre-wrap; 
+    background-color: var(--white);
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    max-height: 80px; 
+    overflow-y: auto;
+    margin-top: 5px;
+    font-size: 0.85em;
+}
+.expert-diagnosis-highlight {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: var(--accent-light); 
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+.expert-diagnosis-highlight strong { color: var(--dark); }
+.expert-diagnosis-highlight span { font-weight: 500; }
+
+.report-section { margin-bottom: 10px; }
+.report-section label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 0.9em; color: #444; }
+.report-section textarea { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; min-height: 60px; resize: vertical; font-size: 0.9em; }
+.form-actions { margin-top: 10px; display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Info Tabs Styling for Case Viewer */
+#caseReviewTabsContainer .info-tabs { 
+    display: flex;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 8px; 
+    flex-shrink: 0;
+}
+#caseReviewTabsContainer .info-tab-button {
+    padding: 6px 10px; 
+    cursor: pointer; border: none; background-color: transparent; font-size: 0.9em; 
+    color: var(--primary); border-bottom: 3px solid transparent; margin-bottom: -1px; 
+}
+#caseReviewTabsContainer .info-tab-button:hover { background-color: #e9f2ff; }
+#caseReviewTabsContainer .info-tab-button.active { border-bottom-color: var(--primary); font-weight: 600; color: var(--dark); }
+
+#tabContentContainer {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 5px 5px 5px 0;
+}
+
+#caseReviewTabsContainer .info-tab-content { display: none; }
+#caseReviewTabsContainer .info-tab-content.active { display: block; animation: fadeInTab 0.2s ease-in-out; }
+@keyframes fadeInTab { from { opacity: 0; } to { opacity: 1; } } 
+
+.tab-content-title { font-size: 1em; color: var(--dark); margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #eee; }
+#aiFeedbackDisplayArea {
+    background-color: var(--white); padding: 8px; border-radius: 4px; border: 1px solid #ddd;
+    min-height: 60px; white-space: pre-wrap; font-family: monospace; font-size: 0.85em;
+}
+.feedback-section { margin-bottom: 8px; }
+.feedback-section strong { display: block; margin-bottom: 2px; font-size: 0.95em; }
+.feedback-section ul { list-style-type: disc; padding-left: 18px; }
+.feedback-section li { margin-bottom: 4px; font-size: 0.9em;}
+.feedback-critical { color: var(--danger); border-left: 2px solid var(--danger); padding-left: 6px; }
+.feedback-moderate { color: var(--warning); border-left: 2px solid var(--warning); padding-left: 6px; }
+.feedback-consistent { color: #555; }
+
+#aiFeedbackRatingSection { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee;}
+#aiFeedbackRatingSection .stars span { font-size: 1.3em; color: #ccc; cursor: pointer; margin-right: 1px; }
+#aiFeedbackRatingSection .stars span:hover, #aiFeedbackRatingSection .stars span.rated { color: var(--accent); }
+#aiFeedbackRatingSection textarea {font-size: 0.85em; min-height: 40px;}
+#aiFeedbackRatingSection button {font-size: 0.8em; padding: 4px 8px;}
+
+/* Pagination Styles */
+.pagination { display: flex; justify-content: center; align-items: center; margin-top: 15px; padding: 8px 0; gap: 6px; flex-shrink: 0; }
+.pagination.has-pages { display: flex; }
+.pagination .pagination-btn, .pagination .pagination-page { padding: 6px 10px; border: 1px solid var(--medium-gray); border-radius: 4px; background-color: var(--white); color: var(--primary); text-decoration: none; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s; font-size: 0.85rem; line-height: 1.2; }
+.pagination .pagination-btn:disabled { color: var(--dark-gray); background-color: var(--light); border-color: var(--medium-gray); cursor: not-allowed; opacity: 0.6; }
+.pagination .pagination-page.active { background-color: var(--primary); border-color: var(--primary); color: var(--white); font-weight: 600; cursor: default; }
+.pagination .pagination-btn:not(:disabled):hover, .pagination .pagination-page:not(.active):hover { background-color: #e9ecef; border-color: #adb5bd; }
+.pagination .page-info { padding: 6px 10px; color: var(--dark-gray); font-size: 0.85rem; }
 
 /* Responsive Styles */
-@media (max-width: 992px) { /* Tablet and below */
-     .split-view-container { flex-direction: column; gap: 25px; }
-     .case-grid-pane, .case-table-pane { flex-basis: auto; /* Let them stack naturally */ }
+@media (max-width: 992px) { 
+    .case-list-split-view,
+    #caseDetailContainer {
+        flex-direction: column; 
+    }
+    .case-grid-panel, .case-table-panel,
+    #caseImagingColumn, #caseInfoColumn {
+        flex-basis: auto; 
+        width: 100%;
+        max-height: none; 
+        overflow-y: auto; /* Allow columns to scroll when stacked */
+    }
+    #caseInfoColumn { 
+        overflow-y: auto; 
+        max-height: 60vh; 
+    }
 }
-@media (max-width: 768px) { /* Mobile */
-    .navbar { flex-direction: column; padding: 10px 0; align-items: flex-start; }
-    .nav-links { margin-top: 15px; width: 100%; justify-content: space-around; }
+@media (max-width: 768px) { 
+    .navbar { flex-direction: column; padding: 8px 0; align-items: flex-start; min-height: auto;}
+    .nav-links { margin-top: 10px; width: 100%; justify-content: space-around; font-size: 0.9em;}
     .filter-container { flex-direction: column; align-items: stretch; }
-    .filter-group { width: auto; }
-    .filter-group select { width: auto; flex-grow: 1; }
-    .case-detail-header { flex-direction: column; align-items: stretch; }
-    main { padding-top: 80px; }
+    .filter-group, .filter-group select { width: 100%; }
+    .case-detail-header-main { flex-direction: column; align-items: stretch; }
 }
 @media (max-width: 576px) {
-    .nav-links { gap: 10px; font-size: 14px; }
-    .filter-container { padding: 10px; }
-    .case-detail { padding: 20px; }
+    .nav-links { gap: 8px; font-size: 0.85em; }
+    .filter-container { padding: 8px; }
+    #caseImagingColumn, #caseInfoColumn { padding: 8px; }
+    .clinical-history-text { max-height: 80px; font-size: 0.8em; }
     .toast-container { right: 10px; max-width: calc(100% - 20px); }
-    .case-list-table th, .case-list-table td { padding: 8px; font-size: 13px; }
-    /* Keep table layout auto on smallest screens */
+    #caseTable th, #caseTable td { padding: 6px; font-size: 0.8em; }
+    .case-detail-title { font-size: 1.1em; }
+    .case-detail-meta { font-size: 0.8em; }
+    #caseImagingColumn .case-section-title, #caseInfoColumn .case-section-title { font-size: 0.95em; }
 }
+
+/* Simplified Footer */
+footer { 
+    background-color: var(--dark); 
+    color: var(--white); 
+    padding: 6px 0; 
+    margin-top: auto; 
+    flex-shrink: 0; 
+}
+.footer-content-simplified {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px; 
+    margin-bottom: 2px; 
+}
+.footer-section-simplified .footer-links { list-style: none; padding: 0; margin: 0; }
+.footer-section-simplified .footer-links li,
+.footer-section-simplified .contact-info { display: inline-block; margin-right: 8px; font-size: 0.75em; } 
+.footer-section-simplified .contact-info a,
+.footer-section-simplified .footer-links a { color: #ddd; text-decoration: none; transition: color 0.3s; font-size: 0.8em; } 
+.footer-section-simplified .contact-info a:hover,
+.footer-section-simplified .footer-links a:hover { color: var(--accent); }
+.footer-section-simplified .contact-info { color: #ddd; font-size: 0.8em; margin: 0; }
+.footer-bottom { text-align: center; padding-top: 2px; border-top: 1px solid #444; font-size: 10px; color: #aaa; }
