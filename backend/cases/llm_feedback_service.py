@@ -20,8 +20,15 @@ else:
     print("WARNING: llm_feedback_service.py - GEMINI_API_KEY environment variable not found at module load.")
 # --- End Module-level configuration ---
 
-def format_report_for_llm(structured_content_list):
-    """Helper to format structured report content into a readable string for the LLM."""
+def format_report_for_llm(structured_content_list, highlight_different_sections=False, identical_section_ids=None):
+    """
+    Helper to format structured report content into a readable string for the LLM.
+    
+    Args:
+        structured_content_list: List of section content dictionaries
+        highlight_different_sections: If True, will mark sections that differ from expert report
+        identical_section_ids: Set of section IDs that are identical to expert report (used with highlight_different_sections)
+    """
     if not structured_content_list:
         return "No content provided for this report."
     
@@ -40,9 +47,17 @@ def format_report_for_llm(structured_content_list):
     for section in sorted_sections:
         section_name = section.get('section_name', 'Unnamed Section')
         content = section.get('content', '').strip()
+        section_id = section.get('master_template_section_id')
+        
         if not content: 
             content = "N/A" # Represent empty sections clearly
-        report_text.append(f"Section: {section_name}\nContent: {content}\n")
+            
+        # Mark if this section is identical to expert report (for optimization)
+        if highlight_different_sections and identical_section_ids and section_id in identical_section_ids:
+            # If section is identical, mark it for the LLM
+            report_text.append(f"Section: {section_name} [IDENTICAL TO EXPERT REPORT]\nContent: {content}\n")
+        else:
+            report_text.append(f"Section: {section_name}\nContent: {content}\n")
     
     return "\n".join(report_text) if report_text else "No content available after formatting."
 
@@ -92,7 +107,8 @@ def get_feedback_from_llm(
     case_expert_key_findings="", # From Case.key_findings
     case_expert_diagnosis="",    # From Case.diagnosis
     case_expert_discussion="",   # From Case.discussion
-    case_difficulty=""
+    case_difficulty="",
+    identical_section_ids=None   # NEW: Set of section IDs that are identical to expert report
     ):
     global IS_GEMINI_CONFIGURED
 
@@ -100,7 +116,12 @@ def get_feedback_from_llm(
         print("Gemini API was not configured successfully. API key might be missing or invalid.")
         return "AI feedback service is not configured correctly (API key issue or configuration error)."
 
-    user_report_str = format_report_for_llm(user_report_sections)
+    # Format reports, highlighting identical sections to optimize LLM focus
+    user_report_str = format_report_for_llm(
+        user_report_sections, 
+        highlight_different_sections=True, 
+        identical_section_ids=identical_section_ids
+    )
     expert_report_str = format_report_for_llm(expert_report_sections)
     pre_analysis_str = format_pre_analysis_for_llm(programmatic_pre_analysis_summary)
     
@@ -139,13 +160,16 @@ AUTOMATED PRE-ANALYSIS SUMMARY:
 
 FEEDBACK INSTRUCTIONS:
 
+You will provide two separate feedback components:
+
+PART 1 - DISCREPANCY LIST: 
 Provide a structured list of ONLY the issues and discrepancies in this exact format:
 
 1. CRITICAL DISCREPANCIES:
    List only findings that would affect patient care or represent a significant diagnostic error. For each:
    - State exactly what was missed, incorrectly identified, or inappropriately emphasized
    - Begin each point with "You..." to address the trainee directly
-   - Provide ONE brief sentence (15 words max) explaining why this is clinically important
+   - Provide ONE brief sentence (15 words max) explaining why this is radiologically important
    - Include any conceptual errors (e.g., misidentifying organ/structure or misclassifying pathology)
 
 2. NON-CRITICAL DISCREPANCIES:
@@ -153,7 +177,7 @@ Provide a structured list of ONLY the issues and discrepancies in this exact for
    - State the difference concisely, starting with "You..."
    - No explanation needed unless absolutely necessary for clarity
 
-Rules:
+Rules for Part 1:
 - Do NOT include any introduction, conclusion, tips, or suggestions for improvement
 - Do NOT comment on style differences, only substantive content differences
 - Keep explanations extremely brief and focused on clinical significance
@@ -163,13 +187,38 @@ Rules:
 - Pay special attention to contradictions within the trainee's report itself
 - Identify any misattributions (incorrect organ/structure identification) or misclassifications (wrong pathology type)
 
+PART 2 - SECTION-BY-SECTION SEVERITY ASSESSMENT:
+After the discrepancy list, add the heading "SECTION SEVERITY ASSESSMENT:" and create a structured JSON-like list that evaluates each section with exactly this format:
+
+SECTION SEVERITY ASSESSMENT:
+Section: [Section Name]
+Severity: [Critical|Moderate|Consistent]
+Reason: [1-2 sentence explanation]
+
+Section: [Section Name]
+Severity: [Critical|Moderate|Consistent]
+Reason: [1-2 sentence explanation]
+
+(and so on for each section)
+
+Rules for Part 2:
+- The severity levels must be EXACTLY one of: "Critical", "Moderate", or "Consistent" (no variations)
+- "Critical" = Major discrepancy that could impact patient care
+- "Moderate" = Notable difference but would not affect immediate care 
+- "Consistent" = Section aligns well with expert assessment
+- Always include EVERY section from the trainee's report
+- For each section, explain why you assigned that severity in 1-2 sentences maximum
+- Sections with missing critical findings should be marked as "Critical"
+- Focus on radiological impact when assigning severity levels
+- EFFICIENCY NOTE: Sections marked with [IDENTICAL TO EXPERT REPORT] should always be rated as "Consistent" without detailed analysis
+
 BEFORE SUBMITTING YOUR FEEDBACK:
-1. Review each point for redundancy, - eliminate any repeated information and make sure critical and non-critical are not redundant (if they are, then keep only the critical)
+1. Review each point for redundancy - eliminate any repeated information
 2. Verify that each critical discrepancy includes a brief explanation of clinical importance
-3. Check that all discrepancies are properly categorized as critical or non-critical based on patient care impact
-4. Ensure you're addressing the trainee directly using "you" in each point
-5. Remove any teaching advice or improvement suggestions
-6. Confirm you've prioritized the most significant discrepancies if there are many
+3. Check that all discrepancies are properly categorized based on patient care impact
+4. Ensure you've assigned a severity level for EVERY section in the trainee's report
+5. Double-check that any section mentioning pneumothorax is marked as "Critical"
+6. Format the section assessment exactly as specified above for proper parsing
 """
 
     print(f"---- PROMPT FOR GEMINI LLM (Case ID: '{case_identifier_for_llm}') ----")

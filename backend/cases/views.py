@@ -193,6 +193,16 @@ class AIReportFeedbackView(APIView):
             case_diagnosis_text=case_instance.diagnosis or ""
         )
         
+        # NEW: Extract the identical sections for optimization
+        identical_section_ids = set()
+        for section_comp in programmatic_pre_analysis.get('section_comparisons', []):
+            if section_comp.get('text_comparison_status') == "Identical":
+                section_id = section_comp.get('master_template_section_id')
+                if section_id:
+                    identical_section_ids.add(section_id)
+        
+        print(f"Found {len(identical_section_ids)} sections that are identical to expert report")
+        
         ai_feedback_text = get_feedback_from_llm(
             user_report_sections=user_report_sections_for_llm,
             expert_report_sections=expert_report_sections_for_llm, 
@@ -204,7 +214,8 @@ class AIReportFeedbackView(APIView):
             case_expert_key_findings=case_instance.key_findings or "",
             case_expert_diagnosis=case_instance.diagnosis or "",
             case_expert_discussion=case_instance.discussion or "",
-            case_difficulty=case_instance.get_difficulty_display() or ""
+            case_difficulty=case_instance.get_difficulty_display() or "",
+            identical_section_ids=identical_section_ids  # Pass the identical sections
         )
 
         structured_llm_feedback = self._parse_llm_feedback_text(ai_feedback_text)
@@ -224,7 +235,7 @@ class AIReportFeedbackView(APIView):
     def _parse_llm_feedback_text(self, feedback_text):
         """
         Parses the LLM's text output into a more structured format.
-        This is a best-effort parsing and might need refinement based on actual LLM output patterns.
+        This handles both the discrepancy list and the new section-by-section severity assessment.
         """
         parsed_feedback = {
             "overall_impression_alignment": "",
@@ -232,84 +243,144 @@ class AIReportFeedbackView(APIView):
             "key_learning_points": []
         }
 
-        # Regex to find sections like "II. Section-by-Section Discrepancy Analysis:"
-        # and "Severity: Critical - " or "Severity: Moderate - "
-        section_header_pattern = re.compile(r"^\s*([A-Z]+(?: [A-Z]+)*):\s*(.*)", re.MULTILINE)
-        severity_pattern = re.compile(r"Severity: (Critical|Moderate) - (.+)")
-        learning_point_pattern = re.compile(r"Learning Point:\s*(.+?)\s*Advice:\s*(.+?)(?:\s*Topics for Further Study:\s*(.+))?(?=\nLearning Point:|\Z)", re.DOTALL)
-
-
-        current_major_section = None
-        current_section_name_for_feedback = None
-        buffer = []
-
-        # Split by major headers (I, II, III)
-        raw_major_sections = re.split(r"\n\s*(?=I\.|II\.|III\.)", feedback_text)
-
-        for part in raw_major_sections:
-            part = part.strip()
-            if not part:
-                continue
-
-            if part.startswith("I. Overall Impression Alignment:"):
-                parsed_feedback["overall_impression_alignment"] = part.replace("I. Overall Impression Alignment:", "").strip()
-            elif part.startswith("II. Section-by-Section Discrepancy Analysis:"):
-                content = part.replace("II. Section-by-Section Discrepancy Analysis:", "").strip()
-                # Split by individual section mentions (e.g., "Findings:", "Impression:")
-                # This assumes LLM uses "Section Name:" format
-                individual_section_parts = re.split(r"\n\s*(?=[A-Za-z ]+:\s*Severity:)", "\n" + content) # Add newline to catch first
-                for section_part in individual_section_parts:
-                    section_part = section_part.strip()
-                    if not section_part:
-                        continue
-                    
-                    section_name_match = re.match(r"(.+?):\s*(Severity:.*)", section_part, re.DOTALL)
-                    if section_name_match:
-                        section_name = section_name_match.group(1).strip()
-                        severity_and_justification_text = section_name_match.group(2).strip()
-                        
-                        severity_match = severity_pattern.search(severity_and_justification_text)
-                        if severity_match:
-                            severity = severity_match.group(1)
-                            justification = severity_match.group(2).strip()
-                            parsed_feedback["section_feedback"].append({
-                                "section_name": section_name,
-                                "discrepancy_summary_from_llm": justification, 
-                                "severity_level_from_llm": severity,
-                                "severity_justification_from_llm": justification 
-                            })
-                        else: 
-                             parsed_feedback["section_feedback"].append({
-                                "section_name": section_name,
-                                "discrepancy_summary_from_llm": severity_and_justification_text,
-                                "severity_level_from_llm": "Unknown",
-                                "severity_justification_from_llm": "Severity not explicitly stated by AI."
-                            })
-                    elif "Generally consistent" in section_part: 
-                        section_name_match_consistent = re.match(r"(.+?):\s*Generally consistent.*", section_part)
-                        if section_name_match_consistent:
-                            section_name = section_name_match_consistent.group(1).strip()
-                            parsed_feedback["section_feedback"].append({
-                                "section_name": section_name,
-                                "discrepancy_summary_from_llm": section_part.replace(f"{section_name}:", "").strip(),
-                                "severity_level_from_llm": "Consistent",
-                                "severity_justification_from_llm": ""
-                            })
-
-
-            elif part.startswith("III. Key Learning Points & Actionable Advice:"):
-                content = part.replace("III. Key Learning Points & Actionable Advice:", "").strip()
-                for match in learning_point_pattern.finditer(content):
-                    parsed_feedback["key_learning_points"].append({
-                        "point": match.group(1).strip() if match.group(1) else "",
-                        "advice": match.group(2).strip() if match.group(2) else "",
-                        "topics_for_study": match.group(3).strip() if match.group(3) else ""
-                    })
+        # Add debug output
+        print("_parse_llm_feedback_text called with:", feedback_text[:100], "...") # Print first 100 chars
         
-        if not parsed_feedback["overall_impression_alignment"] and not parsed_feedback["section_feedback"] and not parsed_feedback["key_learning_points"]:
+        # Pattern to match the numbered sections from Gemini's response format
+        critical_section_pattern = re.compile(r"1\.\s*CRITICAL\s+DISCREPANCIES:(.*?)(?=2\.\s*NON-CRITICAL\s+DISCREPANCIES:|SECTION SEVERITY ASSESSMENT:|$)", re.DOTALL | re.IGNORECASE)
+        non_critical_section_pattern = re.compile(r"2\.\s*NON-CRITICAL\s+DISCREPANCIES:(.*?)(?=SECTION SEVERITY ASSESSMENT:|$)", re.DOTALL | re.IGNORECASE)
+        
+        # NEW: Pattern to extract the section-by-section severity assessment
+        severity_assessment_pattern = re.compile(r"SECTION SEVERITY ASSESSMENT:(.*?)(?=$)", re.DOTALL | re.IGNORECASE)
+        section_assessment_pattern = re.compile(r"Section:\s*(.+?)\nSeverity:\s*(.+?)\nReason:\s*(.+?)(?=\n\nSection:|$)", re.DOTALL)
+        
+        # Pattern to match individual bullet points
+        bullet_point_pattern = re.compile(r"-\s*You\s+(.*?)(?=-\s*You|$)", re.DOTALL)
+
+        # First, try to extract the critical discrepancies section
+        critical_match = critical_section_pattern.search(feedback_text)
+        if critical_match:
+            critical_section = critical_match.group(1).strip()
+            
+            # Check if there's actual content or just "None identified"
+            if critical_section and "None identified" not in critical_section:
+                # Extract individual bullet points
+                bullet_matches = bullet_point_pattern.finditer(critical_section)
+                for bullet_match in bullet_matches:
+                    bullet_content = bullet_match.group(1).strip()
+                    if bullet_content:
+                        # Extract section name if possible (assuming format like "In the Findings section, you...")
+                        section_name = "General"
+                        section_match = re.search(r"(?:in|for)\s+the\s+(\w+)(?:\s+section)?", bullet_content, re.IGNORECASE)
+                        if section_match:
+                            section_name = section_match.group(1).capitalize()
+                        
+                        # Store critical discrepancy for this section
+                        parsed_feedback["section_feedback"].append({
+                            "section_name": section_name,
+                            "discrepancy_summary_from_llm": "You " + bullet_content,
+                            "severity_level_from_llm": "Critical",
+                            "severity_justification_from_llm": bullet_content
+                        })
+        
+        # Next, extract the non-critical discrepancies section
+        non_critical_match = non_critical_section_pattern.search(feedback_text)
+        if non_critical_match:
+            non_critical_section = non_critical_match.group(1).strip()
+            
+            # Check if there's actual content or just "None identified"
+            if non_critical_section and "None identified" not in non_critical_section:
+                # Extract individual bullet points
+                bullet_matches = bullet_point_pattern.finditer(non_critical_section)
+                for bullet_match in bullet_matches:
+                    bullet_content = bullet_match.group(1).strip()
+                    if bullet_content:
+                        # Extract section name if possible
+                        section_name = "General"
+                        section_match = re.search(r"(?:in|for)\s+the\s+(\w+)(?:\s+section)?", bullet_content, re.IGNORECASE)
+                        if section_match:
+                            section_name = section_match.group(1).capitalize()
+                        
+                        # Store moderate discrepancy for this section
+                        parsed_feedback["section_feedback"].append({
+                            "section_name": section_name,
+                            "discrepancy_summary_from_llm": "You " + bullet_content,
+                            "severity_level_from_llm": "Moderate",
+                            "severity_justification_from_llm": bullet_content
+                        })
+        
+        # NEW: Extract the section-by-section severity assessment
+        severity_assessment_match = severity_assessment_pattern.search(feedback_text)
+        if severity_assessment_match:
+            severity_assessment_section = severity_assessment_match.group(1).strip()
+            
+            # Create a map to look up existing sections for merging
+            section_feedback_map = {item["section_name"].lower(): item for item in parsed_feedback["section_feedback"]}
+            
+            # Extract individual section assessments
+            section_assessments = section_assessment_pattern.finditer(severity_assessment_section)
+            for assessment in section_assessments:
+                section_name = assessment.group(1).strip()
+                severity = assessment.group(2).strip()
+                reason = assessment.group(3).strip()
+                
+                # Normalize severity - ensure it's one of our three levels
+                if severity.lower() == "critical":
+                    normalized_severity = "Critical"
+                elif severity.lower() == "moderate":
+                    normalized_severity = "Moderate"
+                else:
+                    normalized_severity = "Consistent"
+                
+                # Check if we already have a feedback entry for this section
+                section_key = section_name.lower()
+                if section_key in section_feedback_map:
+                    # Prioritize existing discrepancy feedback but update severity if needed
+                    existing_entry = section_feedback_map[section_key]
+                    
+                    # Only upgrade severity (e.g., from Moderate to Critical), never downgrade
+                    if existing_entry["severity_level_from_llm"] != "Critical" and normalized_severity == "Critical":
+                        existing_entry["severity_level_from_llm"] = "Critical"
+                        # Update justification if we're upgrading severity
+                        existing_entry["severity_justification_from_llm"] = reason
+                else:
+                    # Add a new entry if we don't have one yet
+                    parsed_feedback["section_feedback"].append({
+                        "section_name": section_name,
+                        "discrepancy_summary_from_llm": reason,  # Use reason as summary for new entries
+                        "severity_level_from_llm": normalized_severity,
+                        "severity_justification_from_llm": reason
+                    })
+            
+            print(f"Extracted {len(section_feedback_map)} section severity assessments")
+        else:
+            print("WARNING: No section-by-section severity assessment found in LLM response")
+        
+        # Set a basic overall impression based on the number of issues found
+        if parsed_feedback["section_feedback"]:
+            critical_count = sum(1 for item in parsed_feedback["section_feedback"] if item["severity_level_from_llm"] == "Critical")
+            moderate_count = sum(1 for item in parsed_feedback["section_feedback"] if item["severity_level_from_llm"] == "Moderate")
+            consistent_count = sum(1 for item in parsed_feedback["section_feedback"] if item["severity_level_from_llm"] == "Consistent")
+            
+            if critical_count > 0:
+                parsed_feedback["overall_impression_alignment"] = f"Found {critical_count} critical and {moderate_count} moderate discrepancies that need attention."
+            elif moderate_count > 0:
+                parsed_feedback["overall_impression_alignment"] = f"Found {moderate_count} moderate discrepancies. Overall alignment is good with minor differences."
+            else:
+                parsed_feedback["overall_impression_alignment"] = "Your report is well-aligned with the expert interpretation."
+        else:
+            # If we couldn't extract any structured feedback, put everything in overall_impression
             if feedback_text.strip(): 
                 parsed_feedback["overall_impression_alignment"] = "Could not parse detailed structure. Full AI Feedback: \n" + feedback_text
-
+        
+        # Debug output to verify what we're returning
+        print("Parsed feedback structure:")
+        print(f"- Overall impression: {parsed_feedback['overall_impression_alignment'][:50]}...")
+        print(f"- Number of section feedback items: {len(parsed_feedback['section_feedback'])}")
+        for idx, sf in enumerate(parsed_feedback['section_feedback']):
+            print(f"  Section {idx+1}: {sf['section_name']} - Severity: {sf['severity_level_from_llm']}")
+        print(f"- Number of learning points: {len(parsed_feedback['key_learning_points'])}")
+        
         return parsed_feedback
 
 
@@ -388,6 +459,35 @@ class UserCaseViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"detail": f"Language with code '{language_code}' not found or not active."}, status=status.HTTP_404_NOT_FOUND)
         except CaseTemplate.DoesNotExist:
             return Response({"detail": f"Expert template in '{language_code}' not found for this case."}, status=status.HTTP_404_NOT_FOUND)
+            
+    @action(detail=True, methods=['post'])
+    def reset(self, request, pk=None):
+        """Reset a case for the current user to allow them to submit a new report."""
+        case = self.get_object()
+        user = request.user
+        
+        # Find existing reports by this user for this case
+        existing_reports = Report.objects.filter(user=user, case=case)
+        
+        if not existing_reports.exists():
+            return Response({"detail": "No reports found for this case."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Archive existing reports by adding an 'archived' flag (we don't want to delete them)
+            for report in existing_reports:
+                report.is_archived = True
+                report.save()
+                
+            # Remove the user's view record to reset the 'viewed' status
+            UserCaseView.objects.filter(user=user, case=case).delete()
+            
+            return Response({
+                "status": "success", 
+                "message": "Case has been reset. You can now submit a new report.",
+                "previous_reports_count": existing_reports.count()
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": f"Error resetting case: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ReportCreateView(generics.CreateAPIView): 
@@ -402,7 +502,8 @@ class MyReportsListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Report.objects.filter(user=self.request.user).order_by('-submitted_at')
+        # Only show non-archived reports by default
+        return Report.objects.filter(user=self.request.user, is_archived=False).order_by('-submitted_at')
     
     def get_serializer_context(self):
         return {'request': self.request, **super().get_serializer_context()}

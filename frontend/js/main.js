@@ -8,6 +8,8 @@ const getSubspecialtyDisplay = (data) => getDisplayValue(data.subspecialty_displ
 const getModalityDisplay = (data) => getDisplayValue(data.modality_display || data.modality);
 const getDifficultyDisplay = (data) => getDisplayValue(data.difficulty_display || data.difficulty);
 
+// NEW: Global variable for the current user's report data, used for re-rendering after AI feedback
+let currentUserReportData = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("--- DOMContentLoaded event fired ---");
@@ -494,8 +496,11 @@ async function viewCase(caseId) {
                 (report.case_id && String(report.case_id) === String(caseData.id))
             );
 
-            if (userSubmittedReportContentDiv && userReportForCase) {
-                 displayUserSubmittedReport(userReportForCase, userSubmittedReportContentDiv); // Pass the report object
+            // Store the fetched user report in the global variable
+            currentUserReportData = userReportForCase;
+
+            if (userSubmittedReportContentDiv && currentUserReportData) {
+                 displayUserSubmittedReport(currentUserReportData, userSubmittedReportContentDiv); // Pass the global report object
             } else if (userSubmittedReportContentDiv) {
                 userSubmittedReportContentDiv.innerHTML = `<h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4><p>Could not load your submitted report for this case.</p>`;
             }
@@ -523,8 +528,14 @@ async function viewCase(caseId) {
                 <p><strong>Key Findings (Expert):</strong> ${getDisplayValue(caseData.key_findings)}</p>`;
 
 
-            populateExpertLanguageSelector(caseData.id, caseData.applied_templates || [], userReportForCase); // Pass userReportForCase here
-             // Activate the "Your Submitted Report" tab by default
+            populateExpertLanguageSelector(caseData.id, caseData.applied_templates || [], currentUserReportData); // Pass currentUserReportData here
+             
+            // NEW: Immediately request AI feedback for existing reports
+            if (currentUserReportData && currentUserReportData.id) {
+                requestAIFeedback(currentUserReportData.id);
+            }
+
+            // Activate the "Your Submitted Report" tab by default
             document.querySelector('.info-tab-button[data-tab-target="#userSubmittedReportSectionContent"]')?.click();
         } else {
             if (reportSubmissionSection) reportSubmissionSection.style.display = 'block';
@@ -807,9 +818,6 @@ async function displayUserSubmittedReport(userReportData, targetContainerElement
         <h4 class="tab-content-title">Your Submitted Report</h4>
         <p>Loading your submitted report...</p>`;
 
-    // Remove the API call to my-reports as data is passed directly
-    // This function will now directly use userReportData
-
     if (userReportData && userReportData.structured_content && Array.isArray(userReportData.structured_content)) {
         let html = `<h4 class="tab-content-title" style="color: #0056b3;">Your Submitted Report</h4>`;
         
@@ -818,29 +826,97 @@ async function displayUserSubmittedReport(userReportData, targetContainerElement
                 Submitted on: ${new Date(userReportData.submitted_at).toLocaleString()}</p>`;
         }
         
-        html += '<ul style="list-style: none; padding-left: 0;">';
+        // NEW: Add a class for the UL for consistency
+        html += '<ul class="user-report-sections-list">'; 
+
+        // Create a map for quick lookup of AI feedback by section name
+        const aiSectionFeedbackMap = new Map();
+        if (userReportData.ai_feedback_content && userReportData.ai_feedback_content.structured_feedback) {
+            console.log("AI Feedback Content:", userReportData.ai_feedback_content);
+            
+            // Check if section_feedback exists and has items
+            const sectionFeedback = userReportData.ai_feedback_content.structured_feedback.section_feedback || [];
+            console.log("Section Feedback Array:", sectionFeedback);
+            
+            if (sectionFeedback.length > 0) {
+                // Process normal section feedback
+                sectionFeedback.forEach(sf => {
+                    console.log("Processing section feedback:", sf);
+                    aiSectionFeedbackMap.set(sf.section_name, sf);
+                });
+            } else {
+                // If no section feedback is available, we'll just use Consistent (green) for all sections
+                console.log("Section feedback array is empty - using Consistent for all sections");
+                // We won't create any default feedback - sections will default to 'Consistent'
+            }
+        }
         
         userReportData.structured_content.forEach(section => {
             const sectionName = section.section_name || `Section ID ${section.master_template_section_id || 'N/A'}`;
             const sectionContent = section.content || '<em>No content submitted for this section.</em>';
-            
+
+            // Default values
+            let sectionClasses = 'ai-feedback-consistent'; // Default to consistent (green) if no feedback
+            let aiComment = 'Generally consistent with expert assessment';
+            let aiSeverity = 'Consistent';
+
+            // Check for AI feedback for this specific section
+            const aiFeedbackForSection = aiSectionFeedbackMap.get(sectionName);
+            if (aiFeedbackForSection) {
+                aiComment = aiFeedbackForSection.discrepancy_summary_from_llm || aiComment;
+                aiSeverity = aiFeedbackForSection.severity_level_from_llm || aiSeverity;
+                
+                console.log(`Section: ${sectionName}, Severity: ${aiSeverity}, Raw value:`, aiFeedbackForSection.severity_level_from_llm);
+
+                // Normalize severity value for consistent matching
+                const normalizedSeverity = (aiSeverity || '').trim();
+                
+                // Apply classes based on severity - handle different formats from the LLM
+                if (normalizedSeverity.toLowerCase().includes('critical') || normalizedSeverity.toLowerCase() === 'severe') {
+                    sectionClasses = 'ai-feedback-critical';
+                    console.log(`${sectionName}: Applied critical class`);
+                } else if (normalizedSeverity.toLowerCase().includes('moderate') || normalizedSeverity.toLowerCase() === 'medium') {
+                    sectionClasses = 'ai-feedback-moderate';
+                    console.log(`${sectionName}: Applied moderate class`);
+                } else {
+                    // Default to consistent for everything else
+                    sectionClasses = 'ai-feedback-consistent';
+                    console.log(`${sectionName}: Applied consistent class (default)`);
+                }
+                
+                console.log(`${sectionName}: Final class applied: ${sectionClasses}`);
+            }
+
+            const dataAttributes = `
+                data-ai-comment="${aiComment}"
+                data-ai-severity="${aiSeverity}"
+                data-section-name="${sectionName}"
+            `;
+
+            // MODIFIED HTML STRUCTURE AND CLASSES HERE
             html += `
-                <li style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted #ddd;">
-                    <strong style="display: block; margin-bottom: 5px; font-size: 1.05em;">${sectionName}:</strong>
-                    <div style="padding-left: 10px; white-space: pre-wrap; word-wrap: break-word;">${sectionContent}</div>
+                <li class="report-section-display-item ${sectionClasses}" ${dataAttributes}>
+                    <strong class="report-section-title-display">${sectionName}:</strong>
+                    <div class="report-section-content-display">
+                        <p>${sectionContent}</p>
+                    </div>
                 </li>`;
         });
         html += '</ul>';
 
         html += `
-            <div style="text-align: right; margin-top: 20px; padding-top:15px; border-top: 1px solid #ddd;">
-                <button class="btn btn-secondary btn-sm get-ai-feedback-btn" data-report-id="${userReportData.id}">
-                    Get/Refresh AI Feedback
+            <div style="text-align: right; margin-top: 20px; padding-top:15px; border-top: 1px solid #ddd;" class="report-action-buttons">
+                <button class="btn btn-secondary btn-sm reset-case-btn" data-case-id="${userReportData.case || userReportData.case_id}">
+                    <i class="fa fa-undo"></i> Reset Case
+                </button>
+                <button class="btn btn-primary btn-sm get-ai-feedback-btn" data-report-id="${userReportData.id}">
+                    <i class="fa fa-refresh"></i> Get AI Feedback
                 </button>
             </div>`;
 
         targetContainerElement.innerHTML = html;
 
+        // Add event listener for AI Feedback button
         const aiFeedbackBtn = targetContainerElement.querySelector(`.get-ai-feedback-btn[data-report-id="${userReportData.id}"]`);
         if (aiFeedbackBtn) {
             aiFeedbackBtn.addEventListener('click', () => {
@@ -848,6 +924,38 @@ async function displayUserSubmittedReport(userReportData, targetContainerElement
                 document.querySelector('.info-tab-button[data-tab-target="#aiFeedbackTabContent"]')?.click();
             });
         }
+        
+        // Add event listener for Reset Case button
+        const resetCaseBtn = targetContainerElement.querySelector(`.reset-case-btn[data-case-id]`);
+        if (resetCaseBtn) {
+            resetCaseBtn.addEventListener('click', async () => {
+                const caseId = resetCaseBtn.dataset.caseId;
+                if (!caseId) return;
+                
+                // Confirm the reset action
+                if (confirm("Are you sure you want to reset this case? This will allow you to submit a new report for this case, but your current report will still be accessible in your history.")) {
+                    try {
+                        // Save existing report data to sessionStorage for future reference
+                        const existingReportKey = `previous_report_case_${caseId}`;
+                        sessionStorage.setItem(existingReportKey, JSON.stringify(userReportData));
+                        
+                        // Call API to reset case status for this user
+                        await apiRequest(`/cases/cases/${caseId}/reset/`, { method: 'POST' });
+                        
+                        // Show success message
+                        showToast("Case reset successfully. You can now submit a new report.", "success");
+                        
+                        // Reload the case to show the reporting form
+                        viewCase(caseId);
+                    } catch (error) {
+                        console.error("Error resetting case:", error);
+                        showToast(`Error resetting case: ${error.message || "Unknown error"}`, "error");
+                    }
+                }
+            });
+        }
+        // NEW: Initialize tooltips for the newly rendered sections
+        setupReportSectionTooltips(targetContainerElement);
 
     } else {
         targetContainerElement.innerHTML = `
@@ -883,20 +991,44 @@ async function requestAIFeedback(reportId) {
             displayAIResponseBody(savedResponse, aiFeedbackDisplayArea);
             showToast("Saved AI feedback loaded successfully!", "success");
             document.getElementById('aiFeedbackRatingSection').style.display = 'block'; // Show rating section
+
+            // ***************************************************************
+            // FIX: Re-fetch the full user report to update the color-coding on "Your Submitted Report" tab
+            const updatedReportData = await apiRequest(`/cases/my-reports/?report_id=${reportId}`); 
+            let fullReportToReRender = null;
+            if (updatedReportData && Array.isArray(updatedReportData.results) && updatedReportData.results.length > 0) {
+                fullReportToReRender = updatedReportData.results[0];
+            } else if (updatedReportData && !Array.isArray(updatedReportData) && updatedReportData.id) { 
+                fullReportToReRender = updatedReportData;
+            }
+
+            if (fullReportToReRender) {
+                const userSubmittedReportContentDiv = document.getElementById('userSubmittedReportSectionContent');
+                if (userSubmittedReportContentDiv) {
+                    displayUserSubmittedReport(fullReportToReRender, userSubmittedReportContentDiv);
+                } else {
+                    console.warn("User submitted report content div not found for re-rendering.");
+                }
+            } else {
+                console.warn("Could not re-fetch full user report for color-coding after AI feedback loaded.");
+            }
+            // ***************************************************************
+
         } else {
-            // This path should ideally not be taken if backend returns 404 for no feedback
             aiFeedbackDisplayArea.innerHTML = '<p>No saved AI feedback found. Click "Get/Refresh AI Feedback" to generate new feedback.</p>';
             document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
+            feedbackBtn.textContent = "Get/Refresh AI Feedback"; // Reset button text
+            feedbackBtn.removeEventListener('click', generateNewAIReportFeedback); // Remove old listener if exists
+            feedbackBtn.addEventListener('click', () => generateNewAIReportFeedback(reportId)); // Attach listener for generating
         }
 
     } catch (error) {
         console.warn("No saved AI feedback found or error retrieving:", error);
-        // If GET request returns 404 (no saved feedback), then offer to generate via POST
-        // or if it's an actual error, display it.
-        if (error.status === 404 || error.message.includes("not yet generated")) {
+        if (error.status === 404 || (error.data && error.data.error && error.data.error.includes("not yet generated"))) {
             aiFeedbackDisplayArea.innerHTML = '<p>No saved AI feedback found. Click "Get/Refresh AI Feedback" to generate new feedback.</p>';
             document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
             feedbackBtn.textContent = "Get/Refresh AI Feedback"; // Reset button text
+            feedbackBtn.removeEventListener('click', generateNewAIReportFeedback); // Remove old listener
             feedbackBtn.addEventListener('click', () => generateNewAIReportFeedback(reportId)); // Attach listener for generating
         } else {
             console.error("Error retrieving saved AI feedback:", error);
@@ -905,7 +1037,9 @@ async function requestAIFeedback(reportId) {
         }
     } finally {
         feedbackBtn.disabled = false;
-        feedbackBtn.textContent = "Get/Refresh AI Feedback"; // Ensure button is re-enabled and text reset
+        if (feedbackBtn.textContent === 'Checking...') {
+            feedbackBtn.textContent = "Get/Refresh AI Feedback";
+        }
     }
 }
 
@@ -934,6 +1068,29 @@ async function generateNewAIReportFeedback(reportId) {
             displayAIResponseBody(response, aiFeedbackDisplayArea);
             showToast("AI feedback generated and saved successfully!", "success");
             document.getElementById('aiFeedbackRatingSection').style.display = 'block'; // Show rating section
+
+            // ***************************************************************
+            // FIX: Re-fetch the full user report to update the color-coding on "Your Submitted Report" tab
+            const updatedReportData = await apiRequest(`/cases/my-reports/?report_id=${reportId}`);
+            let fullReportToReRender = null;
+            if (updatedReportData && Array.isArray(updatedReportData.results) && updatedReportData.results.length > 0) {
+                fullReportToReRender = updatedReportData.results[0];
+            } else if (updatedReportData && !Array.isArray(updatedReportData) && updatedReportData.id) {
+                fullReportToReRender = updatedReportData;
+            }
+
+            if (fullReportToReRender) {
+                const userSubmittedReportContentDiv = document.getElementById('userSubmittedReportSectionContent');
+                if (userSubmittedReportContentDiv) {
+                    displayUserSubmittedReport(fullReportToReRender, userSubmittedReportContentDiv);
+                } else {
+                    console.warn("User submitted report content div not found for re-rendering after generation.");
+                }
+            } else {
+                console.warn("Could not re-fetch full user report for color-coding after new AI feedback generated.");
+            }
+            // ***************************************************************
+
         } else {
             aiFeedbackDisplayArea.innerHTML = '<p>Received an empty response when generating AI feedback.</p>';
             document.getElementById('aiFeedbackRatingSection').style.display = 'none'; // Hide rating section
@@ -954,83 +1111,116 @@ async function generateNewAIReportFeedback(reportId) {
 function displayAIResponseBody(response, targetElement) {
     let feedbackHtml = '';
     
-    // Prioritize structured feedback for display
-    if (response.structured_feedback) {
-        const structured = response.structured_feedback;
+    // Extract raw feedback and format for clean display
+    if (response.raw_llm_feedback) {
+        const rawFeedback = response.raw_llm_feedback;
         
-        // Overall Impression Alignment
-        if (structured.overall_impression_alignment) {
+        // Look for the sections we want to display
+        const criticalPattern = /1\.\s*CRITICAL\s+DISCREPANCIES:(.*?)(?=2\.\s*NON-CRITICAL|SECTION SEVERITY ASSESSMENT:|$)/is;
+        const nonCriticalPattern = /2\.\s*NON-CRITICAL\s+DISCREPANCIES:(.*?)(?=SECTION SEVERITY ASSESSMENT:|$)/is;
+        
+        // Find the sections
+        const criticalMatch = rawFeedback.match(criticalPattern);
+        const nonCriticalMatch = rawFeedback.match(nonCriticalPattern);
+        
+        // Create a clean formatted display
+        feedbackHtml += `<div class="feedback-container">`;
+        
+        // Add critical discrepancies if found
+        if (criticalMatch && criticalMatch[1].trim() && !criticalMatch[1].trim().includes("None identified")) {
+            const criticalContent = criticalMatch[1].trim();
             feedbackHtml += `
-                <div class="feedback-section">
-                    <strong>Overall Impression Alignment:</strong>
-                    <p>${structured.overall_impression_alignment}</p>
+                <div class="feedback-section critical-section">
+                    <h3>Critical Discrepancies</h3>
+                    <div class="content">${formatDiscrepancyContent(criticalContent)}</div>
                 </div>`;
         }
         
-        // Section-by-Section Analysis
-        if (structured.section_feedback && structured.section_feedback.length > 0) {
+        // Add non-critical discrepancies if found
+        if (nonCriticalMatch && nonCriticalMatch[1].trim() && !nonCriticalMatch[1].trim().includes("None identified")) {
+            const nonCriticalContent = nonCriticalMatch[1].trim();
             feedbackHtml += `
-                <div class="feedback-section">
-                    <strong>Section-by-Section Analysis:</strong>
-                    <ul>`;
-            structured.section_feedback.forEach(sf => {
-                let severityClass = '';
-                if (sf.severity_level_from_llm === "Critical") {
-                    severityClass = 'feedback-critical';
-                } else if (sf.severity_level_from_llm === "Moderate") {
-                    severityClass = 'feedback-moderate';
-                } else if (sf.severity_level_from_llm === "Consistent") {
-                    severityClass = 'feedback-consistent';
-                }
-
-                feedbackHtml += `
-                    <li class="${severityClass}">
-                        <strong>${sf.section_name}:</strong> ${sf.discrepancy_summary_from_llm}
-                        ${sf.severity_level_from_llm && sf.severity_level_from_llm !== "Consistent" ? `(Severity: ${sf.severity_level_from_llm})` : ''}
-                    </li>`;
-            });
-            feedbackHtml += `
-                    </ul>
+                <div class="feedback-section moderate-section">
+                    <h3>Non-Critical Discrepancies</h3>
+                    <div class="content">${formatDiscrepancyContent(nonCriticalContent)}</div>
                 </div>`;
         }
         
-        // Key Learning Points
-        if (structured.key_learning_points && structured.key_learning_points.length > 0) {
+        // If no discrepancies were found in either section
+        if ((!criticalMatch || criticalMatch[1].trim().includes("None identified")) && 
+            (!nonCriticalMatch || nonCriticalMatch[1].trim().includes("None identified"))) {
             feedbackHtml += `
-                <div class="feedback-section">
-                    <strong>Key Learning Points & Actionable Advice:</strong>
-                    <ul>`;
-            structured.key_learning_points.forEach(lp => {
-                feedbackHtml += `
-                    <li>
-                        <strong>Point:</strong> ${lp.point}<br>
-                        <strong>Advice:</strong> ${lp.advice}`;
-                if (lp.topics_for_study) {
-                    feedbackHtml += `<br><strong>Further Study:</strong> ${lp.topics_for_study}`;
-                }
-                feedbackHtml += `</li>`;
-            });
-            feedbackHtml += `
-                    </ul>
+                <div class="feedback-section consistent-section">
+                    <h3>AI Feedback</h3>
+                    <p>No discrepancies identified. Your report is consistent with the expert assessment.</p>
                 </div>`;
         }
         
-        // Fallback to raw if structured is empty but raw exists
-        if (!feedbackHtml && response.raw_llm_feedback) {
-            feedbackHtml = `<p><em>Structured feedback parsing failed. Displaying raw AI response:</em></p><pre>${response.raw_llm_feedback}</pre>`;
-        } else if (!feedbackHtml) {
-             feedbackHtml = '<p>No detailed feedback was provided by the AI.</p>';
-        }
-
-    } else if (response.raw_llm_feedback) {
-        // If only raw feedback is available
-        feedbackHtml = `<p><em>Structured feedback not available. Displaying raw AI response:</em></p><pre>${response.raw_llm_feedback}</pre>`;
+        feedbackHtml += `</div>`;
     } else {
-        // Fallback for any other response format
-        feedbackHtml = `<p>Received an unexpected response from the AI feedback service:</p><pre>${JSON.stringify(response, null, 2)}</pre>`;
+        // No raw feedback available
+        feedbackHtml = `<p>No detailed feedback was provided by the AI.</p>`;
     }
     
+    // Apply the HTML to the target element
     targetElement.innerHTML = feedbackHtml;
+    
+    // Add some styling
+    const style = document.createElement('style');
+    style.textContent = `
+        .feedback-container {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        .feedback-section {
+            margin-bottom: 20px;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        .critical-section {
+            background-color: #feebeb;
+            border-left: 4px solid #dc3545;
+        }
+        .moderate-section {
+            background-color: #fff8e6;
+            border-left: 4px solid #ffc107;
+        }
+        .consistent-section {
+            background-color: #e6f9ed;
+            border-left: 4px solid #28a745;
+        }
+        .feedback-section h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .feedback-section ul {
+            margin-top: 8px;
+            padding-left: 20px;
+        }
+        .feedback-section li {
+            margin-bottom: 8px;
+        }
+    `;
+    targetElement.appendChild(style);
+}
+
+// Helper function to format discrepancy content
+function formatDiscrepancyContent(content) {
+    // Replace bullet points with proper HTML list items
+    let formatted = content.replace(/\s*-\s*You\s+/g, "<li>You ");
+    
+    // If we have list items, wrap them in a ul
+    if (formatted.includes("<li>")) {
+        formatted = "<ul>" + formatted + "</ul>";
+    } else {
+        // Otherwise just wrap in paragraphs
+        formatted = "<p>" + formatted.replace(/\n\n/g, "</p><p>") + "</p>";
+    }
+    
+    return formatted;
 }
 
 
@@ -1074,14 +1264,16 @@ async function populateExpertLanguageSelector(caseId, appliedTemplates, userRepo
                 const expertContent = await apiRequest(`/cases/cases/${caseId}/expert-templates/${template.language_code}/`);
                 
                 if (expertContent && expertContent.section_contents) {
-                    let html = '<ul class="expert-report-sections">';
+                    // NEW: Consistent UL class
+                    let html = '<ul class="expert-report-sections-list">'; 
                     expertContent.section_contents.forEach(expertSection => {
                         const expertSectionContent = expertSection.content || '<em>No content provided.</em>';
 
+                        // MODIFIED HTML STRUCTURE AND CLASSES HERE for consistency
                         html += `
-                            <li class="expert-section-item">
-                                <strong>${expertSection.master_section_name}:</strong>
-                                <div class="expert-content-display" style="white-space:pre-wrap; word-wrap:break-word;">
+                            <li class="report-section-display-item">
+                                <strong class="report-section-title-display">${expertSection.master_section_name}:</strong>
+                                <div class="report-section-content-display">
                                     <p>${expertSectionContent}</p>
                                 </div>
                             </li>`;
@@ -1303,6 +1495,9 @@ async function handleReportSubmit(event) {
                     if (reportSubmissionSection) reportSubmissionSection.style.display = 'none';
                     if (caseReviewTabsContainer) caseReviewTabsContainer.style.display = 'block';
                     
+                    // NEW: Store the newly submitted report globally
+                    currentUserReportData = newUserReportForCase;
+
                     // Display user's report (which now might have AI feedback)
                     displayUserSubmittedReport(newUserReportForCase, userSubmittedReportContentDiv);
                     // Populate expert language selector
@@ -1416,4 +1611,134 @@ async function loadMyReports() {
         }
         mainContent.innerHTML += `<p>Error loading reports: ${error.message || 'Unknown error'}</p>`;
     }
+}
+
+
+// Enhanced tooltip function with expert content comparison
+function setupReportSectionTooltips(containerElement) {
+    const reportSections = containerElement.querySelectorAll('.report-section-display-item');
+    let currentTooltip = null;
+    
+    // Try to find the expert content for comparison
+    let expertSectionContents = {};
+    const expertTemplateContentContainer = document.getElementById('expertTemplateContentContainer');
+    
+    // Cache any expert template content that's currently loaded
+    if (expertTemplateContentContainer) {
+        const expertSections = expertTemplateContentContainer.querySelectorAll('.report-section-display-item');
+        expertSections.forEach(expertSection => {
+            const sectionNameElement = expertSection.querySelector('.report-section-title-display');
+            const contentElement = expertSection.querySelector('.report-section-content-display p');
+            
+            if (sectionNameElement && contentElement) {
+                const name = sectionNameElement.textContent.replace(':', '').trim();
+                const content = contentElement.textContent.trim();
+                expertSectionContents[name] = content;
+                console.log(`Cached expert content for section "${name}"`);
+            }
+        });
+    }
+    
+    // Style for the expert content
+    const expertStyleCSS = `
+        .expert-comparison {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+            font-size: 0.9em;
+        }
+        .expert-comparison h4 {
+            margin: 0 0 5px 0;
+            font-size: 0.9em;
+            color: #444;
+        }
+        .expert-comparison p {
+            margin: 0;
+            padding: 5px;
+            background-color: #f5f5f5;
+            border-left: 3px solid #28a745;
+            font-style: italic;
+        }
+    `;
+
+    reportSections.forEach(section => {
+        const aiComment = section.dataset.aiComment;
+        const aiSeverity = section.dataset.aiSeverity;
+        const sectionName = section.dataset.sectionName;
+        
+        // Always add tooltip, even without AI comment
+        section.addEventListener('mouseenter', (e) => {
+            // Remove any existing tooltip
+            if (currentTooltip) {
+                currentTooltip.remove();
+            }
+
+            currentTooltip = document.createElement('div');
+            currentTooltip.className = 'ai-feedback-tooltip enhanced';
+            
+            // Add a style tag for the expert section styling
+            const styleEl = document.createElement('style');
+            styleEl.textContent = expertStyleCSS;
+            currentTooltip.appendChild(styleEl);
+            
+            // Start with AI feedback if available
+            let tooltipContent = '';
+            if (aiComment && aiSeverity) {
+                tooltipContent += `
+                    <div class="ai-feedback-content">
+                        <h3>${sectionName} <span class="severity-badge ${aiSeverity.toLowerCase()}">${aiSeverity}</span></h3>
+                        <p>${aiComment}</p>
+                    </div>
+                `;
+            } else {
+                tooltipContent += `
+                    <div class="ai-feedback-content">
+                        <h3>${sectionName}</h3>
+                        <p class="no-feedback">No specific feedback for this section</p>
+                    </div>
+                `;
+            }
+            
+            // Add expert content comparison if available
+            if (expertSectionContents[sectionName]) {
+                tooltipContent += `
+                    <div class="expert-comparison">
+                        <h4>Expert's Content:</h4>
+                        <p>${expertSectionContents[sectionName]}</p>
+                    </div>
+                `;
+            }
+            
+            currentTooltip.innerHTML += tooltipContent;
+            document.body.appendChild(currentTooltip);
+
+            // Position the tooltip
+            const rect = section.getBoundingClientRect();
+            currentTooltip.style.left = `${rect.left + window.scrollX + rect.width / 2 - currentTooltip.offsetWidth / 2}px`;
+            currentTooltip.style.top = `${rect.top + window.scrollY - currentTooltip.offsetHeight - 10}px`;
+
+            // Ensure it doesn't go off-screen
+            if (parseFloat(currentTooltip.style.left) < 0) {
+                currentTooltip.style.left = '5px';
+            }
+            if (parseFloat(currentTooltip.style.left) + currentTooltip.offsetWidth > window.innerWidth) {
+                currentTooltip.style.left = `${window.innerWidth - currentTooltip.offsetWidth - 5}px`;
+            }
+
+            // Animation
+            setTimeout(() => currentTooltip.classList.add('show'), 10);
+        });
+
+        section.addEventListener('mouseleave', () => {
+            if (currentTooltip) {
+                currentTooltip.classList.remove('show');
+                currentTooltip.addEventListener('transitionend', () => {
+                    if (currentTooltip && currentTooltip.parentNode) {
+                        currentTooltip.remove();
+                    }
+                    currentTooltip = null;
+                }, { once: true });
+            }
+        });
+    });
 }
