@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/home/straus91/.nvm/versions/node/v18.20.8/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -A 10 -B 10 \"section_feedback\" /mnt/c/Users/strau/Desktop/gr4-gemini)",
+      "Bash(/home/straus91/.nvm/versions/node/v18.20.8/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -A 10 \"1. CRITICAL DISCREPANCIES\" /mnt/c/Users/strau/Desktop/gr4-gemini)",
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(git config:*)"
+    ],
+    "deny": []
+  }
+}

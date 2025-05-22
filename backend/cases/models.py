@@ -323,10 +323,14 @@ class Report(models.Model):
         blank=True,
         help_text="Stores the user's report content, structured by master template sections."
     )
-    ai_feedback_content = models.JSONField( # <<< ADD THIS LINE
+    ai_feedback_content = models.JSONField(
         default=dict,
         blank=True,
         help_text="Stores the AI-generated feedback content for this report."
+    )
+    is_archived = models.BooleanField(
+        default=False,
+        help_text="Flag to mark this report as archived. Archived reports are kept for history but not shown as the current report."
     )
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -336,7 +340,8 @@ class Report(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
-        unique_together = ('case', 'user')
+        # Removed the unique_together constraint to allow multiple reports per user/case
+        # With the is_archived flag we can track which one is the current active report
 
 class UserCaseView(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

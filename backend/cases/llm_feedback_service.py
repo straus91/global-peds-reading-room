@@ -163,6 +163,8 @@ FEEDBACK INSTRUCTIONS:
 You will provide two separate feedback components:
 
 PART 1 - DISCREPANCY LIST: 
+Provide a very brief sentence (15 words max), if the trainee got the right diagnosis or not, and what it was.
+Begin each point with "You..." to address the trainee directly
 Provide a structured list of ONLY the issues and discrepancies in this exact format:
 
 1. CRITICAL DISCREPANCIES:

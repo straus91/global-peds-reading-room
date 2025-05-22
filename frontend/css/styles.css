@@ -22,7 +22,8 @@
 
 html, body {
     height: 100%; 
-    overflow: hidden; 
+    /* Remove overflow: hidden to allow normal page scrolling */
+    overflow: auto; 
 }
 
 body { 
@@ -88,7 +89,7 @@ main {
     flex: 1; 
     display: flex; 
     flex-direction: column;
-    overflow: hidden; /* Prevent main itself from scrolling */
+    overflow: auto; /* Allow scrolling within main content */
     padding-top: 10px; 
     padding-bottom: 10px; 
     min-height: 0; /* Important for flex layouts */
@@ -97,9 +98,10 @@ main {
 main > .container {
     flex-grow: 1;
     display: flex;
+    overflow: auto; /* Allow scrolling in the container */
+    padding-bottom: 20px; /* Add padding to ensure content doesn't touch footer */
     flex-direction: column;
     min-height: 0; /* Important for flex layouts */
-    overflow: hidden;
 }
 
 
@@ -347,28 +349,244 @@ main > .container {
     #caseImagingColumn .case-section-title, #caseInfoColumn .case-section-title { font-size: 0.95em; }
 }
 
-/* Simplified Footer */
+/* Ultra-Slim Footer */
 footer { 
     background-color: var(--dark); 
     color: var(--white); 
-    padding: 6px 0; 
-    margin-top: auto; 
-    flex-shrink: 0; 
+    padding: 4px 0; /* Reduced padding */
+    margin-top: auto;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    min-height: 22px; /* Reduced height */
 }
 .footer-content-simplified {
     display: flex;
-    justify-content: space-between;
+    justify-content: center; /* Center content */
     align-items: center;
-    flex-wrap: wrap;
-    gap: 10px; 
-    margin-bottom: 2px; 
+    width: 100%;
 }
-.footer-section-simplified .footer-links { list-style: none; padding: 0; margin: 0; }
+.footer-links-combined,
+.footer-section-simplified .footer-links { 
+    list-style: none; 
+    padding: 0; 
+    margin: 0; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.footer-links-combined li,
 .footer-section-simplified .footer-links li,
-.footer-section-simplified .contact-info { display: inline-block; margin-right: 8px; font-size: 0.75em; } 
+.footer-section-simplified .contact-info { 
+    display: inline-block; 
+    margin-right: 10px; /* Reduced margin */
+    font-size: 0.7em; /* Smaller font */
+} 
+.footer-links-combined a,
 .footer-section-simplified .contact-info a,
-.footer-section-simplified .footer-links a { color: #ddd; text-decoration: none; transition: color 0.3s; font-size: 0.8em; } 
+.footer-section-simplified .footer-links a { 
+    color: #ddd; 
+    text-decoration: none; 
+    transition: color 0.3s; 
+    font-size: 0.7em; /* Smaller font */
+    white-space: nowrap;
+} 
+.footer-links-combined a:hover,
 .footer-section-simplified .contact-info a:hover,
-.footer-section-simplified .footer-links a:hover { color: var(--accent); }
-.footer-section-simplified .contact-info { color: #ddd; font-size: 0.8em; margin: 0; }
-.footer-bottom { text-align: center; padding-top: 2px; border-top: 1px solid #444; font-size: 10px; color: #aaa; }
+.footer-section-simplified .footer-links a:hover { 
+    color: var(--accent); 
+}
+.footer-section-simplified .contact-info { 
+    color: #ddd; 
+    margin: 0; 
+    white-space: nowrap;
+}
+/* Completely remove footer-bottom */
+.footer-bottom { 
+    display: none;
+}
+
+/* --- Common Styles for Report Sections (User and Expert) --- */
+.user-report-sections-list,
+.expert-report-sections-list {
+    list-style: none; /* Ensure no bullet points */
+    padding-left: 0; /* Remove default list padding */
+    margin-bottom: 20px; /* Space after the list */
+}
+
+.report-section-display-item {
+    background-color: var(--white);
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 12px; /* Space between sections */
+    position: relative; /* Needed for tooltips */
+    transition: background-color 0.2s ease-in-out; /* Smooth transition for color-coding */
+}
+
+.report-section-display-item:last-child {
+    margin-bottom: 0; /* No margin after the last item */
+}
+
+.report-section-title-display {
+    display: block;
+    font-size: 1.05em; /* Slightly larger for section titles */
+    color: var(--dark);
+    margin-bottom: 8px; /* Space below title */
+    font-weight: 600; /* Make title bolder */
+}
+
+.report-section-content-display {
+    font-size: 0.9em; /* Smaller font for content */
+    color: #333;
+    line-height: 1.6; /* Improved line spacing for readability */
+}
+
+.report-section-content-display p {
+    margin-bottom: 0; /* Remove default paragraph margin if only one p tag */
+    white-space: pre-wrap; /* Preserve whitespace and line breaks */
+    word-wrap: break-word; /* Ensure long words break */
+}
+
+/* AI Feedback Color-coding classes */
+.report-section-display-item.ai-feedback-critical {
+    background-color: #fcebeb; /* Light red */
+    border-left: 5px solid #dc3545; /* Red border */
+    padding-left: 10px;
+    margin-left: -5px; /* Adjust for border */
+    box-shadow: 0 0 5px rgba(220, 53, 69, 0.3); /* Subtle red shadow */
+    transition: all 0.2s ease;
+}
+
+.report-section-display-item.ai-feedback-moderate {
+    background-color: #fff8e6; /* Light yellow/orange */
+    border-left: 5px solid #ffc107; /* Orange border */
+    padding-left: 10px;
+    margin-left: -5px;
+    box-shadow: 0 0 5px rgba(255, 193, 7, 0.3); /* Subtle yellow shadow */
+    transition: all 0.2s ease;
+}
+
+.report-section-display-item.ai-feedback-consistent {
+    background-color: #e6f9ed; /* Light green */
+    border-left: 5px solid #28a745; /* Green border */
+    padding-left: 10px;
+    margin-left: -5px;
+    box-shadow: 0 0 5px rgba(40, 167, 69, 0.3); /* Subtle green shadow */
+    transition: all 0.2s ease;
+}
+
+/* Hover effect to make it more interactive */
+.report-section-display-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Tooltip styles for hover-over feedback */
+.ai-feedback-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    background-color: #fff;
+    color: #333;
+    text-align: left;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    border: 1px solid #ddd;
+    max-width: 400px;
+    width: auto;
+    z-index: 1000;
+    transition: opacity 0.3s, transform 0.3s;
+    transform: translateY(10px);
+    
+    /* Better typography */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: opacity 0.3s, visibility 0.3s;
+    pointer-events: none;
+    transform: translateY(10px);
+}
+
+.ai-feedback-tooltip.show {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Tooltip severity badges */
+.ai-feedback-tooltip .severity-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.ai-feedback-tooltip .severity-badge.critical {
+    background-color: #dc3545;
+    color: white;
+}
+
+.ai-feedback-tooltip .severity-badge.moderate {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.ai-feedback-tooltip .severity-badge.consistent {
+    background-color: #28a745;
+    color: white;
+}
+
+/* Tooltip headings and content styling */
+.ai-feedback-tooltip h3 {
+    margin: 0 0 8px 0;
+    font-size: 1em;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.ai-feedback-tooltip p {
+    margin: 0 0 10px 0;
+    font-size: 0.9em;
+}
+
+.ai-feedback-tooltip p.no-feedback {
+    font-style: italic;
+    color: #777;
+}
+
+.ai-feedback-tooltip::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #fff transparent;
+}
+
+/* Report action buttons */
+.report-action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.report-action-buttons .btn-sm {
+    min-width: 120px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}

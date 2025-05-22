@@ -402,7 +402,8 @@ class CaseSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
             return False
-        return Report.objects.filter(user=request.user, case=obj).exists()
+        # Only consider non-archived reports
+        return Report.objects.filter(user=request.user, case=obj, is_archived=False).exists()
 
     @transaction.atomic
     def create(self, validated_data):
@@ -444,7 +445,8 @@ class CaseListSerializer(serializers.ModelSerializer):
     def get_is_reported_by_user(self, obj):
         request = self.context.get('request')
         if not request or not hasattr(request, 'user') or not request.user.is_authenticated: return False
-        return Report.objects.filter(user=request.user, case=obj).exists()
+        # Only consider non-archived reports
+        return Report.objects.filter(user=request.user, case=obj, is_archived=False).exists()
 
     def get_has_master_template(self, obj):
         return obj.master_template is not None
