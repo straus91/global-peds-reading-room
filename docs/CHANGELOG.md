@@ -1,6 +1,10 @@
-ChangelogAll notable changes to this project will be documented in this file.The format is based on Keep a Changelog.[Unreleased] - AI Feedback Enhancements & UI Improvements
+# Changelog
+All notable changes to this project will be documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-Added
+## [Unreleased] - AI Feedback Enhancements, UI Improvements & Security Upgrades
+
+### Added
 Enhanced AI Feedback System:
 - Section Color Coding: Implemented visual color-coding for report sections based on their alignment with expert assessment (Green/Yellow/Red for Consistent/Moderate/Critical).
 - Structured Section Assessment: The LLM now provides a specific section-by-section assessment with standardized severity levels.
@@ -8,18 +12,37 @@ Enhanced AI Feedback System:
 - Improved Feedback Display: Redesigned AI feedback tab to show critical and non-critical discrepancies in clearly separated, color-coded sections.
 - Special Case Detection: Added special handling for critical findings like pneumothorax to ensure proper severity classification.
 
+Security & Error Handling Enhancements:
+- Input Sanitization: Added comprehensive sanitization for all user inputs before passing to LLM.
+- Rate Limiting: Implemented API rate limiting for LLM calls to prevent abuse.
+- Error Recovery: Added robust error handling with appropriate user feedback.
+- Atomic Transactions: Database operations are now wrapped in atomic transactions.
+- Proper Logging: Replaced print statements with structured logging.
+
 Reset Case Functionality:
 - Added "Reset Case" button to allow users to submit a new report for a case they've already completed.
 - Implemented backend endpoint for resetting case status.
 - Added is_archived field to Report model to preserve report history.
 
 UI Improvements:
-- Side-by-Side Layout for Case List Page: "Case Grid View" and "Case List View" (table) are now displayed in a two-column, side-by-side layout on desktop screens, stacking vertically on smaller screens.Side-by-Side Layout for Case Viewer Page: "Imaging" column (with DICOM viewer) and "Case Information" column are now displayed in a two-column, side-by-side layout on desktop screens, stacking vertically on smaller screens.Tabbed Interface for Case Information Column (Case Viewer Page): After a user submits a report, the right-hand "Case Information" column displays content in tabs: "Your Submitted Report" (default active after submission), "AI Feedback", and "Expert Report". Implemented JavaScript logic for tab switching.Structured Top/Bottom Strips in Case Information Column: Top strip now consistently displays Case ID, patient demographics, clinical history, and prominently highlighted Expert Diagnosis (Case.diagnosis). Bottom strip displays references.Changed
+- Side-by-Side Layout for Case List Page: "Case Grid View" and "Case List View" (table) are now displayed in a two-column, side-by-side layout on desktop screens, stacking vertically on smaller screens.
+- Side-by-Side Layout for Case Viewer Page: "Imaging" column (with DICOM viewer) and "Case Information" column are now displayed in a two-column, side-by-side layout on desktop screens, stacking vertically on smaller screens.
+- Tabbed Interface for Case Information Column: After a user submits a report, the right-hand "Case Information" column displays content in tabs: "Your Submitted Report" (default active after submission), "AI Feedback", and "Expert Report". Implemented JavaScript logic for tab switching.
+- Structured Top/Bottom Strips in Case Information Column: Top strip now consistently displays Case ID, patient demographics, clinical history, and prominently highlighted Expert Diagnosis (Case.diagnosis). Bottom strip displays references.
+
+### Changed
 AI Feedback System:
 - Enhanced LLM Prompt: Updated to generate structured section-by-section assessments with standardized severity levels.
 - Optimized Backend: Modified to identify identical sections between user and expert reports to reduce LLM processing.
 - Improved Parsing Logic: Updated to extract detailed severity assessments from LLM responses.
 - Frontend Display: Redesigned AI feedback display for cleaner, more organized presentation.
+
+Backend Security & Performance:
+- Model Instance Caching: Implemented LRU cache for Gemini model instance to improve performance.
+- Atomic Transaction Support: Added transactional safety to critical database operations.
+- Enhanced Error Handling: Implemented comprehensive error recovery for LLM API calls.
+- Structured Logging: Replaced print statements with proper Python logging.
+- Input Validation: Added safety checks throughout the API endpoints.
 
 UI Components:
 - CSS (styles.css): Major refactoring to implement the side-by-side layouts and section coloring. Added styles for color-coded report sections and improved tooltip design.

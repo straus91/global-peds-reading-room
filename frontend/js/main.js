@@ -662,7 +662,7 @@ function renderCaseDetail(caseData) {
                         <p><strong>Patient Sex:</strong> ${getDisplayValue(caseData.patient_sex)}</p>
                         <p><strong>Clinical History:</strong></p>
                         <p class="clinical-history-text">${getDisplayValue(caseData.clinical_history, 'No clinical history provided.')}</p>
-                        <div class="expert-diagnosis-highlight">
+                        <div class="expert-diagnosis-highlight" id="expertDiagnosisSection" style="display: ${caseData.is_reported_by_user ? 'block' : 'none'};">
                             <strong>Expert Diagnosis:</strong> 
                             <span>${getDisplayValue(caseData.diagnosis)}</span>
                         </div>
@@ -855,10 +855,10 @@ async function displayUserSubmittedReport(userReportData, targetContainerElement
             const sectionName = section.section_name || `Section ID ${section.master_template_section_id || 'N/A'}`;
             const sectionContent = section.content || '<em>No content submitted for this section.</em>';
 
-            // Default values
-            let sectionClasses = 'ai-feedback-consistent'; // Default to consistent (green) if no feedback
-            let aiComment = 'Generally consistent with expert assessment';
-            let aiSeverity = 'Consistent';
+            // Default values - no AI feedback available yet
+            let sectionClasses = 'ai-feedback-pending'; // Default to pending (gray) if no feedback
+            let aiComment = 'AI feedback not yet generated';
+            let aiSeverity = 'Pending';
 
             // Check for AI feedback for this specific section
             const aiFeedbackForSection = aiSectionFeedbackMap.get(sectionName);
@@ -869,19 +869,22 @@ async function displayUserSubmittedReport(userReportData, targetContainerElement
                 console.log(`Section: ${sectionName}, Severity: ${aiSeverity}, Raw value:`, aiFeedbackForSection.severity_level_from_llm);
 
                 // Normalize severity value for consistent matching
-                const normalizedSeverity = (aiSeverity || '').trim();
+                const normalizedSeverity = (aiSeverity || '').trim().toLowerCase();
                 
                 // Apply classes based on severity - handle different formats from the LLM
-                if (normalizedSeverity.toLowerCase().includes('critical') || normalizedSeverity.toLowerCase() === 'severe') {
+                if (normalizedSeverity.includes('critical') || normalizedSeverity === 'severe') {
                     sectionClasses = 'ai-feedback-critical';
                     console.log(`${sectionName}: Applied critical class`);
-                } else if (normalizedSeverity.toLowerCase().includes('moderate') || normalizedSeverity.toLowerCase() === 'medium') {
+                } else if (normalizedSeverity.includes('moderate') || normalizedSeverity === 'medium') {
                     sectionClasses = 'ai-feedback-moderate';
                     console.log(`${sectionName}: Applied moderate class`);
-                } else {
-                    // Default to consistent for everything else
+                } else if (normalizedSeverity.includes('consistent') || normalizedSeverity === 'minor' || normalizedSeverity === 'none') {
                     sectionClasses = 'ai-feedback-consistent';
-                    console.log(`${sectionName}: Applied consistent class (default)`);
+                    console.log(`${sectionName}: Applied consistent class`);
+                } else {
+                    // Default to consistent ONLY if no match found
+                    sectionClasses = 'ai-feedback-consistent';
+                    console.log(`${sectionName}: Applied consistent class (default fallback)`);
                 }
                 
                 console.log(`${sectionName}: Final class applied: ${sectionClasses}`);
@@ -1494,6 +1497,10 @@ async function handleReportSubmit(event) {
                     
                     if (reportSubmissionSection) reportSubmissionSection.style.display = 'none';
                     if (caseReviewTabsContainer) caseReviewTabsContainer.style.display = 'block';
+                    
+                    // Show expert diagnosis now that user has submitted a report
+                    const expertDiagnosisSection = document.getElementById('expertDiagnosisSection');
+                    if (expertDiagnosisSection) expertDiagnosisSection.style.display = 'block';
                     
                     // NEW: Store the newly submitted report globally
                     currentUserReportData = newUserReportForCase;
