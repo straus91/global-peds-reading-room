@@ -1,16 +1,7 @@
 // js/api.js - API utility functions with improved error handling
 
-// Define the base URL for your backend API
-const API_CONFIG = {
-    BASE_URL: 'http://127.0.0.1:8000/api',
-    // Add production URL based on environment
-    // PROD_URL: 'https://api.globalpeds.org/api',
-    
-    getBaseUrl() {
-        // Switch based on environment if needed
-        return this.BASE_URL;
-    }
-};
+// API configuration is now managed by config.js
+// APP_CONFIG is available globally after config.js loads
 
 /**
  * Retrieves the stored authentication tokens (access & refresh).
@@ -61,7 +52,7 @@ function clearAuthTokens() {
  * @throws {Error} Throws an error for network issues or non-OK HTTP responses.
  */
 async function apiRequest(endpoint, options = {}, includeAuth = true) {
-    const url = endpoint.startsWith('/') ? `${API_CONFIG.getBaseUrl()}${endpoint}` : `${API_CONFIG.getBaseUrl()}/${endpoint}`;
+    const url = endpoint.startsWith('/') ? `${APP_CONFIG.api.getBaseUrl()}${endpoint}` : `${APP_CONFIG.api.getBaseUrl()}/${endpoint}`;
     const headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
