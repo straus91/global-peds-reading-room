@@ -35,8 +35,8 @@ const APP_CONFIG = {
             if (APP_CONFIG.environment.isLocalDevelopment()) {
                 return 'http://localhost:8042/ohif/viewer';
             }
-            // Production/beta fallback - use same hostname with port 8042
-            return `${window.location.protocol}//${window.location.hostname}:8042/ohif/viewer`;
+            // Production/beta fallback - use same hostname with port 8053
+            return `${window.location.protocol}//${window.location.hostname}:8053/ohif/viewer`;
         }
     },
     
