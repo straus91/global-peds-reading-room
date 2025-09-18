@@ -588,7 +588,7 @@ function setupDicomViewer(caseData) {
         dicomViewerFrame.style.display = 'block';
         
         const orthancOhifViewerBaseUrl = APP_CONFIG.dicom.getViewerUrl();
-        const dicomSrcUrl = `${orthancOhifViewerBaseUrl}?StudyInstanceUIDs=${caseData.orthanc_study_uid}`;
+        const dicomSrcUrl = `${orthancOhifViewerBaseUrl}?study=${caseData.orthanc_study_uid}`;
 
         console.log("Loading DICOM study in iframe from URL:", dicomSrcUrl);
         

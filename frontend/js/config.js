@@ -33,10 +33,10 @@ const APP_CONFIG = {
     dicom: {
         getViewerUrl() {
             if (APP_CONFIG.environment.isLocalDevelopment()) {
-                return 'http://localhost:8042/ohif/viewer';
+                return 'http://localhost:8042/stone-webviewer/index.html';
             }
             // Production/beta fallback - use same hostname with port 8053
-            return `${window.location.protocol}//${window.location.hostname}:8053/ohif/viewer`;
+            return `${window.location.protocol}//${window.location.hostname}:8053/stone-webviewer/index.html`;
         }
     },
     
