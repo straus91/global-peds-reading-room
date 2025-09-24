@@ -176,7 +176,22 @@
                     <div id="createTemplateContainer" class="tab-content">
                         <div class="admin-form-container">
                             <h2 id="templateFormTitle">Create New Template</h2> <form id="templateForm" class="admin-form">
-                                <input type="hidden" id="templateId" name="templateId"> <div class="form-section">
+                                <input type="hidden" id="templateId" name="templateId">
+
+                                <div class="form-section">
+                                    <h3>Import from Text</h3>
+                                    <p class="note">Paste a complete template text below to automatically parse and pre-fill the form. This includes template name, modality detection, and all sections.</p>
+                                    <div class="form-group">
+                                        <label for="templateTextInput">Template Text</label>
+                                        <textarea id="templateTextInput" rows="10" placeholder="Paste your complete template text here...&#10;&#10;Example:&#10;Knee MRI&#10;FINDINGS:&#10;Alignment: Normal.&#10;Bones: Normal bone and bone marrow signal.&#10;IMPRESSION:&#10;Normal MRI of the left knee."></textarea>
+                                        <p class="field-hint">First line should be template name. Use ALL CAPS sections like "FINDINGS:" and "IMPRESSION:"</p>
+                                    </div>
+                                    <div class="form-group">
+                                        <button type="button" id="parseTemplateBtn" class="btn btn-secondary">Parse Text & Pre-fill Form</button>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
                                     <h3>Template Information</h3>
                                     <div class="form-row">
                                         <div class="form-group">

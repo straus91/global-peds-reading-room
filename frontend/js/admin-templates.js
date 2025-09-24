@@ -112,6 +112,10 @@
         DOM.templateIsActiveCheckbox = document.getElementById('templateIsActive');
         DOM.templateSectionsContainer = document.getElementById('templateSectionsContainer');
         DOM.addSectionBtn = document.getElementById('addSectionBtn');
+
+        // Import from text elements
+        DOM.templateTextInput = document.getElementById('templateTextInput');
+        DOM.parseTemplateBtn = document.getElementById('parseTemplateBtn');
         DOM.formLanguageTabsContainer = document.getElementById('formLanguageTabs');
         DOM.languageTranslationsContainer = document.getElementById('languageTranslationsContainer');
         DOM.formSaveBtn = document.getElementById('formSaveBtn');
@@ -167,6 +171,9 @@
             }
         });
         DOM.formPreviewTemplateBtn?.addEventListener('click', TemplateFormManager.handlePreview);
+
+        // Import from text functionality
+        DOM.parseTemplateBtn?.addEventListener('click', TemplateTextParser.handleParseTemplate);
 
 
         // Section Modal actions
@@ -415,6 +422,234 @@
     };
 
     // --- Template Form Management (Create/Edit) ---
+    // --- Template Text Parser ---
+    const TemplateTextParser = {
+        handleParseTemplate: function() {
+            const textInput = DOM.templateTextInput?.value?.trim();
+            if (!textInput) {
+                showToast('Please paste some template text to parse.', 'warning');
+                DOM.templateTextInput?.focus();
+                return;
+            }
+
+            try {
+                const parsedData = this.parseTemplateText(textInput);
+                this.populateFormWithParsedData(parsedData);
+                showToast('Template text parsed successfully! Review the form below.', 'success');
+                // Clear the text area after successful parsing
+                DOM.templateTextInput.value = '';
+            } catch (error) {
+                console.error('[TemplateTextParser] Error parsing template:', error);
+                showToast(`Error parsing template: ${error.message}`, 'error');
+            }
+        },
+
+        parseTemplateText: function(text) {
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            if (lines.length === 0) {
+                throw new Error('No content to parse');
+            }
+
+            // First line is the template name
+            const templateName = lines[0];
+
+            // Infer modality from template name
+            const modality = this.inferModality(templateName);
+            const bodyPart = this.inferBodyPart(templateName);
+
+            // Parse sections starting from line 2
+            const sections = this.parseSections(lines.slice(1));
+
+            return {
+                name: templateName,
+                modality: modality,
+                bodyPart: bodyPart,
+                sections: sections
+            };
+        },
+
+        inferModality: function(templateName) {
+            const name = templateName.toLowerCase();
+
+            if (name.includes('mri') || name.includes('mr ') || name.includes('magnetic')) return 'MR';
+            if (name.includes('ct') || name.includes('computed tomography')) return 'CT';
+            if (name.includes('ultrasound') || name.includes('us ') || name.includes('sonogram')) return 'US';
+            if (name.includes('x-ray') || name.includes('xr ') || name.includes('radiograph')) return 'XR';
+            if (name.includes('fluoroscopy') || name.includes('fluoro')) return 'FL';
+            if (name.includes('nuclear medicine') || name.includes('nm ') || name.includes('pet') || name.includes('spect')) return 'NM';
+
+            return 'OT'; // Default to Other if not detected
+        },
+
+        inferBodyPart: function(templateName) {
+            const name = templateName.toLowerCase();
+
+            // Musculoskeletal
+            if (name.includes('knee') || name.includes('shoulder') || name.includes('elbow') ||
+                name.includes('wrist') || name.includes('hip') || name.includes('ankle') ||
+                name.includes('spine') || name.includes('bone') || name.includes('joint') ||
+                name.includes('femur') || name.includes('tibia') || name.includes('humerus')) return 'MK';
+
+            // Chest
+            if (name.includes('chest') || name.includes('lung') || name.includes('thorax') ||
+                name.includes('pulmonary') || name.includes('thoracic')) return 'CH';
+
+            // Neuroradiology
+            if (name.includes('head') || name.includes('brain') || name.includes('skull') ||
+                name.includes('cervical') || name.includes('neuro') || name.includes('spine')) return 'NR';
+
+            // Abdominal/GI
+            if (name.includes('abdomen') || name.includes('liver') || name.includes('kidney') ||
+                name.includes('pelvis') || name.includes('bowel') || name.includes('stomach')) return 'GI';
+
+            // Cardiac
+            if (name.includes('heart') || name.includes('cardiac') || name.includes('coronary')) return 'CA';
+
+            // Genitourinary
+            if (name.includes('bladder') || name.includes('prostate') || name.includes('renal') ||
+                name.includes('ureter') || name.includes('urethra')) return 'GU';
+
+            // Head and Neck
+            if (name.includes('neck') || name.includes('thyroid') || name.includes('sinus') ||
+                name.includes('face') || name.includes('jaw') || name.includes('throat')) return 'HN';
+
+            // Breast
+            if (name.includes('breast') || name.includes('mammography') || name.includes('mammo')) return 'BR';
+
+            return 'OT'; // Default to Other
+        },
+
+        parseSections: function(lines) {
+            const sections = [];
+            let currentSection = null;
+            let currentText = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                // Check if this line is a major section header (ALL CAPS with colon)
+                if (this.isMajorSectionHeader(line)) {
+                    // Save previous section if exists
+                    if (currentSection) {
+                        this.processSectionText(currentSection, currentText, sections);
+                    }
+
+                    // Start new section
+                    currentSection = {
+                        title: this.extractSectionTitle(line),
+                        isMainSection: true
+                    };
+                    currentText = [];
+
+                    // Check if there's text after the colon on the same line
+                    const afterColon = line.substring(line.indexOf(':') + 1).trim();
+                    if (afterColon) {
+                        currentText.push(afterColon);
+                    }
+                } else {
+                    // This is content under the current section
+                    currentText.push(line);
+                }
+            }
+
+            // Don't forget the last section
+            if (currentSection) {
+                this.processSectionText(currentSection, currentText, sections);
+            }
+
+            return sections;
+        },
+
+        isMajorSectionHeader: function(line) {
+            // Line should be mostly uppercase and end with colon
+            const colonIndex = line.indexOf(':');
+            if (colonIndex === -1) return false;
+
+            const headerPart = line.substring(0, colonIndex);
+            // Check if header part is mostly uppercase (at least 70% uppercase letters)
+            const letters = headerPart.replace(/[^A-Za-z]/g, '');
+            if (letters.length === 0) return false;
+
+            const upperLetters = headerPart.replace(/[^A-Z]/g, '');
+            const uppercaseRatio = upperLetters.length / letters.length;
+
+            return uppercaseRatio >= 0.7; // At least 70% uppercase
+        },
+
+        extractSectionTitle: function(line) {
+            const colonIndex = line.indexOf(':');
+            return line.substring(0, colonIndex).trim();
+        },
+
+        processSectionText: function(sectionHeader, textLines, sections) {
+            // Check if any of the text lines contain subsections (have colons)
+            const subsections = [];
+            let generalText = [];
+
+            for (const line of textLines) {
+                const colonIndex = line.indexOf(':');
+                if (colonIndex > 0 && colonIndex < line.length - 1) {
+                    // This looks like a subsection
+                    const subTitle = line.substring(0, colonIndex).trim();
+                    const subText = line.substring(colonIndex + 1).trim();
+                    subsections.push({
+                        title: subTitle,
+                        text: subText
+                    });
+                } else if (line.trim()) {
+                    generalText.push(line);
+                }
+            }
+
+            if (subsections.length > 0) {
+                // Create sections from subsections
+                subsections.forEach(sub => {
+                    sections.push({
+                        title: sub.title,
+                        placeholder: sub.text,
+                        required: true
+                    });
+                });
+            } else {
+                // Create a single section from the header with combined text
+                sections.push({
+                    title: sectionHeader.title,
+                    placeholder: generalText.join(' ').trim() || `Enter ${sectionHeader.title.toLowerCase()} details here.`,
+                    required: true
+                });
+            }
+        },
+
+        populateFormWithParsedData: function(parsedData) {
+            // Clear existing form data
+            TemplateFormManager.resetForm();
+
+            // Populate basic fields
+            if (DOM.templateNameInput) DOM.templateNameInput.value = parsedData.name;
+            if (DOM.templateModalitySelect) DOM.templateModalitySelect.value = parsedData.modality;
+            if (DOM.templateBodyPartSelect) DOM.templateBodyPartSelect.value = parsedData.bodyPart;
+
+            // Clear existing sections and add parsed ones
+            templatesState.currentSectionsInForm = [];
+            parsedData.sections.forEach((section, index) => {
+                templatesState.currentSectionsInForm.push({
+                    uiId: `parsed_${Date.now()}_${index}`,
+                    dbId: null,
+                    title: section.title,
+                    placeholder: section.placeholder,
+                    required: section.required,
+                    order: index,
+                    translations: {}
+                });
+            });
+
+            // Re-render sections UI
+            TemplateFormManager.renderSectionsUI();
+
+            console.log('[TemplateTextParser] Successfully populated form with parsed data:', parsedData);
+        }
+    };
+
     const TemplateFormManager = {
         resetForm: function() {
             DOM.templateForm.reset();
@@ -429,6 +664,9 @@
             if (DOM.templateModalitySelect) DOM.templateModalitySelect.value = "";
             if (DOM.templateBodyPartSelect) DOM.templateBodyPartSelect.value = "";
             if (DOM.templateIsActiveCheckbox) DOM.templateIsActiveCheckbox.checked = true;
+
+            // Clear the text import area
+            if (DOM.templateTextInput) DOM.templateTextInput.value = "";
 
             console.log("[AdminTemplates] Form reset.");
         },

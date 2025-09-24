@@ -3,6 +3,10 @@
 // API configuration is now managed by config.js
 // APP_CONFIG is available globally after config.js loads
 
+// Token refresh state management
+let isRefreshing = false;
+let refreshPromise = null;
+
 /**
  * Retrieves the stored authentication tokens (access & refresh).
  * @returns {object|null} Object with accessToken and refreshToken, or null if not found.
@@ -42,6 +46,65 @@ function clearAuthTokens() {
 }
 
 /**
+ * Refreshes the access token using the refresh token.
+ * @returns {Promise<boolean>} True if refresh was successful, false otherwise.
+ */
+async function refreshAccessToken() {
+    const tokens = getAuthTokens();
+    if (!tokens || !tokens.refreshToken) {
+        console.log('[refreshAccessToken] No refresh token available');
+        return false;
+    }
+
+    try {
+        console.log('[refreshAccessToken] Attempting to refresh token');
+        const response = await fetch(`${APP_CONFIG.api.getBaseUrl()}/api/auth/login/refresh/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                refresh: tokens.refreshToken
+            })
+        });
+
+        if (!response.ok) {
+            console.log('[refreshAccessToken] Refresh failed with status:', response.status);
+            return false;
+        }
+
+        const data = await response.json();
+        if (data.access) {
+            setAuthTokens(data.access, tokens.refreshToken);
+            console.log('[refreshAccessToken] Token refreshed successfully');
+            return true;
+        } else {
+            console.log('[refreshAccessToken] No access token in response');
+            return false;
+        }
+    } catch (error) {
+        console.error('[refreshAccessToken] Error refreshing token:', error);
+        return false;
+    }
+}
+
+/**
+ * Logs out the user by clearing tokens and redirecting to login page.
+ */
+function logoutUser() {
+    console.log('[logoutUser] Logging out user');
+    clearAuthTokens();
+    // Reset refresh state
+    isRefreshing = false;
+    refreshPromise = null;
+    // Redirect to login page
+    if (window.location.pathname !== '/login.html' && window.location.pathname !== '/') {
+        window.location.href = '/login.html';
+    }
+}
+
+/**
  * Makes an authenticated request to the API.
  * Automatically adds the Authorization header with the access token.
  * Handles basic response checking and JSON parsing with improved error handling.
@@ -77,7 +140,7 @@ async function apiRequest(endpoint, options = {}, includeAuth = true) {
     try {
         const response = await fetch(url, fetchOptions);
         let data;
-        
+
         // Try to parse JSON response, but handle cases where it might not be valid JSON
         try {
             const text = await response.text();
@@ -87,17 +150,51 @@ async function apiRequest(endpoint, options = {}, includeAuth = true) {
             // Create a simple object with the response text as detail for error message
             data = { detail: 'Invalid response format from server' };
         }
-    
+
         if (!response.ok) {
+            // Handle 401 Unauthorized - potentially expired token
+            if (response.status === 401 && includeAuth) {
+                console.log('[apiRequest] Got 401, attempting token refresh');
+
+                // Check if we're already refreshing to avoid multiple simultaneous refresh attempts
+                if (isRefreshing) {
+                    console.log('[apiRequest] Token refresh already in progress, waiting...');
+                    await refreshPromise;
+                    // Retry the original request with the new token
+                    return apiRequest(endpoint, options, includeAuth);
+                }
+
+                // Start the refresh process
+                isRefreshing = true;
+                refreshPromise = refreshAccessToken();
+
+                const refreshSuccess = await refreshPromise;
+                isRefreshing = false;
+                refreshPromise = null;
+
+                if (refreshSuccess) {
+                    console.log('[apiRequest] Token refreshed successfully, retrying request');
+                    // Retry the original request with the new token
+                    return apiRequest(endpoint, options, includeAuth);
+                } else {
+                    console.log('[apiRequest] Token refresh failed, logging out user');
+                    logoutUser();
+                    const error = new Error('Session expired. Please log in again.');
+                    error.status = 401;
+                    error.data = { detail: 'Session expired' };
+                    throw error;
+                }
+            }
+
             console.error("API Error Details:", data);
-            
+
             // Create a more informative error object
             const error = new Error(data?.detail || `HTTP error ${response.status}`);
             error.status = response.status;
             error.data = data;
             throw error;
         }
-    
+
         return data;
     } catch (error) {
         // Enhance error handling
