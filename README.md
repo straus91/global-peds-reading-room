@@ -1,40 +1,247 @@
-Global Peds Reading RoomAn educational web platform designed for global pediatric radiology learning and practice. This platform allows medical professionals to view curated radiology cases, submit diagnostic reports, receive AI-powered feedback, and compare their interpretations against expert findings using standardized templates.Project OverviewThe Global Peds Reading Room aims to provide an interactive learning environment where users can:Browse and select radiology cases across various subspecialties and modalities, identified by non-spoiling, human-readable Case IDs.View DICOM images for selected cases using an embedded OHIF viewer connected to an Orthanc DICOM server.Submit structured diagnostic reports based on provided master templates.Receive automated, AI-generated feedback on their submitted reports, enhanced by comprehensive case context, programmatic pre-analysis, and severity indications for discrepancies.Compare their reports against expert-filled language-specific templates.Provide ratings and comments on the AI-generated feedback to help improve the system.Track their progress and learning.Administrators can:Manage users, including registration approvals.Create, edit, and manage teaching cases, including linking them to DICOM studies in Orthanc and defining case-specific key concepts to guide AI feedback.Manage master report templates and expert-filled language versions of these templates.Configure system settings.Key FeaturesThe platform includes the following core features:User registration and authentication with admin approval.Comprehensive admin panel for managing users, cases, and report templates.DICOM image viewing via an embedded Orthanc OHIF viewer.Structured report submission and display of user reports.Enhanced AI-Powered Feedback System: Backend infrastructure significantly updated for more insightful AI feedback using Google Gemini, incorporating case context, programmatic pre-analysis, and severity levels.Non-Spoiling Case Identification: Auto-generated, human-readable case_identifier for user-facing views.User Feedback on AI Feedback: Backend infrastructure for users to submit ratings and comments on AI critiques.For a complete and detailed list of all changes and features, please refer to the Changelog.Quick StartThis guide will help you get the Global Peds Reading Room application up and running on your local machine for development.PrerequisitesPython 3.8+PostgreSQLAn Orthanc DICOM server instance (for DICOM image hosting).A Google Gemini API Key (for AI feedback feature).Backend Setup (backend/ directory)Create a Python virtual environment:python -m venv venv
-Activate the virtual environment:Windows PowerShell: .\venv\Scripts\Activate.ps1Windows cmd: venv\Scripts\activate.batmacOS/Linux: source venv/bin/activateInstall dependencies:pip install -r requirements.txt
-Create a .env file: In the backend/ directory, create a .env file (you can copy from .env.example if provided, or create new). Add your SECRET_KEY, PostgreSQL database credentials (DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT), and your GEMINI_API_KEY.Example backend/.env:SECRET_KEY="your_strong_secret_key_here"
-DEBUG="True"
-ALLOWED_HOSTS="localhost,127.0.0.1"
-# Database Example (PostgreSQL)
-DB_NAME="globalpeds_db"
-DB_USER="your_db_user"
-DB_PASSWORD="your_db_password"
-DB_HOST="localhost"
-DB_PORT="5432"
-# Gemini API Key
-GEMINI_API_KEY="your_google_gemini_api_key"
-# CORS Origins for frontend dev server
-CORS_ALLOWED_ORIGINS="http://127.0.0.1:5500,http://localhost:5500" 
-Run database migrations: This will set up your database schema, including all necessary tables for cases, users, templates, and AI feedback.python manage.py migrate
-Create a superuser (admin account):python manage.py createsuperuser
-Run the Django development server:python manage.py runserver
-The backend API will typically be accessible at http://127.0.0.1:8000/.Frontend Setup (frontend/ directory)The frontend is built with Vanilla JavaScript, HTML, and CSS. No complex build step is currently required.Configure API Base URL: Ensure API_CONFIG.BASE_URL in frontend/js/api.js points to your running backend (default http://127.0.0.1:8000/api).Configure Orthanc Viewer URL: Ensure your local Orthanc server (with OHIF plugin) is running and accessible (default http://localhost:8042). The orthancOhifViewerBaseUrl in frontend/js/main.js (within the setupDicomViewer function) may need adjustment if your Orthanc OHIF path is different.Serve the frontend directory: You can use a simple Python HTTP server:cd frontend
+# 🏥 Global Peds Reading Room
+
+<div align="center">
+
+**An AI-powered educational platform for global pediatric radiology learning**
+
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![Django](https://img.shields.io/badge/Django-5.2-green.svg)](https://djangoproject.com)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue.svg)](https://postgresql.org)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[🚀 Live Demo](#) • [📖 Documentation](docs/) • [🐛 Report Bug](../../issues) • [💡 Request Feature](../../issues)
+
+</div>
+
+---
+
+## 🌟 Overview
+
+Global Peds Reading Room is a comprehensive educational web platform designed to revolutionize pediatric radiology learning. Medical professionals can view curated radiology cases, submit diagnostic reports, and receive **AI-powered feedback** to enhance their diagnostic skills.
+
+### ✨ Key Features
+
+- 🔍 **Interactive DICOM Viewer** - View medical images with embedded Stone Web Viewer
+- 🤖 **AI-Powered Feedback** - Get intelligent feedback on diagnostic reports using Google Gemini
+- 📋 **Structured Templates** - Standardized reporting templates for consistency
+- 👥 **Multi-User Support** - Role-based access for students, residents, fellows, and attendings
+- 📊 **Progress Tracking** - Monitor learning progress and improvement over time
+- 🌐 **Global Access** - Designed for international medical education
+- ⚡ **Real-time Analysis** - Instant comparison with expert interpretations
+
+---
+
+## 📸 Screenshots
+
+> 🚧 **Coming Soon**: Screenshots of the platform interface will be added here
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Python 3.8+** 
+- **PostgreSQL**
+- **Orthanc DICOM Server** (with Stone Web Viewer)
+- **Google Gemini API Key**
+
+### 🔧 Installation
+
+#### 1️⃣ Backend Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/straus91/global-peds-reading-room.git
+cd global-peds-reading-room
+
+# Navigate to backend
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+# Windows cmd:
+venv\Scripts\activate.bat
+# macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Setup environment variables
+cp .env.example .env
+# Edit .env with your database credentials and API keys
+
+# Run migrations
+python manage.py migrate
+
+# Create superuser
+python manage.py createsuperuser
+
+# Start development server
+python manage.py runserver
+```
+
+#### 2️⃣ Frontend Setup
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Start local server
 python -m http.server 5500
-Then, access the application by navigating to http://127.0.0.1:5500/login.html in your web browser.Project Structureglobal-peds-reading-room/
-├── backend/                  # Django backend application and API
-│   ├── cases/                # Core application logic for cases, reports, templates, and AI feedback
-│   ├── users/                # User authentication and profiles
-│   ├── globalpeds_project/   # Django project settings and main URL configurations
-│   ├── api/                  # Main API routing and common authentication views
-│   ├── .env                  # Environment variables (NOT COMMITTED)
-│   ├── manage.py             # Django management utility
-│   └── requirements.txt      # Python dependencies
-├── frontend/                 # Vanilla JavaScript, HTML, and CSS for the user interface
-│   ├── admin/                # HTML pages for the admin interface
-│   ├── assets/               # Images, icons, and other static assets
-│   ├── css/                  # Stylesheets
-│   ├── js/                   # JavaScript files for frontend logic
-│   └── login.html            # User login page
-│   └── index.html            # Main user application page
-├── docs/                     # Detailed project documentation
-├── .gitignore                # Git ignore rules
-└── README.md                 # This file
-DocumentationFor more in-depth information about the project, please refer to the following documentation files located in the docs/ directory:Architecture Overview: Details the system's architecture, technology stack, data flow, and security.Development Guide: Instructions for setting up the development environment, code style, and common development tasks.Project Map: A detailed breakdown of the backend and frontend file structure, including models, views, and API endpoints.AI Assistant Guide: Specific documentation on the AI-powered feedback system, its implementation, and how to work with it.Deployment Guide: Checklist and steps for deploying the application to a production environment.Changelog: A comprehensive record of all notable changes, features, and fixes across different versions.
+```
+
+#### 3️⃣ Access the Application
+
+- **Frontend**: http://localhost:5500
+- **Backend API**: http://127.0.0.1:8000
+- **Admin Panel**: http://127.0.0.1:8000/admin
+
+---
+
+## 🛠️ Tech Stack
+
+### Backend
+- **Django 5.2** - Web framework
+- **Django REST Framework** - API development
+- **PostgreSQL** - Primary database
+- **Google Gemini API** - AI-powered feedback
+- **JWT Authentication** - Secure user sessions
+
+### Frontend
+- **Vanilla JavaScript** - No framework dependencies
+- **HTML5 & CSS3** - Modern web standards
+- **Stone Web Viewer** - DICOM image viewing
+- **Responsive Design** - Works on all devices
+
+### Infrastructure
+- **Orthanc DICOM Server** - Medical image storage
+- **Gunicorn** - Production WSGI server
+- **nginx** - Reverse proxy (production)
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [🏗️ Architecture](docs/ARCHITECTURE.md) | System design and technical overview |
+| [👨‍💻 Development](docs/DEVELOPMENT.md) | Development setup and guidelines |
+| [📁 Project Map](docs/PROJECT_MAP.md) | Codebase structure and organization |
+| [🤖 AI Guide](docs/AI_GUIDE.md) | AI feedback system implementation |
+| [🚀 Deployment](docs/DEPLOYMENT.md) | Production deployment guide |
+| [📝 Changelog](docs/CHANGELOG.md) | Version history and updates |
+
+---
+
+## 🏗️ Project Structure
+
+```
+global-peds-reading-room/
+├── 📁 backend/                 # Django REST API
+│   ├── 📁 cases/               # Core case management logic
+│   ├── 📁 users/               # User authentication & profiles
+│   ├── 📁 api/                 # API routing & views
+│   └── 📁 globalpeds_project/  # Django settings
+├── 📁 frontend/                # Vanilla JS frontend
+│   ├── 📁 admin/               # Admin interface pages
+│   ├── 📁 css/                 # Stylesheets
+│   ├── 📁 js/                  # JavaScript modules
+│   └── 📁 assets/              # Images & static files
+├── 📁 docs/                    # Documentation
+└── 📄 README.md               # This file
+```
+
+---
+
+## 🌟 Features Deep Dive
+
+### 🤖 AI-Powered Feedback System
+- **Context-Aware Analysis**: AI considers case history, patient demographics, and imaging findings
+- **Severity Indicators**: Discrepancies are categorized by clinical importance
+- **Learning-Focused**: Feedback designed to enhance diagnostic skills, not just correct errors
+- **Continuous Improvement**: User ratings help refine AI feedback quality
+
+### 👥 User Management
+- **Role-Based Access**: Different permissions for students, residents, fellows, and attendings
+- **Registration Approval**: Admin oversight for new user registration
+- **Progress Tracking**: Individual learning analytics and improvement metrics
+- **Global Accessibility**: Multi-country support with institution tracking
+
+### 📊 Case Management
+- **DICOM Integration**: Seamless viewing of medical images
+- **Template System**: Standardized reporting formats
+- **Expert Comparisons**: Side-by-side analysis with expert interpretations
+- **Case Curation**: Admin tools for adding and managing teaching cases
+
+---
+
+## 🚀 Deployment
+
+### Development
+```bash
+# Start backend
+cd backend && python manage.py runserver
+
+# Start frontend  
+cd frontend && python -m http.server 5500
+```
+
+### Production
+See [Deployment Guide](docs/DEPLOYMENT.md) for detailed production setup instructions.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests (`python manage.py test`)
+5. Commit changes (`git commit -m 'Add amazing feature'`)
+6. Push to branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🆘 Support
+
+- 📧 **Email**: [Contact Developer](mailto:mst@ad.unc.edu)
+- 🐛 **Issues**: [GitHub Issues](../../issues)
+- 💬 **Discussions**: [GitHub Discussions](../../discussions)
+
+---
+
+## 🙏 Acknowledgments
+
+- **Medical Educators** who provided case curation expertise
+- **Orthanc Community** for excellent DICOM server solutions
+- **Google Gemini** for AI capabilities
+- **Open Source Community** for tools and libraries
+
+---
+
+<div align="center">
+
+**Made with ❤️ for medical education**
+
+⭐ Star this repo if you find it helpful!
+
+</div>
