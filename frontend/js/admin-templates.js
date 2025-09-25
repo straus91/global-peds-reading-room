@@ -189,7 +189,7 @@
         DOM.formPreviewTemplateBtn?.addEventListener('click', TemplateFormManager.handlePreview);
 
         // Import from text functionality
-        DOM.parseTemplateBtn?.addEventListener('click', TemplateTextParser.handleParseTemplate);
+        DOM.parseTemplateBtn?.addEventListener('click', () => TemplateTextParser.handleParseTemplate());
 
 
         // Section Modal actions
