@@ -156,12 +156,19 @@ def check_rate_limit():
 def get_gemini_model():
     """
     Returns a cached instance of the Gemini model to avoid recreation.
+    Now using Gemini 2.5 Flash for improved performance and capabilities.
     """
     try:
-        return genai.GenerativeModel('gemini-1.5-flash-latest')
+        return genai.GenerativeModel('gemini-2.5-flash')
     except Exception as e:
         logger.error(f"Failed to create Gemini model instance: {e}")
-        return None
+        # Fallback to 1.5 Flash if 2.5 is not available
+        try:
+            logger.warning("Falling back to Gemini 1.5 Flash")
+            return genai.GenerativeModel('gemini-1.5-flash-latest')
+        except Exception as fallback_error:
+            logger.error(f"Fallback to Gemini 1.5 Flash also failed: {fallback_error}")
+            return None
 
 # UPDATED FUNCTION SIGNATURE
 def get_feedback_from_llm(
