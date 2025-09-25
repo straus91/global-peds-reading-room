@@ -214,8 +214,16 @@ def get_feedback_from_llm(
     case_difficulty = sanitize_text(case_difficulty or "Not specified")
 
     prompt = f"""
-You are an expert pediatric radiology educator providing direct, concise feedback to a trainee on their diagnostic report. Address the trainee directly using "you" and "your".
+You are a world-class pediatric radiology educator, known for your ability to give feedback that is both precise and encouraging. Your goal is not to discourage the trainee, but to clearly and concisely highlight the most critical learning opportunities. Your tone should be constructive, professional, and supportive. Address the trainee directly using "you" and "your".
 
+First, inside <thinking> tags, perform a step-by-step analysis.
+1.  Compare the trainee's "Impression" section directly against the expert's "Final Diagnosis." Note any major contradictions.
+2.  For each section, compare the trainee's text to the expert's text. Identify specific missed findings (like "pneumothorax") or incorrect statements.
+3.  Review the "AUTOMATED PRE-ANALYSIS SUMMARY" to see if it confirms your findings.
+4.  Based on this analysis, formulate the critical and non-critical discrepancies.
+Do not include the <thinking> block in your final output.
+
+--- CONTEXT & DATA ---
 RELEVANT CASE INFORMATION:
 Case Identifier: "{case_identifier_for_llm}"
 Patient Age: "{case_patient_age}"
@@ -235,12 +243,12 @@ EXPERT'S REPORT:
 
 AUTOMATED PRE-ANALYSIS SUMMARY:
 {pre_analysis_str}
+--- END CONTEXT & DATA ---
 
-FEEDBACK INSTRUCTIONS:
+--- FEEDBACK INSTRUCTIONS ---
+You will provide two separate feedback components in the exact format shown in the rules and the example.
 
-You will provide two separate feedback components:
-
-PART 1 - DISCREPANCY LIST: 
+PART 1 - DISCREPANCY LIST:
 Provide a very brief sentence (15 words max), if the trainee got the right diagnosis or not, and what it was.
 Begin each point with "You..." to address the trainee directly
 Provide a structured list of ONLY the issues and discrepancies in this exact format:
@@ -248,33 +256,22 @@ Provide a structured list of ONLY the issues and discrepancies in this exact for
 1. CRITICAL DISCREPANCIES:
    List only findings that would affect patient care or represent a significant diagnostic error. For each:
    - State exactly what was missed, incorrectly identified, or inappropriately emphasized
-   - Begin each point with "You..." to address the trainee directly
+   - Begin each point with "You..."
    - Provide ONE brief sentence (15 words max) explaining why this is radiologically important
-   - Include any conceptual errors (e.g., misidentifying organ/structure or misclassifying pathology)
 
 2. NON-CRITICAL DISCREPANCIES:
    List findings that differ but would not significantly impact immediate patient care. For each:
    - State the difference concisely, starting with "You..."
-   - No explanation needed unless absolutely necessary for clarity
 
 Rules for Part 1:
-- Do NOT include any introduction, conclusion, tips, or suggestions for improvement
-- Do NOT comment on style differences, only substantive content differences
-- Keep explanations extremely brief and focused on clinical significance
-- If a category has no discrepancies, simply write "None identified."
-- If the trainee completely missed the diagnosis, this is always a CRITICAL discrepancy
-- Maximum 3-5 bullet points per category, prioritize the most important discrepancies
-- Pay special attention to contradictions within the trainee's report itself
-- Identify any misattributions (incorrect organ/structure identification) or misclassifications (wrong pathology type)
+- Do NOT include any introduction, conclusion, or suggestions for improvement.
+- If a category has no discrepancies, write "None identified."
+- If the trainee missed the main diagnosis, it is always a CRITICAL discrepancy.
 
 PART 2 - SECTION-BY-SECTION SEVERITY ASSESSMENT:
-After the discrepancy list, add the heading "SECTION SEVERITY ASSESSMENT:" and create a structured JSON-like list that evaluates each section with exactly this format:
+After the discrepancy list, add the heading "SECTION SEVERITY ASSESSMENT:" and create a structured list that evaluates each section with exactly this format:
 
 SECTION SEVERITY ASSESSMENT:
-Section: [Section Name]
-Severity: [Critical|Moderate|Consistent]
-Reason: [1-2 sentence explanation]
-
 Section: [Section Name]
 Severity: [Critical|Moderate|Consistent]
 Reason: [1-2 sentence explanation]
@@ -282,23 +279,33 @@ Reason: [1-2 sentence explanation]
 (and so on for each section)
 
 Rules for Part 2:
-- The severity levels must be EXACTLY one of: "Critical", "Moderate", or "Consistent" (no variations)
-- "Critical" = Major discrepancy that could impact patient care
-- "Moderate" = Notable difference but would not affect immediate care 
-- "Consistent" = Section aligns well with expert assessment
-- Always include EVERY section from the trainee's report
-- For each section, explain why you assigned that severity in 1-2 sentences maximum
-- Sections with missing critical findings should be marked as "Critical"
-- Focus on radiological impact when assigning severity levels
-- EFFICIENCY NOTE: Sections marked with [IDENTICAL TO EXPERT REPORT] should always be rated as "Consistent" without detailed analysis
+- The severity levels must be EXACTLY one of: "Critical", "Moderate", or "Consistent".
+- "Critical" = Major discrepancy that could impact patient care.
+- "Moderate" = Notable difference but would not affect immediate care.
+- "Consistent" = Section aligns well with expert assessment.
+- ALWAYS include EVERY section from the trainee's report.
+- EFFICIENCY NOTE: Sections marked with [IDENTICAL TO EXPERT REPORT] must be rated as "Consistent".
 
-BEFORE SUBMITTING YOUR FEEDBACK:
-1. Review each point for redundancy - eliminate any repeated information
-2. Verify that each critical discrepancy includes a brief explanation of clinical importance
-3. Check that all discrepancies are properly categorized based on patient care impact
-4. Ensure you've assigned a severity level for EVERY section in the trainee's report
-5. Double-check that any section mentioning pneumothorax is marked as "Critical"
-6. Format the section assessment exactly as specified above for proper parsing
+--- PERFECT OUTPUT EXAMPLE ---
+Here is a perfect example of the required output format:
+
+You correctly identified the final diagnosis of a normal chest.
+
+1. CRITICAL DISCREPANCIES:
+None identified.
+
+2. NON-CRITICAL DISCREPANCIES:
+- You did not mention the patient's surgical history in the findings.
+
+SECTION SEVERITY ASSESSMENT:
+Section: Findings
+Severity: Moderate
+Reason: The report is good, but omitting relevant patient history is a moderate discrepancy.
+
+Section: Impression
+Severity: Consistent
+Reason: Your impression of a normal chest aligns with the expert's conclusion.
+--- END EXAMPLE ---
 """
 
     logger.info(f"Preparing prompt for Gemini LLM (Case ID: '{case_identifier_for_llm}')")
