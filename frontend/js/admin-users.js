@@ -33,13 +33,31 @@ function initManageUsersPage() {
         }
     }).catch(error => {
         console.error("[AdminUsers] Error during initialization:", error);
+
+        // Handle different types of errors with specific messages
+        let errorMessage = "Error initializing user management page";
+        if (error.message && error.message.includes("API configuration")) {
+            errorMessage = "Configuration error: Please refresh the page or contact support";
+            // Also show error in the table area
+            showConnectionError(error);
+        } else if (error.message && error.message.includes("connection")) {
+            errorMessage = "Cannot connect to server. Please check your connection.";
+            showConnectionError(error);
+        }
+
         if (window.showToast) {
-            window.showToast("Error initializing user management page", "error");
+            window.showToast(errorMessage, "error");
         }
     });
 }
 // Check API connection before proceeding
 async function checkApiConnection() {
+    // Validate API_CONFIG is available before using it
+    if (typeof API_CONFIG === 'undefined' || !API_CONFIG) {
+        console.error("API_CONFIG is not available in checkApiConnection");
+        throw new Error("API configuration not available. Please ensure config.js is loaded properly.");
+    }
+
     const apiUrl = `${API_CONFIG.getBaseUrl()}/users/me/`;
     try {
         console.log("Testing API connection to:", apiUrl);
@@ -70,19 +88,42 @@ function showConnectionError(error) {
     const tableBody = document.getElementById('usersTable')?.querySelector('tbody');
     if (tableBody) {
         const errorMessage = error.message || "Unknown error";
+
+        // Handle different types of errors
+        let apiUrlDisplay = "Not available";
+        let troubleshooting = [];
+
+        if (typeof API_CONFIG !== 'undefined' && API_CONFIG && API_CONFIG.getBaseUrl) {
+            try {
+                apiUrlDisplay = API_CONFIG.getBaseUrl();
+                troubleshooting = [
+                    "Your backend server is running at the correct address",
+                    `The API URL is correct (currently set to: <code>${apiUrlDisplay}</code>)`,
+                    "Your network connection is working",
+                    "CORS is properly configured on your backend"
+                ];
+            } catch (e) {
+                apiUrlDisplay = "Error retrieving API URL";
+            }
+        } else {
+            troubleshooting = [
+                "The configuration file (config.js) is loaded properly",
+                "All required script files are loading in the correct order",
+                "Your browser cache is cleared (try hard refresh: Ctrl+F5)",
+                "No browser extensions are blocking the scripts"
+            ];
+        }
+
         tableBody.innerHTML = `
             <tr>
                 <td colspan="10" style="text-align:center; padding: 20px;">
                     <div style="color: #721c24; background-color: #f8d7da; padding: 15px; border-radius: 4px; text-align: left;">
-                        <h3>Connection Error</h3>
-                        <p>Could not connect to the API server: <code>${API_CONFIG.getBaseUrl()}</code></p>
+                        <h3>${error.message && error.message.includes("API configuration") ? "Configuration Error" : "Connection Error"}</h3>
+                        <p>Could not connect to the API server: <code>${apiUrlDisplay}</code></p>
                         <p>Error message: <code>${errorMessage}</code></p>
                         <p>Please check:</p>
                         <ul>
-                            <li>Your backend server is running at the correct address</li>
-                            <li>The API URL is correct (currently set to: <code>${API_CONFIG.getBaseUrl()}</code>)</li>
-                            <li>Your network connection is working</li>
-                            <li>CORS is properly configured on your backend</li>
+                            ${troubleshooting.map(item => `<li>${item}</li>`).join('')}
                         </ul>
                         <button onclick="window.location.reload()" class="btn">Retry</button>
                     </div>
