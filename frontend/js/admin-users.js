@@ -7,9 +7,9 @@ let currentTab = 'all-users'; // To filter based on active tab
 function initManageUsersPage() {
     console.log("Initializing Manage Users Page via admin.js...");
 
-    // Check if API_CONFIG is available before proceeding
-    if (typeof API_CONFIG === 'undefined' || !API_CONFIG) {
-        console.error("API_CONFIG is not defined. Check script loading order.");
+    // Check if APP_CONFIG is available before proceeding
+    if (typeof APP_CONFIG === 'undefined' || !APP_CONFIG) {
+        console.error("APP_CONFIG is not defined. Check script loading order.");
         if (window.showToast) {
             window.showToast("Configuration error. Please refresh the page.", "error");
         }
@@ -52,13 +52,13 @@ function initManageUsersPage() {
 }
 // Check API connection before proceeding
 async function checkApiConnection() {
-    // Validate API_CONFIG is available before using it
-    if (typeof API_CONFIG === 'undefined' || !API_CONFIG) {
-        console.error("API_CONFIG is not available in checkApiConnection");
+    // Validate APP_CONFIG is available before using it
+    if (typeof APP_CONFIG === 'undefined' || !APP_CONFIG) {
+        console.error("APP_CONFIG is not available in checkApiConnection");
         throw new Error("API configuration not available. Please ensure config.js is loaded properly.");
     }
 
-    const apiUrl = `${API_CONFIG.getBaseUrl()}/users/me/`;
+    const apiUrl = `${APP_CONFIG.api.getBaseUrl()}/users/me/`;
     try {
         console.log("Testing API connection to:", apiUrl);
         const response = await fetch(apiUrl, {
@@ -93,9 +93,9 @@ function showConnectionError(error) {
         let apiUrlDisplay = "Not available";
         let troubleshooting = [];
 
-        if (typeof API_CONFIG !== 'undefined' && API_CONFIG && API_CONFIG.getBaseUrl) {
+        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG && APP_CONFIG.api.getBaseUrl) {
             try {
-                apiUrlDisplay = API_CONFIG.getBaseUrl();
+                apiUrlDisplay = APP_CONFIG.api.getBaseUrl();
                 troubleshooting = [
                     "Your backend server is running at the correct address",
                     `The API URL is correct (currently set to: <code>${apiUrlDisplay}</code>)`,
