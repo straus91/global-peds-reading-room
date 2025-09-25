@@ -3,23 +3,41 @@ let allUsersData = [];
 let currentFilters = { role: '', status: '', search: '' };
 let currentTab = 'all-users'; // To filter based on active tab
 
-// Track initialization
-let isInitialized = false;
+// Global initializer function for this page
+function initManageUsersPage() {
+    console.log("Initializing Manage Users Page via admin.js...");
 
-// Initialize when the DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Prevent multiple initializations
-    if (isInitialized) {
-        console.log('[admin-users] Already initialized, skipping...');
+    // Check if API_CONFIG is available before proceeding
+    if (typeof API_CONFIG === 'undefined' || !API_CONFIG) {
+        console.error("API_CONFIG is not defined. Check script loading order.");
+        if (window.showToast) {
+            window.showToast("Configuration error. Please refresh the page.", "error");
+        }
         return;
     }
-    
-    // Initialize user management functions if on the correct page
-    if (window.location.pathname.includes('manage-users.html')) {
-        isInitialized = true;
-        initManageUsersPage();
+
+    if (!window.location.pathname.includes('manage-users.html')) {
+        console.warn("[AdminUsers] Not on manage-users.html page, skipping initialization");
+        return;
     }
-});
+
+    // Check API connection before proceeding with setup
+    checkApiConnection().then(isConnected => {
+        if (isConnected) {
+            setupTabs();
+            setupFilters();
+            setupBulkActions();
+            setupTableSelections();
+            fetchAndRenderUsers();
+            setupPagination();
+        }
+    }).catch(error => {
+        console.error("[AdminUsers] Error during initialization:", error);
+        if (window.showToast) {
+            window.showToast("Error initializing user management page", "error");
+        }
+    });
+}
 // Check API connection before proceeding
 async function checkApiConnection() {
     const apiUrl = `${API_CONFIG.getBaseUrl()}/users/me/`;
@@ -74,35 +92,8 @@ function showConnectionError(error) {
     }
 }
 
-// Initialize Manage Users page
-async function initManageUsersPage() {
-    console.log("Initializing Manage Users Page...");
-    
-    // Check API connection before proceeding
-    const isConnected = await checkApiConnection();
-    if (!isConnected) {
-        console.log("API connection check failed - stopping initialization");
-        return;
-    }
-    
-    // Setup Tabs
-    setupTabs();
-    
-    // Setup filters and search
-    setupFilters();
-    
-    // Setup bulk actions
-    setupBulkActions();
-    
-    // Setup table selections
-    setupTableSelections();
-    
-    // Fetch initial user data
-    await fetchAndRenderUsers();
-    
-    // Setup pagination
-    setupPagination();
-}
+// NOTE: The old initManageUsersPage function has been moved to the top of the file
+// and refactored to work with the admin.js initialization pattern
 
 // Setup tabs
 function setupTabs() {
@@ -1176,15 +1167,18 @@ if (!window.showToast) {
     window.showToast = function(message, type = 'info') {
         const toastContainer = document.getElementById('toastContainer');
         if (!toastContainer) return; // Guard clause to prevent errors
-        
+
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
         toastContainer.appendChild(toast);
-        
+
         // Auto remove after 3 seconds
         setTimeout(() => {
             toast.remove();
         }, 3000);
     };
 }
+
+// Expose the initializer to the global scope for admin.js
+window.initializeCurrentAdminPage = initManageUsersPage;
