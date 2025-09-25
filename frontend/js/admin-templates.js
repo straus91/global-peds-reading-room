@@ -1,37 +1,6 @@
 // frontend/js/admin-templates.js
 // Manages the "Manage Report Templates" admin page.
 
-// Global initializer function for this page
-function initializeManageTemplatesPage() {
-    'use strict';
-    console.log("[AdminTemplates] Initializing Manage Templates page via admin.js...");
-
-    if (!window.location.pathname.includes('manage-templates.html')) {
-        console.warn("[AdminTemplates] Not on manage-templates.html page, skipping initialization");
-        return;
-    }
-
-    // Call the initialization functions that were previously in DOMContentLoaded
-    try {
-        cacheDOMElements();
-        setupEventListeners();
-        loadInitialData();
-        handleUrlParams(); // Check for action=create in URL
-    } catch (error) {
-        console.error("[AdminTemplates] Error during initialization:", error);
-        if (window.showToast) {
-            window.showToast("Error initializing template management page", "error");
-        }
-    }
-}
-
-// Expose the initializer to the global scope for admin.js
-window.initializeCurrentAdminPage = initializeManageTemplatesPage;
-
-// Global variables to be exposed after IIFE runs
-window.TemplateFormManager = null;
-window.templatesState = null;
-
 (function() {
     'use strict';
 
@@ -110,6 +79,28 @@ window.templatesState = null;
     // --- Initialization ---
     // NOTE: The DOMContentLoaded listener has been removed to avoid conflicts with admin.js
     // The page is now initialized via initializeManageTemplatesPage() called by admin.js
+
+    function initializeManageTemplatesPage() {
+        console.log("[AdminTemplates] Initializing Manage Templates page via admin.js...");
+
+        if (!window.location.pathname.includes('manage-templates.html')) {
+            console.warn("[AdminTemplates] Not on manage-templates.html page, skipping initialization");
+            return;
+        }
+
+        // Call the initialization functions that were previously in DOMContentLoaded
+        try {
+            cacheDOMElements();
+            setupEventListeners();
+            loadInitialData();
+            handleUrlParams(); // Check for action=create in URL
+        } catch (error) {
+            console.error("[AdminTemplates] Error during initialization:", error);
+            if (window.showToast) {
+                window.showToast("Error initializing template management page", "error");
+            }
+        }
+    }
 
     function cacheDOMElements() {
         DOM.tabs = document.querySelectorAll('.admin-tabs .tab');
@@ -1256,5 +1247,8 @@ window.templatesState = null;
     // Expose required objects globally so admin.js tab logic can access them
     window.TemplateFormManager = TemplateFormManager;
     window.templatesState = templatesState;
+
+    // Expose the initializer to the global scope for admin.js
+    window.initializeCurrentAdminPage = initializeManageTemplatesPage;
 
 })(); // End of IIFE
