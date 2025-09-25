@@ -466,15 +466,22 @@
                 throw new Error('No content to parse');
             }
 
-            // First line is the template name
-            const templateName = lines[0];
+            // Find the first line that looks like a section (has a colon) for the template name
+            let templateName = lines[0];
+            let startIndex = 0;
 
-            // Infer modality from template name
+            // If first line has a colon, use it as template name and start parsing from next line
+            if (lines[0].includes(':')) {
+                templateName = this.extractCleanSectionTitle(lines[0]);
+                startIndex = 1;
+            }
+
+            // Infer modality and body part from template name
             const modality = this.inferModality(templateName);
             const bodyPart = this.inferBodyPart(templateName);
 
-            // Parse sections starting from line 2
-            const sections = this.parseSections(lines.slice(1));
+            // Parse all sections using simplified logic
+            const sections = this.parseAllSections(lines, startIndex);
 
             return {
                 name: templateName,
@@ -535,105 +542,66 @@
             return 'OT'; // Default to Other
         },
 
-        parseSections: function(lines) {
+        parseAllSections: function(lines, startIndex = 0) {
             const sections = [];
-            let currentSection = null;
-            let currentText = [];
 
-            for (let i = 0; i < lines.length; i++) {
+            for (let i = startIndex; i < lines.length; i++) {
                 const line = lines[i];
 
-                // Check if this line is a major section header (ALL CAPS with colon)
-                if (this.isMajorSectionHeader(line)) {
-                    // Save previous section if exists
-                    if (currentSection) {
-                        this.processSectionText(currentSection, currentText, sections);
+                // Check if this line contains a colon (potential section)
+                const colonIndex = line.indexOf(':');
+                if (colonIndex > 0 && colonIndex < line.length - 1) {
+                    // This line has format "Title: Content"
+                    const title = line.substring(0, colonIndex).trim();
+                    const content = line.substring(colonIndex + 1).trim();
+
+                    // Skip lines that are just headers with no content after the colon
+                    if (content.length === 0) {
+                        continue;
                     }
 
-                    // Start new section
-                    currentSection = {
-                        title: this.extractSectionTitle(line),
-                        isMainSection: true
-                    };
-                    currentText = [];
+                    sections.push({
+                        title: title,
+                        placeholder: content,
+                        required: true
+                    });
+                } else if (colonIndex === line.length - 1) {
+                    // This line ends with a colon (like "FINDINGS:" or "IMPRESSION:")
+                    // Check if there are subsequent lines that could be content for this section
+                    const title = line.substring(0, colonIndex).trim();
+                    let content = '';
+                    let j = i + 1;
 
-                    // Check if there's text after the colon on the same line
-                    const afterColon = line.substring(line.indexOf(':') + 1).trim();
-                    if (afterColon) {
-                        currentText.push(afterColon);
+                    // Look ahead for content lines that don't have colons
+                    while (j < lines.length && !lines[j].includes(':')) {
+                        if (lines[j].trim()) {
+                            content += (content ? ' ' : '') + lines[j].trim();
+                        }
+                        j++;
                     }
-                } else {
-                    // This is content under the current section
-                    currentText.push(line);
+
+                    // Only create a section if we found content
+                    if (content) {
+                        sections.push({
+                            title: title,
+                            placeholder: content,
+                            required: true
+                        });
+                        // Skip the lines we've already processed
+                        i = j - 1;
+                    }
                 }
-            }
-
-            // Don't forget the last section
-            if (currentSection) {
-                this.processSectionText(currentSection, currentText, sections);
             }
 
             return sections;
         },
 
-        isMajorSectionHeader: function(line) {
-            // Line should be mostly uppercase and end with colon
+        extractCleanSectionTitle: function(line) {
             const colonIndex = line.indexOf(':');
-            if (colonIndex === -1) return false;
-
-            const headerPart = line.substring(0, colonIndex);
-            // Check if header part is mostly uppercase (at least 70% uppercase letters)
-            const letters = headerPart.replace(/[^A-Za-z]/g, '');
-            if (letters.length === 0) return false;
-
-            const upperLetters = headerPart.replace(/[^A-Z]/g, '');
-            const uppercaseRatio = upperLetters.length / letters.length;
-
-            return uppercaseRatio >= 0.7; // At least 70% uppercase
-        },
-
-        extractSectionTitle: function(line) {
-            const colonIndex = line.indexOf(':');
-            return line.substring(0, colonIndex).trim();
-        },
-
-        processSectionText: function(sectionHeader, textLines, sections) {
-            // Check if any of the text lines contain subsections (have colons)
-            const subsections = [];
-            let generalText = [];
-
-            for (const line of textLines) {
-                const colonIndex = line.indexOf(':');
-                if (colonIndex > 0 && colonIndex < line.length - 1) {
-                    // This looks like a subsection
-                    const subTitle = line.substring(0, colonIndex).trim();
-                    const subText = line.substring(colonIndex + 1).trim();
-                    subsections.push({
-                        title: subTitle,
-                        text: subText
-                    });
-                } else if (line.trim()) {
-                    generalText.push(line);
-                }
+            if (colonIndex !== -1) {
+                return line.substring(0, colonIndex).trim();
             }
-
-            if (subsections.length > 0) {
-                // Create sections from subsections
-                subsections.forEach(sub => {
-                    sections.push({
-                        title: sub.title,
-                        placeholder: sub.text,
-                        required: true
-                    });
-                });
-            } else {
-                // Create a single section from the header with combined text
-                sections.push({
-                    title: sectionHeader.title,
-                    placeholder: generalText.join(' ').trim() || `Enter ${sectionHeader.title.toLowerCase()} details here.`,
-                    required: true
-                });
-            }
+            return line.trim();
         },
 
         populateFormWithParsedData: function(parsedData) {
