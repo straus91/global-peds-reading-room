@@ -148,34 +148,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         email = attrs.get(self.username_field)
         password = attrs.get('password')
 
-        # --- Optional: Remove or comment out debug prints for production ---
-        print(f"--- [DEBUG] CustomSerializer validate received email: {email}, password: {'******' if password else None} ---")
-
         user = None
         if email and password:
             # Explicitly call authenticate. Pass the email into the 'username' parameter,
             # as this is what our EmailBackend expects.
             # Pass the request context which might be needed by some backends.
             user = authenticate(request=self.context.get('request'), username=email, password=password)
-            # --- Optional: Remove or comment out debug prints for production ---
-            print(f"--- [DEBUG] CustomSerializer authenticate call result: {'User object returned' if user else 'None returned'} ---")
         else:
-            # --- Optional: Remove or comment out debug prints for production ---
-            print(f"--- [DEBUG] CustomSerializer missing email or password in attrs ---")
             # Raise validation error if email or password are missing
             raise serializers.ValidationError('Must include "email" and "password".', code='authorization')
 
         # Check if authenticate was successful (returned a user object)
         # Note: Our EmailBackend's user_can_authenticate method already checks if user.is_active
         if not user:
-            # --- Optional: Remove or comment out debug prints for production ---
-            print(f"--- [DEBUG] CustomSerializer raising validation error: No active account found... ---")
             # Raise the specific error message expected by the frontend on login failure
             raise serializers.ValidationError('No active account found with the given credentials', code='authorization')
 
         # If authenticate succeeded, set self.user for get_token
-        # --- Optional: Remove or comment out debug prints for production ---
-        print(f"--- [DEBUG] CustomSerializer authentication successful for user: {user.username} ---")
         self.user = user
 
         # Generate refresh token (which includes custom claims via get_token)
@@ -191,6 +180,4 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['name'] = refresh.get('name')
         data['email'] = refresh.get('email')
 
-        # --- Optional: Remove or comment out debug prints for production ---
-        print(f"--- [DEBUG] CustomSerializer returning data keys: {list(data.keys())} ---")
         return data

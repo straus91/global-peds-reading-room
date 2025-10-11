@@ -8,11 +8,25 @@
 [![Django](https://img.shields.io/badge/Django-5.2-green.svg)](https://djangoproject.com)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue.svg)](https://postgresql.org)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![AI](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-orange.svg)](https://deepmind.google/technologies/gemini/)
+[![Status](https://img.shields.io/badge/Status-Beta%20Testing-yellow.svg)](#)
 
-[🚀 Live Demo](#) • [📖 Documentation](docs/) • [🐛 Report Bug](../../issues) • [💡 Request Feature](../../issues)
+[📖 Documentation](docs/) • [🧪 Beta Deployment](docs/BETA_DEPLOYMENT.md) • [⚡ Quick Reference](docs/QUICK_REFERENCE.md) • [🤖 AI Roadmap](further-ai.txt)
 
 </div>
+
+---
+
+## 🎯 Current Status
+
+🧪 **Active Beta Testing** - Currently deployed on DigitalOcean droplet, implementing systematic AI improvements and preparing for production release.
+
+**Recent Updates**:
+- ✅ Upgraded to Gemini 2.5 Flash for improved AI feedback
+- ✅ Enhanced AI prompts with pedagogical improvements
+- ✅ Implemented comprehensive documentation for beta workflow
+- 🚧 Implementing data-driven AI iteration framework
+- 🚧 Setting up systematic monitoring and testing processes
 
 ---
 
@@ -20,10 +34,16 @@
 
 Global Peds Reading Room is a comprehensive educational web platform designed to revolutionize pediatric radiology learning. Medical professionals can view curated radiology cases, submit diagnostic reports, and receive **AI-powered feedback** to enhance their diagnostic skills.
 
+This project is under active development with a focus on **data-driven AI improvement** and **scalable educational delivery**.
+
 ### ✨ Key Features
 
-- 🔍 **Interactive DICOM Viewer** - View medical images with embedded Stone Web Viewer
-- 🤖 **AI-Powered Feedback** - Get intelligent feedback on diagnostic reports using Google Gemini
+- 🔍 **Interactive DICOM Viewer** - View medical images through Orthanc/OHIF integration
+- 🤖 **AI-Powered Feedback** - Intelligent diagnostic feedback using Google Gemini 2.5 Flash
+  - Context-aware analysis considering patient demographics and clinical history
+  - Severity-based discrepancy classification (Critical/Moderate/Consistent)
+  - Programmatic pre-analysis + LLM for optimal accuracy and cost-efficiency
+  - User feedback ratings for continuous AI improvement
 - 📋 **Structured Templates** - Standardized reporting templates for consistency
 - 👥 **Multi-User Support** - Role-based access for students, residents, fellows, and attendings
 - 📊 **Progress Tracking** - Monitor learning progress and improvement over time
@@ -123,22 +143,54 @@ python -m http.server 5500
 - **Responsive Design** - Works on all devices
 
 ### Infrastructure
-- **Orthanc DICOM Server** - Medical image storage
+- **Orthanc DICOM Server** - Medical image storage and OHIF viewer integration
 - **Gunicorn** - Production WSGI server
-- **nginx** - Reverse proxy (production)
+- **nginx** - Reverse proxy
+- **DigitalOcean Droplet** - Beta/production hosting
 
 ---
 
 ## 📚 Documentation
 
+### 🎯 Quick Start
+| Document | Description |
+|----------|-------------|
+| [📖 Documentation Index](DOCUMENTATION_INDEX.md) | Master guide to all documentation |
+| [⚡ Quick Reference](docs/QUICK_REFERENCE.md) | Common commands and emergency procedures |
+| [👨‍💻 Development Guide](docs/DEVELOPMENT.md) | Development setup and guidelines |
+
+### 🧪 Beta Testing & Deployment
+| Document | Description |
+|----------|-------------|
+| [🚀 Beta Deployment](docs/BETA_DEPLOYMENT.md) | Current droplet deployment workflow |
+| [✅ Beta Testing Workflow](docs/BETA_TESTING_WORKFLOW.md) | Systematic testing procedures |
+| [📊 Monitoring Setup](docs/MONITORING_SETUP.md) | Beta environment monitoring |
+
+### 🤖 AI System
+| Document | Description |
+|----------|-------------|
+| [🤖 AI Guide](docs/AI_GUIDE.md) | AI feedback system implementation |
+| [🔄 AI Iteration Workflow](docs/AI_ITERATION_WORKFLOW.md) | Data-driven AI improvement process |
+| [🗺️ AI Features Roadmap](docs/AI_FEATURES_ROADMAP.md) | Planned AI enhancements |
+| [📋 Future AI Vision](further-ai.txt) | Comprehensive AI improvement strategy |
+
+### 🏗️ Architecture & Reference
 | Document | Description |
 |----------|-------------|
 | [🏗️ Architecture](docs/ARCHITECTURE.md) | System design and technical overview |
-| [👨‍💻 Development](docs/DEVELOPMENT.md) | Development setup and guidelines |
 | [📁 Project Map](docs/PROJECT_MAP.md) | Codebase structure and organization |
-| [🤖 AI Guide](docs/AI_GUIDE.md) | AI feedback system implementation |
-| [🚀 Deployment](docs/DEPLOYMENT.md) | Production deployment guide |
 | [📝 Changelog](docs/CHANGELOG.md) | Version history and updates |
+
+### 📖 Claude Code Integration
+The `.claude/docs/` directory contains comprehensive guides for development with Claude Code:
+- Risk assessment framework
+- Data models documentation
+- Environment configuration
+- Testing strategies
+- Performance optimization
+- Monitoring & analytics
+- Development workflows
+- Security best practices
 
 ---
 
@@ -186,32 +238,47 @@ global-peds-reading-room/
 
 ## 🚀 Deployment
 
-### Development
+### Local Development
 ```bash
 # Start backend
 cd backend && python manage.py runserver
 
-# Start frontend  
+# Start frontend
 cd frontend && python -m http.server 5500
 ```
 
+### Beta Environment
+Currently deployed on DigitalOcean droplet. See:
+- [Beta Deployment Guide](docs/BETA_DEPLOYMENT.md) - Current deployment process
+- [Quick Reference](docs/QUICK_REFERENCE.md) - Common commands and emergency procedures
+
 ### Production
-See [Deployment Guide](docs/DEPLOYMENT.md) for detailed production setup instructions.
+Production deployment procedures will be finalized after beta testing phase. See [Beta Deployment](docs/BETA_DEPLOYMENT.md) for current setup.
 
 ---
 
-## 🤝 Contributing
+## 🤝 Development Workflow
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+This project follows a systematic development and testing approach:
 
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`python manage.py test`)
-5. Commit changes (`git commit -m 'Add amazing feature'`)
-6. Push to branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+### Beta Development Process
+1. Develop and test locally
+2. Push changes to `online_beta` branch
+3. Deploy to beta droplet for production-like testing
+4. Gather metrics and user feedback
+5. Iterate based on data
+6. Promote successful changes to production
+
+### Code Changes
+1. Complete risk assessment (see `.claude/docs/RISK_ASSESSMENT.md`)
+2. Make changes on feature branch
+3. Run tests (`python manage.py test`)
+4. Test locally first
+5. Deploy to beta
+6. Monitor and verify
+7. Document learnings
+
+See [Development Guide](docs/DEVELOPMENT.md) and [Beta Testing Workflow](docs/BETA_TESTING_WORKFLOW.md) for detailed procedures.
 
 ---
 

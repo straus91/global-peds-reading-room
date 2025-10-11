@@ -1,164 +1,298 @@
-# CLAUDE.md
+# 🏥 CLAUDE.md - Global Peds Reading Room
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides essential guidance for Claude Code when working with this repository. Detailed documentation is modularized in `.claude/docs/`.
 
-## Project Overview
+---
 
-Global Peds Reading Room is an educational web platform for global pediatric radiology learning and practice. The platform allows medical professionals to view curated radiology cases, submit diagnostic reports, receive AI-powered feedback, and compare their interpretations against expert findings using standardized templates.
+## 📋 Project Overview
 
-## Tech Stack
+**Global Peds Reading Room** is an AI-powered educational web platform for global pediatric radiology learning. Medical professionals view curated cases, submit diagnostic reports, receive AI-powered feedback, and compare interpretations against expert findings using standardized templates.
 
-- **Backend**: Django 5.x with Django REST Framework, PostgreSQL
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **AI Integration**: Google Gemini API for report feedback analysis
-- **External Services**: Orthanc DICOM Server with OHIF Viewer integration
+**Key Features**:
+- 🔍 Interactive DICOM viewing with Orthanc/OHIF integration
+- 🤖 AI-powered feedback using Google Gemini 2.5 Flash
+- 📋 Structured multi-language reporting templates
+- 📊 Data-driven analytics and progress tracking
 
-## Environment Setup
+---
 
-### Backend Setup Commands
+## 🛠️ Tech Stack
+
+- **Backend**: Django 5.2, Django REST Framework, PostgreSQL
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
+- **AI**: Google Gemini API with rate limiting & caching
+- **External**: Orthanc DICOM Server with OHIF Viewer
+
+---
+
+## ⚠️ CRITICAL: Risk Assessment Requirement
+
+**Before making ANY code changes**, you MUST complete a risk assessment:
+
+1. 📖 Read: @.claude/docs/RISK_ASSESSMENT.md
+2. 📝 Document: Direct impact, cascading effects, data implications
+3. 🔍 Assess: Breaking changes, scalability, security
+4. 🛡️ Plan: Mitigation strategies and rollback procedures
+
+**This is mandatory** - prevents data loss, performance issues, and user-facing bugs.
+
+---
+
+## 🚀 Quick Start Commands
+
+### 1️⃣ Backend Setup
 
 ```bash
-# Navigate to backend directory
 cd backend
 
-# Create and activate virtual environment
+# Create virtual environment
 python -m venv venv
-# On Windows PowerShell:
-.\venv\Scripts\Activate.ps1
-# On Windows cmd:
-venv\Scripts\activate.bat
-# On macOS/Linux:
-source venv/bin/activate
+source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment variables (copy from .env.example or create new)
-# Required variables in .env: 
-# - SECRET_KEY, DEBUG, ALLOWED_HOSTS
-# - DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
-# - GEMINI_API_KEY
-# - CORS_ALLOWED_ORIGINS
+# Configure environment (see @.claude/docs/ENVIRONMENT.md)
+cp .env.example .env
+# Edit .env with your configuration
 
-# Run database migrations
+# Run migrations
 python manage.py migrate
 
-# Create superuser for admin access
+# Create superuser
 python manage.py createsuperuser
 
-# Run the development server
+# Start server
 python manage.py runserver
 ```
 
-### Frontend Setup Commands
+### 2️⃣ Frontend Setup
 
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Serve the frontend files using Python's HTTP server
 python -m http.server 5500
 ```
 
-## Key Development Tasks
-
-### Running the Backend Server
+### 3️⃣ Running Tests
 
 ```bash
 cd backend
-source venv/bin/activate  # On Windows: venv\Scripts\activate.bat or .\venv\Scripts\Activate.ps1
-python manage.py runserver
+python manage.py test                                      # All tests
+python manage.py test cases                                # Specific app
+python manage.py test cases.tests.TestClassName           # Specific class
+python manage.py test cases.tests.TestClass.test_method   # Specific method
 ```
 
-### Running Backend Tests
+---
 
-```bash
-cd backend
-python manage.py test
+## 📚 Detailed Documentation
+
+### Core Documentation (Import with @)
+
+**@.claude/docs/RISK_ASSESSMENT.md** ⚠️
+- Mandatory risk assessment framework
+- Step-by-step evaluation process
+- Risk severity levels and mitigation strategies
+- Template for all code changes
+
+**@.claude/docs/DATA_MODELS.md** 🗄️
+- Complete documentation of 9 models
+- Relationships and cascading behaviors
+- Query optimization patterns
+- Case identifier auto-generation logic
+- Report versioning system
+
+**@.claude/docs/ENVIRONMENT.md** 🔧
+- Tutorial-style environment setup
+- All environment variables explained
+- Security best practices for secrets
+- Development vs production configuration
+
+**@.claude/docs/TESTING.md** 🧪
+- Data-driven testing strategy
+- Coverage expectations (90%+ for models)
+- Testing analytics queries
+- Performance testing with assertNumQueries
+
+**@.claude/docs/PERFORMANCE.md** ⚡
+- API rate limiting (10 calls/min default)
+- Database query optimization
+- Caching strategies
+- Scalability roadmap
+
+**@.claude/docs/MONITORING.md** 📊
+- Key metrics: user engagement, AI quality, performance
+- Analytics query examples
+- Data-driven decision-making
+- Alerting thresholds
+
+**@.claude/docs/WORKFLOWS.md** 🔄
+- Step-by-step workflows with risk assessment
+- Adding database fields safely
+- Modifying AI prompts
+- Creating teaching cases
+- Database migration procedures
+
+**@.claude/docs/SECURITY.md** 🔒
+- Authentication & authorization best practices
+- Input validation & sanitization
+- CORS configuration
+- Secret management & rotation
+- Incident response procedures
+
+---
+
+## 🏗️ Architecture Overview
+
+### Backend Structure
+
+```
+backend/
+├── cases/                      # Core: Cases, Reports, Templates, AI Feedback
+│   ├── models.py              # 9 models with complex relationships
+│   ├── llm_feedback_service.py # Gemini API with rate limiting
+│   ├── utils.py               # Report comparison pre-analysis
+│   ├── views.py               # API endpoints
+│   └── serializers.py         # DRF serializers
+├── users/                      # Authentication & profiles
+├── api/                        # API routing
+└── globalpeds_project/         # Django settings
 ```
 
-### Running Tests for a Specific App
+### Frontend Structure
 
-```bash
-cd backend
-python manage.py test cases
+```
+frontend/
+├── js/
+│   ├── api.js                 # Centralized API client with JWT
+│   ├── main.js                # Case viewing & report submission
+│   ├── auth.js                # Login/logout flows
+│   ├── admin-*.js             # Admin interfaces (cases, users, templates)
+│   └── config.js              # Frontend configuration
+└── admin/                      # Admin HTML pages
 ```
 
-### Running a Specific Test Case
+---
+
+## 🎯 Development Guidelines
+
+### 1️⃣ Data-Driven Approach
+
+**Always Consider**:
+- 📊 How changes affect analytics queries
+- 🤖 Impact on AI feedback quality (track ratings)
+- 📈 Performance with realistic data volumes
+- 🔍 Historical data compatibility
+
+**Example**: Before changing AI prompt, record baseline AIFeedbackRating average, deploy, monitor for 7 days, compare.
+
+### 2️⃣ Scalability First
+
+**Query Optimization**:
+- Always use `select_related()` for ForeignKeys
+- Always use `prefetch_related()` for reverse relations
+- Test with 100+ records, not just 5
+- Use `assertNumQueries()` in tests
+
+**Rate Limiting**:
+- Gemini API: 10 calls/min (configurable via `GEMINI_API_RATE_LIMIT`)
+- Monitor via `llm_feedback_service.API_CALL_HISTORY`
+
+### 3️⃣ Best Practices
+
+**Code Style**:
+- Python: PEP 8, type hints for complex functions
+- JavaScript: ES6+, async/await for API calls
+- Django: Use ORM (never raw SQL without parameterization)
+
+**Before Committing**:
+- [ ] Risk assessment completed
+- [ ] Tests written and passing
+- [ ] Query optimization verified
+- [ ] Documentation updated if needed
+
+---
+
+## 🔑 Key System Behaviors
+
+### Case Identifier Auto-Generation
+- **Format**: `{SUBSPECIALTY}-{MODALITY}-{YEAR}-{SEQUENCE}`
+- **Example**: `NR-MR-2025-0001`
+- **Location**: backend/cases/models.py:213-273
+- **Note**: Handles collisions with retry + UUID fallback
+
+### Report Versioning
+- Multiple reports per user/case allowed
+- `is_archived=True` for old versions
+- Query non-archived for "current" report
+
+### AI Feedback Pipeline
+1. User submits report
+2. Programmatic pre-analysis (utils.py)
+3. Gemini API call with rate limiting (llm_feedback_service.py)
+4. Parse response into structured feedback
+5. Store in Report.ai_feedback_content (JSON)
+6. User rates quality (AIFeedbackRating)
+
+---
+
+## 📝 Common Commands Reference
 
 ```bash
-cd backend
-python manage.py test cases.tests.TestCaseName
-```
-
-### Running a Specific Test Method
-
-```bash
-cd backend
-python manage.py test cases.tests.TestCaseName.test_method_name
-```
-
-### Creating Database Migrations
-
-```bash
-cd backend
+# Database
 python manage.py makemigrations
-```
-
-### Applying Database Migrations
-
-```bash
-cd backend
 python manage.py migrate
+python manage.py migrate --plan  # Preview migration
+
+# Testing
+python manage.py test
+python manage.py test --keepdb  # Reuse test database
+python manage.py test --parallel  # Faster on multi-core
+
+# Shell
+python manage.py shell  # Django shell for queries
+
+# Static files (production)
+python manage.py collectstatic
 ```
 
-## Architecture Overview
+---
 
-The application uses a client-server architecture with:
+## 🚨 Critical Files & Locations
 
-1. **Frontend** (Browser-based UI):
-   - Vanilla JavaScript with ES6+ features
-   - Communicates with backend via REST API
-   - Embeds Orthanc OHIF Viewer for DICOM images
-   - Structured into separate JS modules for different functionalities
+**AI System**:
+- `backend/cases/llm_feedback_service.py` - Gemini API integration
+- `backend/cases/utils.py` - Report comparison logic
+- `backend/cases/views.py:AIReportFeedbackView` - Feedback endpoint
 
-2. **Backend** (Django REST API):
-   - Django REST Framework for API endpoints
-   - JWT authentication
-   - PostgreSQL for data storage
-   - Google Gemini API integration for AI feedback
+**Configuration**:
+- `backend/globalpeds_project/settings.py` - All Django settings
+- `backend/.env` - Environment variables (NEVER commit!)
+- `backend/.env.example` - Template for .env
 
-3. **External Services**:
-   - Orthanc DICOM Server for storing and viewing medical images
-   - Google Gemini API for AI-powered report feedback
+**Models**:
+- `backend/cases/models.py` - All 9 models (Case, Report, etc.)
+- See @.claude/docs/DATA_MODELS.md for relationships
 
-## Key Components
+---
 
-### Backend Architecture
+## 💡 Remember
 
-- **cases/**: Core application with models and APIs for cases, reports, templates, and AI feedback
-- **users/**: User authentication and profile management
-- **api/**: Main API routing and authentication views
-- **globalpeds_project/**: Django project settings
+1. **⚠️ Risk Assessment First** - No exceptions, ever
+2. **📊 Data-Driven** - Track metrics, measure impact
+3. **⚡ Scalability** - Test with realistic data volumes
+4. **🔒 Security** - Sanitize inputs, protect secrets
+5. **🧪 Test Everything** - Especially data integrity
 
-### Frontend Organization
+---
 
-- **js/api.js**: Centralized API client for all backend communication
-- **js/main.js**: Core application logic including case viewing and report submission
-- **js/admin-*.js**: Admin-specific functionalities
-- **js/components.js**: Reusable UI components
-- **js/ui.js**: UI utility functions
+## 📖 Additional Resources
 
-### AI Feedback System
+- **Project README**: `/README.md` - User-facing documentation
+- **Environment Template**: `/backend/.env.example`
+- **Git Status**: Check current branch before changes
+- **Claude Code Docs**: [docs.claude.com/claude-code](https://docs.claude.com/claude-code)
 
-The AI feedback system is a core feature that:
-1. Collects user-submitted reports and compares them with expert templates
-2. Performs programmatic pre-analysis to identify basic discrepancies
-3. Sends this context along with the report to the Google Gemini API
-4. Processes the AI response into structured feedback with severity levels
-5. Displays feedback to users and allows them to rate its helpfulness
+---
 
-Key files for the AI system:
-- **backend/cases/llm_feedback_service.py**: Service for interacting with Google Gemini API
-- **backend/cases/utils.py**: Contains `generate_report_comparison_summary()` for pre-analysis
-- **backend/cases/views.py**: `AIReportFeedbackView` orchestrates the feedback generation process
+**Generated for Claude Code** - Last Updated: 2025-01-11
