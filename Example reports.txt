@@ -1,0 +1,213 @@
+----------------- CT EXAMPLE ---------------------------
+FINDINGS:
+
+Tubes/lines: No radiopaque tube or line identified.
+
+Lung Bases: Separately dictated on same-day chest CT.
+
+Liver: Normal.
+
+Biliary: Normal. No intra or extrahepatic biliary ductal dilation. Fluid filled gallbladder, without calcified stones.
+
+Spleen: Normal.
+
+Pancreas: Normal.
+
+Adrenals: Normal.
+
+Kidneys : Normal, with symmetric enhancement. No urinary tract dilatation. 
+
+Ureters: Normal caliber.
+
+Bladder: Normal. Moderately distended with urine.
+
+Reproductive Organs: No mass.
+
+Lymph Nodes: No lymphadenopathy.
+
+Bowel: Normal course and caliber. 
+
+Appendix: Appendix is not clearly visualized, no secondary signs appendicitis.
+
+Peritoneum and mesentery: No free air, abscess or lymphadenopathy. Focal fat stranding within the anterior aspect of the lower IVC/right mesenteric root measuring 3.2 x 1.2 cm (1:49) with tiny hyperattenuating foci. Trace free fluid. No free intraperitoneal gas.
+
+Retroperitoneum: Normal.
+
+Vessels: Normal course and caliber.
+
+Bones: Normal. Please see same-day CT lumbar and CT thoracic spine for dedicated interpretation of the spine.
+
+SOFT TISSUES: Mild soft tissue stranding along the anterior abdominal wall (1:60)
+
+IMPRESSION:
+Focal fat stranding adjacent to the mesenteric root/lower IVC concerning for small-volume hematoma.
+
+
+
+
+
+----------------- CT EXAMPLE ---------------------------------
+
+FINDINGS:
+
+Tubes/lines: No radiopaque tube or line identified.
+
+
+HEART/VESSELS:
+
+Heart: Normal, no pericardial effusion.
+
+Pulmonary arteries: Patent, normal caliber.  No evidence of pulmonary embolism. 
+
+Pulmonary veins: Patent, normal caliber.
+
+Aorta: Patent, normal caliber. No dissection.
+
+Arch Vessels: Patent, normal caliber. Standard arch anatomy.
+
+
+CHEST:
+
+Lungs: Groundglass opacities within the anterior right middle lobe.
+
+Airways:  Central airways are patent.
+
+Pleura: No pleural effusion or pneumothorax.
+
+Mediastinum: Bilateral subcentimeter thyroid hypoenhancing foci. No lymphadenopathy.
+
+Chest wall: Normal. No axillary lymphadenopathy.
+
+Upper abdomen: Reported separately.
+
+Bones: Unremarkable.
+
+
+IMPRESSION:
+Groundglass opacities within the anterobasal right middle lobe, likely reflecting pulmonary contusion.
+
+
+
+
+-------------------- MR EXAMPLE -------------------------------------
+FINDINGS:
+
+Liver: The liver is normal in size, contour, signal and enhancement pattern. There is no focal liver lesion. There is no fatty infiltration.
+
+Biliary: No intra or extrahepatic biliary ductal dilation. Normal fluid filled gallbladder, without stones.
+
+Spleen: Homogeneous signal, with normal enhancement pattern. No splenomegaly. Small splenule.
+
+Pancreas: Normal in size, signal and enhancement pattern. No pancreatic duct dilatation.
+
+Adrenals: Normal.
+
+Kidneys: 4.0 x 3.6 x 4.3 cm cm left lower pole multicystic mass (18:13, 19:24), which demonstrates mild progressive enhancement (32:51). There is also intrinsic T1 hyperintense signal and scattered areas of T1 hyperintensity, consistent with hemorrhage and necrosis (20:47). Multiple fluid-fluid levels are noted. Left lower pole caliectasis secondary to obstruction is also present (19:23). No left renal vein invasion. No definite extrarenal extension.
+
+Vessels: Normal course and caliber.
+
+Lymph nodes: No lymphadenopathy
+
+Peritoneum: Small volume free fluid in the pelvis, likely physiologic.
+
+Reproductive organs: Normal.
+
+Lung bases: No pleural effusion.
+
+Bones: Normal bone marrow signal.
+
+Soft tissues: No soft tissue abnormalities. No abnormal enhancement after contrast administration.
+
+
+IMPRESSION:
+
+- 4.3 cm hemorrhagic, mildly enhancing multicystic left lower pole mass with associated left lower pole caliectasis, most consistent with cystic renal cell carcinoma versus Wilms tumor, though other tumor types could also be considered. No definite extrarenal or vascular invasion.
+- No lymphadenopathy.
+
+
+-------------- MR EXAMPLE ------------------------------------------
+FINDINGS:
+ 
+Alignment: Normal.
+
+Bones: T1 hypointense, T2 hyperintense signal along the medial femoral epiphysis (5:14). Otherwise, normal bone marrow signal. No visualized fracture.
+
+Articular cartilage: Normal.
+
+Joint Spaces: Normal. No effusion. Small popliteal cyst..
+
+Medial meniscus: Normal.
+Lateral meniscus: Normal.
+
+Anterior cruciate ligament: Normal.
+Posterior cruciate ligament: Normal.
+
+Medial collateral ligament: Normal.
+
+Fibular collateral ligament: Normal.
+Biceps femoris tendon: Normal.
+Popliteal tendon: Normal.
+Other posterolateral corner structures: Normal.
+
+Patella/extensor mechanism: Quadricep and patellar tendons are normal. Medial retinaculum and medial patellofemoral ligament are intact and normal in signal. Lateral retinaculum is intact.
+
+Other muscles/soft tissues: Normal with no abnormal edema.
+
+IMPRESSION:
+1.  Bone marrow edema along the medial femoral epiphysis, which may represent a evolving bone contusion. No visualized fracture
+2. No meniscal or ligament injury
+
+
+
+-------------- US ---------------------------------------
+
+FINDINGS:
+
+Liver:  
+The liver is normal in echogenicity and contour. It measures 10.55 cm in sagittal dimension. There are no focal hepatic lesions. There is no intrahepatic biliary ductal dilatation.
+
+Gallbladder:
+Normally distended without internal stones or sludge. There is no gallbladder wall thickening or pericholecystic fluid. The gallbladder wall measures 0.22 cm in thickness.
+
+Common bile duct:
+Nondilated, measuring 0.26 cm.
+
+Pancreas:
+Visualized portions are normal.
+
+Spleen:
+Normal in size and echotexture, measuring 7.9 cm.
+
+Kidneys:
+Horseshoe kidney, which is normal in size and echotexture. No solid masses or calculi. No urinary tract dilatation. The right portion of the kidney measures 8.1cm and the left portion of the kidney measures 7.9 cm.  Mean renal length for age: 9.17 cm +/- 2 x 0.82 cm.
+
+Vessels:
+Visualized proximal aorta and IVC are normal. 
+
+Bladder:
+The bladder is not visualized, likely contracted
+
+Other:
+No ascites.
+
+IMPRESSION:
+-Horseshoe kidney.
+- Otherwise normal abdominal ultrasound.
+
+
+----------- US ----------------------
+
+FINDINGS:  
+ 
+Cerebral parenchyma: No intracranial hemorrhage or white matter injury. Normal cerebral sulcation for patient's age. Normal appearance of the midline structures. 
+
+Ventricles: No ventriculomegaly or intraventricular hemorrhage.
+
+Extra-axial spaces: No significant extraaxial fluid collections.
+
+Posterior fossa: Normal appearance of the posterior fossa structures.
+
+
+IMPRESSION:
+Normal head ultrasound.
+

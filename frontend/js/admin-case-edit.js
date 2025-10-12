@@ -558,23 +558,38 @@ async function renderExpertTemplateSectionsForEditing(expertTemplate, containerE
         return;
     }
 
-    let sectionsHTML = '';
+    // NEW: Template file upload UI
+    let sectionsHTML = `
+        <div class="template-file-upload-section" style="background: #f0f8ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 2px dashed #4CAF50;">
+            <h5 style="margin-top: 0; color: #333;">🚀 Quick Start: Upload Template File</h5>
+            <p style="font-size: 0.9em; color: #555; margin-bottom: 12px;">Upload a .txt file with your expert report template to auto-populate sections below.</p>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="file" id="templateFileInput_${expertTemplate.id}" accept=".txt" style="flex: 1; min-width: 200px; padding: 6px;">
+                <button type="button" class="btn btn-primary btn-sm parse-template-file-btn" data-expert-template-id="${expertTemplate.id}" style="white-space: nowrap;">
+                    📄 Parse & Fill Sections
+                </button>
+            </div>
+            <div id="parseStatus_${expertTemplate.id}" style="margin-top: 10px; font-size: 0.9em; min-height: 20px;"></div>
+        </div>
+        <hr style="margin: 20px 0; border-top: 1px solid #ddd;">
+    `;
+
     sectionsToRender.forEach(secContent => {
         // NEW: Add input for key_concepts_text
         sectionsHTML += `
-            <div class="form-group template-section-item" data-casetemplatesectioncontent-id="${secContent.id}">
+            <div class="form-group template-section-item" data-casetemplatesectioncontent-id="${secContent.id}" data-section-name="${secContent.master_section_name || 'Unnamed'}">
                 <label for="expert_sec_content_${secContent.id}">
-                    ${secContent.master_section_name || 'Unnamed Section'} 
+                    ${secContent.master_section_name || 'Unnamed Section'}
                     ${secContent.master_section_is_required ? '<span class="required" style="color:red;">*</span>' : ''}
                 </label>
-                <textarea id="expert_sec_content_${secContent.id}" class="form-control expert-section-content-input" 
+                <textarea id="expert_sec_content_${secContent.id}" class="form-control expert-section-content-input"
                           rows="4" placeholder="${secContent.master_section_placeholder || ''}">${secContent.content || ''}</textarea>
-                
+
                 <div style="margin-top: 8px;">
                     <label for="expert_sec_key_concepts_${secContent.id}" style="font-size: 0.9em; color: #555;">
                         Case-Specific Key Concepts for this Section (Optional):
                     </label>
-                    <textarea id="expert_sec_key_concepts_${secContent.id}" class="form-control expert-section-key-concepts-input" 
+                    <textarea id="expert_sec_key_concepts_${secContent.id}" class="form-control expert-section-key-concepts-input"
                               rows="2" placeholder="Semicolon-separated phrases, e.g., large mass; renal claw sign present">${secContent.key_concepts_text || ''}</textarea>
                     <p class="field-hint" style="font-size:0.8em;">These help guide AI feedback for this specific case and section.</p>
                 </div>
@@ -595,8 +610,163 @@ async function renderExpertTemplateSectionsForEditing(expertTemplate, containerE
     if (saveBtn) {
         saveBtn.addEventListener('click', (e) => {
             const caseTemplateId = e.target.dataset.casetemplateId;
-            handleSaveExpertTemplateContent(caseTemplateId, containerElement); 
+            handleSaveExpertTemplateContent(caseTemplateId, containerElement);
         });
+    }
+
+    // NEW: Add event listener for template file parse button
+    const parseBtn = containerElement.querySelector('.parse-template-file-btn');
+    if (parseBtn) {
+        parseBtn.addEventListener('click', (e) => {
+            const expertTemplateId = e.target.dataset.expertTemplateId;
+            handleTemplateFileUpload(expertTemplateId, containerElement);
+        });
+    }
+}
+
+/**
+ * NEW: Handle template file upload and parsing
+ */
+async function handleTemplateFileUpload(expertTemplateId, containerElement) {
+    const fileInput = document.getElementById(`templateFileInput_${expertTemplateId}`);
+    const statusDiv = document.getElementById(`parseStatus_${expertTemplateId}`);
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        statusDiv.innerHTML = '<span style="color:#d32f2f;">⚠️ Please select a file first.</span>';
+        return;
+    }
+
+    const file = fileInput.files[0];
+
+    // Check file extension
+    if (!file.name.toLowerCase().endsWith('.txt')) {
+        statusDiv.innerHTML = '<span style="color:#d32f2f;">⚠️ Please select a .txt file.</span>';
+        return;
+    }
+
+    statusDiv.innerHTML = '<span style="color:#1976d2;">📖 Reading file...</span>';
+
+    try {
+        // Read file content
+        const text = await file.text();
+
+        if (!text || text.trim().length === 0) {
+            throw new Error('File is empty');
+        }
+
+        statusDiv.innerHTML = '<span style="color:#1976d2;">🔍 Parsing template...</span>';
+
+        // Check if TemplateParser is available
+        if (typeof window.TemplateParser === 'undefined') {
+            throw new Error('Template parser not loaded. Please refresh the page.');
+        }
+
+        // Parse sections
+        const parser = new window.TemplateParser();
+
+        // Validate template first
+        const validation = parser.validateTemplate(text);
+        if (!validation.valid) {
+            throw new Error('Template validation failed: ' + validation.errors.join('; '));
+        }
+
+        const parsedSections = parser.parseTemplate(text);
+
+        console.log('[TemplateUpload] Parsed sections:', parsedSections);
+
+        statusDiv.innerHTML = `<span style="color:#388e3c;">✅ Parsed ${parsedSections.length} sections!</span>`;
+
+        // Auto-populate textareas
+        populateSectionsFromParsedTemplate(parsedSections, containerElement, parser);
+
+    } catch (error) {
+        console.error('[TemplateUpload] Error parsing template file:', error);
+        statusDiv.innerHTML = `<span style="color:#d32f2f;">❌ Error: ${error.message}</span>`;
+        if (window.showToast) {
+            window.showToast(`Failed to parse template: ${error.message}`, 'error', 5000);
+        }
+    }
+}
+
+/**
+ * NEW: Populate section textareas from parsed template data
+ */
+function populateSectionsFromParsedTemplate(parsedSections, containerElement, parser) {
+    let matchedCount = 0;
+    let unmatchedSections = [];
+
+    // Get all section items in the UI
+    const sectionItems = containerElement.querySelectorAll('.template-section-item');
+
+    sectionItems.forEach(item => {
+        const masterSectionName = item.dataset.sectionName || '';
+
+        if (!masterSectionName) {
+            console.warn('[TemplateUpload] Section item has no data-section-name attribute');
+            return;
+        }
+
+        // Find matching parsed section using fuzzy matching
+        const matchedParsed = parsedSections.find(parsed =>
+            parser.fuzzyMatch(parsed.sectionName, masterSectionName)
+        );
+
+        if (matchedParsed) {
+            // Populate content textarea
+            const contentTextarea = item.querySelector('.expert-section-content-input');
+            if (contentTextarea) {
+                contentTextarea.value = matchedParsed.content;
+
+                // Visual feedback: green flash
+                contentTextarea.style.backgroundColor = '#c8e6c9';
+                contentTextarea.style.transition = 'background-color 0.3s';
+                setTimeout(() => {
+                    contentTextarea.style.backgroundColor = '';
+                }, 2000);
+            }
+
+            // Auto-generate key concepts if it's a findings-type section
+            const keyConceptsTextarea = item.querySelector('.expert-section-key-concepts-input');
+            if (keyConceptsTextarea && !keyConceptsTextarea.value.trim()) {
+                // Extract key concepts from the populated content
+                const extractedConcepts = parser.extractKeyConceptsFromText(matchedParsed.content);
+                if (extractedConcepts) {
+                    keyConceptsTextarea.value = extractedConcepts;
+                    keyConceptsTextarea.style.backgroundColor = '#fff9c4';
+                    setTimeout(() => {
+                        keyConceptsTextarea.style.backgroundColor = '';
+                    }, 2000);
+                }
+            }
+
+            matchedCount++;
+            console.log(`[TemplateUpload] Matched: "${matchedParsed.sectionName}" → "${masterSectionName}"`);
+        } else {
+            unmatchedSections.push(masterSectionName);
+        }
+    });
+
+    // Show summary toast
+    if (matchedCount > 0) {
+        const message = `✅ Auto-populated ${matchedCount} section(s) from template!`;
+        if (window.showToast) {
+            window.showToast(message, 'success');
+        }
+
+        if (unmatchedSections.length > 0) {
+            console.warn('[TemplateUpload] Unmatched sections:', unmatchedSections);
+            const warningMsg = `Note: ${unmatchedSections.length} section(s) not found in template: ${unmatchedSections.join(', ')}`;
+            setTimeout(() => {
+                if (window.showToast) {
+                    window.showToast(warningMsg, 'warning', 5000);
+                }
+            }, 1000);
+        }
+    } else {
+        const message = '⚠️ No matching sections found. Check that section names in template match your Master Template.';
+        if (window.showToast) {
+            window.showToast(message, 'warning', 5000);
+        }
     }
 }
 
