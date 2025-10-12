@@ -1,52 +1,54 @@
 # users/models.py
 from django.db import models
-from django.contrib.auth.models import User # Import Django's built-in User model
+from django.contrib.auth.models import User  # Import Django's built-in User model
+
 
 # Define choices for role and status fields for consistency
 class RoleChoices(models.TextChoices):
-    STUDENT = 'student', 'Student'
-    RESIDENT = 'resident', 'Resident'
-    FELLOW = 'fellow', 'Fellow'
-    ATTENDING = 'attending', 'Attending'
-    ADMIN = 'admin', 'Administrator'
-    OTHER = 'other', 'Other'
+    STUDENT = "student", "Student"
+    RESIDENT = "resident", "Resident"
+    FELLOW = "fellow", "Fellow"
+    ATTENDING = "attending", "Attending"
+    ADMIN = "admin", "Administrator"
+    OTHER = "other", "Other"
+
 
 class StatusChoices(models.TextChoices):
-    PENDING = 'pending', 'Pending Approval'
-    ACTIVE = 'active', 'Active'
-    INACTIVE = 'inactive', 'Inactive'
+    PENDING = "pending", "Pending Approval"
+    ACTIVE = "active", "Active"
+    INACTIVE = "inactive", "Inactive"
+
 
 class UserProfile(models.Model):
     """
     Stores additional information related to the built-in Django User model.
     """
+
     # Link to the built-in User model.
     # OneToOneField ensures each User has exactly one UserProfile.
     # on_delete=models.CASCADE means if a User is deleted, their profile is also deleted.
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
 
     # Custom fields based on requirements
     role = models.CharField(
         max_length=20,
         choices=RoleChoices.choices,
-        default=RoleChoices.OTHER, # Sensible default
-        help_text="User's role in the institution"
+        default=RoleChoices.OTHER,  # Sensible default
+        help_text="User's role in the institution",
     )
     institution = models.CharField(
         max_length=255,
-        blank=True, # Allow blank for now, maybe make required later
-        help_text="User's institution or hospital affiliation"
+        blank=True,  # Allow blank for now, maybe make required later
+        help_text="User's institution or hospital affiliation",
     )
     country = models.CharField(
-        max_length=100,
-        blank=True, # Allow blank
-        help_text="User's country"
+        max_length=100, blank=True, help_text="User's country"  # Allow blank
     )
     approval_status = models.CharField(
         max_length=20,
         choices=StatusChoices.choices,
-        default=StatusChoices.PENDING, # New users start as pending
-        help_text="Approval status of the user account"
+        default=StatusChoices.PENDING,  # New users start as pending
+        help_text="Approval status of the user account",
     )
 
     # Timestamps (optional but good practice)
@@ -68,4 +70,3 @@ class UserProfile(models.Model):
     @property
     def is_approved_and_active(self):
         return self.approval_status == StatusChoices.ACTIVE and self.user.is_active
-

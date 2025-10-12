@@ -5,9 +5,10 @@ from django.core.exceptions import MultipleObjectsReturned
 
 UserModel = get_user_model()
 
+
 class EmailBackend(ModelBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
-        email = username # Email comes in as 'username' arg
+        email = username  # Email comes in as 'username' arg
 
         if email is None:
             return None
