@@ -9,10 +9,10 @@ let casesPrevUrl = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Ensure this only runs on the manage-cases.html page
-    if (window.location.pathname.includes('manage-cases.html')) {
+    if (window.location.pathname.includes('/app/admin/manage-cases.html')) {
         console.log("Manage Cases page loaded. Initializing...");
         initializeManageCasesPage();
-    } else if (window.location.pathname.includes('add-case.html')) {
+    } else if (window.location.pathname.includes('/app/admin/add-case.html')) {
         // If you have common functions needed on add-case.html that were in an old admin-cases.js,
         // they should be moved to admin-case-edit.js or a shared utility file.
         // For now, we assume admin-cases.js is primarily for manage-cases.html
@@ -64,7 +64,7 @@ function setupCaseTableEventListeners() {
             const caseId = editButton.dataset.id;
             if (caseId) {
                 console.log(`[Action] Edit button clicked for case ID: ${caseId}`);
-                window.location.href = `add-case.html?edit_id=${caseId}`;
+                window.location.href = `/app/admin/add-case.html?edit_id=${caseId}`;
             }
             return;
         }

@@ -98,9 +98,11 @@ function logoutUser() {
     // Reset refresh state
     isRefreshing = false;
     refreshPromise = null;
-    // Redirect to login page
-    if (window.location.pathname !== '/login.html' && window.location.pathname !== '/') {
-        window.location.href = '/login.html';
+    // Redirect to login page with /app/ prefix
+    if (window.location.pathname !== '/app/login.html' &&
+        window.location.pathname !== '/app/' &&
+        window.location.pathname !== '/app/index.html') {
+        window.location.href = '/app/login.html';
     }
 }
 

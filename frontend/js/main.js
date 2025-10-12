@@ -66,7 +66,7 @@ async function checkLoginStatusAndInit() {
     const tokens = getAuthTokens(); // from api.js
     if (!tokens) {
         console.log("No auth tokens found, redirecting to login.");
-        window.location.href = 'login.html';
+        window.location.href = '/app/login.html';
         return;
     }
 
@@ -106,7 +106,7 @@ async function checkLoginStatusAndInit() {
     } catch (error) {
         console.error("Authentication check failed:", error);
         clearAuthTokens(); // Clear invalid tokens
-        window.location.href = 'login.html'; // Redirect to login
+        window.location.href = '/app/login.html'; // Redirect to login
     }
 }
 
@@ -151,7 +151,7 @@ async function fetchUserDetails() {
         if (error.status === 401) {
             console.log("API returned 401 for /users/me/, clearing tokens.");
             clearAuthTokens();
-            window.location.href = 'login.html';
+            window.location.href = '/app/login.html';
         }
         return null;
     }
@@ -181,7 +181,7 @@ function handleLogout() {
     sessionStorage.removeItem('user'); // Clear stored user data
     showToast("You have been logged out.", "success");
     // Redirect to login page after a short delay
-    setTimeout(() => { window.location.href = 'login.html'; }, 1000);
+    setTimeout(() => { window.location.href = '/app/login.html'; }, 1000);
 }
 // --- Load Case List View ---
 async function loadCaseList(url = '/cases/cases/') {

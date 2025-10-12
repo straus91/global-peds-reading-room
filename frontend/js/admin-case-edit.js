@@ -94,10 +94,10 @@ function initCommonFormElements() {
         const params = new URLSearchParams({ action: 'create' });
         if (modality) params.append('modality', modality);
         if (subspecialty) {
-            const bodyPart = getBodyPartFromSubspecialty(subspecialty); 
+            const bodyPart = getBodyPartFromSubspecialty(subspecialty);
             if (bodyPart) params.append('bodyPart', bodyPart);
         }
-        window.location.href = `manage-templates.html?${params.toString()}`;
+        window.location.href = `/app/admin/manage-templates.html?${params.toString()}`;
     });
 
     document.getElementById('previewMasterTemplateBtn')?.addEventListener('click', async () => {

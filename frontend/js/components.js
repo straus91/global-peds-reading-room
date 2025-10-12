@@ -28,7 +28,7 @@ const Components = {
 // Example usage in admin-users.js
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize user management only if on the correct page
-    if (window.location.pathname.includes('manage-users.html')) {
+    if (window.location.pathname.includes('/app/admin/manage-users.html')) {
         Components.init('manage-users', initManageUsersPage);
     }
 });

@@ -16,7 +16,7 @@ function initManageUsersPage() {
         return;
     }
 
-    if (!window.location.pathname.includes('manage-users.html')) {
+    if (!window.location.pathname.includes('/app/admin/manage-users.html')) {
         console.warn("[AdminUsers] Not on manage-users.html page, skipping initialization");
         return;
     }

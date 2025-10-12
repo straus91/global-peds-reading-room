@@ -84,21 +84,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 }
 function getLoginPath() {
-    // Check if we're in admin directory
-    const currentPath = window.location.pathname;
-    if (currentPath.includes('/admin/')) {
-        return '../login.html';
-    }
-    return 'login.html';
+    // Use absolute path with /app/ prefix
+    return '/app/login.html';
 }
 
 function getMainPath() {
-    // Check if we're in admin directory
-    const currentPath = window.location.pathname;
-    if (currentPath.includes('/admin/')) {
-        return '../index.html';
-    }
-    return 'index.html';
+    // Use absolute path with /app/ prefix
+    return '/app/index.html';
 }
 
 
@@ -108,11 +100,9 @@ async function adminLogout() {
     sessionStorage.removeItem('user'); // Clear any session-stored user info
     sessionStorage.removeItem('adminWelcomeToastShown'); // Reset welcome toast flag
     showToast("You have been logged out.", "success");
-    
-    // Build absolute path to login page
-    const origin = window.location.origin;
-    const pathToFrontend = window.location.pathname.substring(0, window.location.pathname.indexOf('/frontend/') + '/frontend/'.length);
-    window.location.href = origin + pathToFrontend + 'login.html';
+
+    // Redirect to login page using absolute path
+    window.location.href = '/app/login.html';
 }
 /**
  * Initializes common admin application UI components like modals, tabs, etc.
@@ -231,8 +221,8 @@ async function adminLogout() {
         sessionStorage.removeItem('user'); // Clear any session-stored user info
         sessionStorage.removeItem('adminWelcomeToastShown'); // Reset welcome toast flag
         showToast("You have been logged out.", "success");
-        // Redirect to login page, ensuring correct relative path
-        window.location.href = '../login.html'; // Assumes admin pages are in an 'admin' subdirectory
+        // Redirect to login page using absolute path
+        window.location.href = '/app/login.html';
     // }
 }
 
@@ -334,7 +324,7 @@ function initTabs() {
                     }
                 }
                 // Specific logic for manage-templates.html if needed
-                if (window.location.pathname.includes('manage-templates.html') && typeof TemplateFormManager !== 'undefined') {
+                if (window.location.pathname.includes('/app/admin/manage-templates.html') && typeof TemplateFormManager !== 'undefined') {
                     if (targetTabContentId === 'create-template' && !templatesState.currentEditTemplateId) {
                         TemplateFormManager.resetForm();
                     } else if (targetTabContentId === 'template-list') {

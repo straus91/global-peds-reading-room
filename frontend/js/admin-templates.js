@@ -83,7 +83,7 @@
     function initializeManageTemplatesPage() {
         console.log("[AdminTemplates] Initializing Manage Templates page via admin.js...");
 
-        if (!window.location.pathname.includes('manage-templates.html')) {
+        if (!window.location.pathname.includes('/app/admin/manage-templates.html')) {
             console.warn("[AdminTemplates] Not on manage-templates.html page, skipping initialization");
             return;
         }

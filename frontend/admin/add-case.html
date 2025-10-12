@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add/Edit Case - Global Peds Reading Room</title> <link rel="stylesheet" href="../css/styles.css">
-    <link rel="stylesheet" href="../css/admin.css">
+    <title>Add/Edit Case - Global Peds Reading Room</title>
+    <link rel="stylesheet" href="/app/css/styles.css">
+    <link rel="stylesheet" href="/app/css/admin.css">
     <style>
         /* Style for dynamically added findings */
         .finding-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -142,13 +143,13 @@
         <div class="container">
             <nav class="navbar">
                 <div class="logo">
-                    <img src="../assets/img/logo.png" alt="Logo" style="height: 40px; width: auto; border-radius: 4px;" onerror="this.style.display='none'">
+                    <img src="/app/assets/img/logo.png" alt="Logo" style="height: 40px; width: auto; border-radius: 4px;" onerror="this.style.display='none'">
                     <h1>Global Peds Reading Room</h1>
                 </div>
                 <div class="nav-links">
-                    <a href="../index.html">Return to Main Site</a>
+                    <a href="/app/index.html">Return to Main Site</a>
                     <div class="user-menu">
-                        <img src="../assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;" onerror="this.src='https://placehold.co/35x35/ccc/777?text=User'">
+                        <img src="/app/assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;" onerror="this.src='https://placehold.co/35x35/ccc/777?text=User'">
                         <span>Administrator</span>
                         <div class="dropdown-content">
                             <a href="#" id="profileLink">My Profile</a>
@@ -165,26 +166,27 @@
             <div class="admin-layout">
                 <aside class="admin-sidebar">
                     <div class="admin-menu">
-                        <a href="dashboard.html">
+                        <a href="/app/admin/dashboard.html">
                             <span class="menu-icon">📊</span>
                             Dashboard
                         </a>
-                        <a href="manage-cases.html">
+                        <a href="/app/admin/manage-cases.html">
                             <span class="menu-icon">📁</span>
                             Manage Cases
                         </a>
-                        <a href="add-case.html" class="active">
+                        <a href="/app/admin/add-case.html" class="active">
                             <span class="menu-icon">➕</span>
-                            Add/Edit Case </a>
-                        <a href="manage-users.html">
+                            Add/Edit Case
+                        </a>
+                        <a href="/app/admin/manage-users.html">
                             <span class="menu-icon">👥</span>
                             Manage Users
                         </a>
-                        <a href="manage-templates.html">
+                        <a href="/app/admin/manage-templates.html">
                             <span class="menu-icon">📋</span>
                             Manage Templates
                         </a>
-                        <a href="settings.html">
+                        <a href="/app/admin/settings.html">
                             <span class="menu-icon">⚙️</span>
                             Settings
                         </a>
@@ -400,7 +402,7 @@
         <div class="container">
             <div class="footer-content-simplified">
                 <ul class="footer-links-combined">
-                    <li><a href="../index.html">Main Site</a></li>
+                    <li><a href="/app/index.html">Main Site</a></li>
                     <li><a href="mailto:mst@ad.unc.edu">Contact</a></li>
                 </ul>
             </div>
@@ -445,8 +447,9 @@
         </div>
     </div>
 
-    <script src="../js/config.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/admin.js"></script> <script src="../js/admin-case-edit.js"></script>
+    <script src="/app/js/config.js"></script>
+    <script src="/app/js/api.js"></script>
+    <script src="/app/js/admin.js"></script>
+    <script src="/app/js/admin-case-edit.js"></script>
 </body>
 </html>
