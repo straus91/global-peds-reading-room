@@ -220,13 +220,9 @@ async function fetchUserDetailsAndRedirect() {
             const currentPath = window.location.pathname;
             const currentDir = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
             
-            if (userData.is_admin) { 
-                // From login.html to admin/dashboard.html
-                window.location.href = currentDir + 'admin/dashboard.html'; 
-            } else { 
-                // From login.html to index.html  
-                window.location.href = currentDir + 'index.html'; 
-            }
+            // Redirect to main application for all users
+            // Admins can access Django admin at /admin/ from navigation
+            window.location.href = currentDir + 'index.html';
         } else { throw new Error("User data or profile missing in response."); }
     } catch (error) { console.error("Failed to fetch user details after login:", error); showToast("Login successful, but failed to retrieve user details. Please try refreshing.", "warning"); clearAuthTokens(); }
 }
