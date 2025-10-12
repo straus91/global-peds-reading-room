@@ -1,0 +1,92 @@
+name: Deploy to Beta Droplet
+
+# Manual trigger for controlled deployments (aligns with BETA_BEST_PRACTICES.md)
+# Can add 'push' trigger later for automatic deployment
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Deployment reason (for tracking and audit trail)'
+        required: false
+        default: 'Manual deployment'
+
+jobs:
+  deploy:
+    name: Deploy to Beta Environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Beta Droplet
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.BETA_HOST }}
+          username: ${{ secrets.BETA_USER }}
+          key: ${{ secrets.BETA_SSH_KEY }}
+          port: 22
+          script: |
+            echo "🚀 Starting Beta Deployment..."
+            echo "Reason: ${{ github.event.inputs.reason }}"
+            echo "Commit: ${{ github.sha }}"
+            echo "Branch: ${{ github.ref_name }}"
+            echo "Triggered by: ${{ github.actor }}"
+            echo "Time: $(date)"
+            echo ""
+
+            # Navigate to project
+            cd /home/deploy/global-peds-reading-room
+
+            # Pull latest code
+            echo "📥 Pulling latest code from online_beta..."
+            git pull origin online_beta
+
+            # Activate virtual environment
+            source backend/venv/bin/activate
+
+            # Install/update dependencies
+            echo "📦 Installing dependencies..."
+            pip install -q -r backend/requirements.txt
+
+            # Run database migrations
+            echo "🗄️ Running migrations..."
+            python backend/manage.py migrate --noinput
+
+            # Collect static files (if needed)
+            echo "📁 Collecting static files..."
+            python backend/manage.py collectstatic --noinput || true
+
+            # Restart services
+            echo "🔄 Restarting services..."
+            sudo systemctl restart gunicorn
+            sudo systemctl restart nginx
+
+            # Wait for services to stabilize
+            sleep 3
+
+            # Verify services are running
+            echo ""
+            echo "✅ Service Status:"
+            echo "  Gunicorn: $(systemctl is-active gunicorn)"
+            echo "  Nginx: $(systemctl is-active nginx)"
+            echo "  PostgreSQL: $(systemctl is-active postgresql)"
+
+            # Check if gunicorn is responding
+            echo ""
+            echo "🔍 Testing API endpoint..."
+            if curl -f -s http://localhost:8001/api/ > /dev/null; then
+              echo "  ✅ API responding on port 8001"
+            else
+              echo "  ⚠️ API not responding - check logs"
+            fi
+
+            # Show recent logs (last 20 lines)
+            echo ""
+            echo "📊 Recent Gunicorn logs:"
+            tail -20 /var/log/gunicorn/gunicorn.log
+
+            echo ""
+            echo "🎉 Deployment complete!"
+            echo "🔍 Monitor at: http://64.225.17.0"
+            echo "📋 Next steps: Monitor logs for 5-10 minutes per BETA_BEST_PRACTICES.md"

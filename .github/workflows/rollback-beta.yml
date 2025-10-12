@@ -1,0 +1,100 @@
+name: Rollback Beta Deployment
+
+# Emergency rollback workflow (aligns with BETA_BEST_PRACTICES.md safety-first approach)
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to rollback to (leave empty for previous commit, or use "HEAD~2" for 2 commits back)'
+        required: false
+        default: 'HEAD~1'
+      reason:
+        description: 'Reason for rollback (for tracking)'
+        required: true
+
+jobs:
+  rollback:
+    name: Rollback Beta Environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Rollback Beta Droplet
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.BETA_HOST }}
+          username: ${{ secrets.BETA_USER }}
+          key: ${{ secrets.BETA_SSH_KEY }}
+          port: 22
+          script: |
+            echo "⏪ Starting Beta Rollback..."
+            echo "Reason: ${{ github.event.inputs.reason }}"
+            echo "Target: ${{ github.event.inputs.commit_sha }}"
+            echo "Triggered by: ${{ github.actor }}"
+            echo "Time: $(date)"
+            echo ""
+
+            cd /home/deploy/global-peds-reading-room
+
+            # Show current commit before rollback
+            echo "📍 Current commit:"
+            git log -1 --oneline
+
+            # Rollback to specified commit
+            echo ""
+            echo "🔄 Rolling back to: ${{ github.event.inputs.commit_sha }}"
+            git reset --hard ${{ github.event.inputs.commit_sha }}
+
+            # Show new commit after rollback
+            echo ""
+            echo "📍 Rolled back to:"
+            git log -1 --oneline
+
+            # Activate virtual environment
+            source backend/venv/bin/activate
+
+            # Install dependencies (in case they changed)
+            echo ""
+            echo "📦 Installing dependencies..."
+            pip install -q -r backend/requirements.txt
+
+            # Run migrations
+            echo "🗄️ Running migrations..."
+            python backend/manage.py migrate --noinput
+
+            # Collect static files
+            echo "📁 Collecting static files..."
+            python backend/manage.py collectstatic --noinput || true
+
+            # Restart services
+            echo "🔄 Restarting services..."
+            sudo systemctl restart gunicorn
+            sudo systemctl restart nginx
+
+            # Wait for services to stabilize
+            sleep 3
+
+            # Verify services
+            echo ""
+            echo "✅ Service Status:"
+            echo "  Gunicorn: $(systemctl is-active gunicorn)"
+            echo "  Nginx: $(systemctl is-active nginx)"
+            echo "  PostgreSQL: $(systemctl is-active postgresql)"
+
+            # Test API
+            echo ""
+            echo "🔍 Testing API endpoint..."
+            if curl -f -s http://localhost:8001/api/ > /dev/null; then
+              echo "  ✅ API responding on port 8001"
+            else
+              echo "  ⚠️ API not responding - check logs"
+            fi
+
+            # Show recent logs
+            echo ""
+            echo "📊 Recent Gunicorn logs:"
+            tail -20 /var/log/gunicorn/gunicorn.log
+
+            echo ""
+            echo "✅ Rollback complete!"
+            echo "🔍 Monitor at: http://64.225.17.0"
+            echo "⚠️ IMPORTANT: Document this rollback and investigate the issue"
