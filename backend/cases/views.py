@@ -1288,6 +1288,83 @@ class AIFeedbackDetailedRatingViewSet(viewsets.ModelViewSet):
             'note': 'Review these to improve AI feedback prompt accuracy.'
         })
 
+    @action(detail=False, methods=['get'], url_path='analytics/cost-trends')
+    def analytics_cost_trends(self, request):
+        """
+        Get cost and token usage trends over time.
+
+        GET /api/detailed-ratings/analytics/cost-trends/?days=30
+
+        Query parameters:
+        - days (int): Number of days to look back (default: 30)
+
+        Returns cost trends, token usage, and cache savings (admin only).
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view analytics.")
+
+        from cases.analytics_utils import get_cost_trends
+
+        # Get days parameter (default 30, max 365)
+        days = int(request.GET.get('days', 30))
+        if days > 365:
+            days = 365
+
+        cost_data = get_cost_trends(days=days)
+
+        return Response(cost_data)
+
+    @action(detail=False, methods=['get'], url_path='analytics/prompt-comparison')
+    def analytics_prompt_comparison(self, request):
+        """
+        Compare AI feedback quality across prompt versions.
+
+        GET /api/detailed-ratings/analytics/prompt-comparison/
+
+        Returns quality metrics for each prompt version (admin only).
+        Use this to identify which prompt versions perform best.
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view analytics.")
+
+        from cases.analytics_utils import get_quality_by_prompt_version
+
+        comparison_data = get_quality_by_prompt_version()
+
+        return Response({
+            'prompt_versions': comparison_data,
+            'note': 'Compare average ratings across prompt versions to identify best performers.'
+        })
+
+    @action(detail=False, methods=['get'], url_path='analytics/cache-performance')
+    def analytics_cache_performance(self, request):
+        """
+        Get cache effectiveness metrics.
+
+        GET /api/detailed-ratings/analytics/cache-performance/?days=30
+
+        Query parameters:
+        - days (int): Number of days to analyze (default: 30)
+
+        Returns cache hit rate, cost savings, and entry statistics (admin only).
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view analytics.")
+
+        from cases.analytics_utils import get_cache_performance
+
+        # Get days parameter (default 30, max 365)
+        days = int(request.GET.get('days', 30))
+        if days > 365:
+            days = 365
+
+        cache_data = get_cache_performance(days=days)
+
+        return Response(cache_data)
+
 
 # --- Tutoring Views ---
 
