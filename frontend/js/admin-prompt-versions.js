@@ -33,7 +33,7 @@ async function fetchPromptVersions() {
             return null;
         }
 
-        const response = await fetch(`${API_BASE}/prompt-versions/analytics/by-version/`, {
+        const response = await fetch(`${API_BASE}/cases/prompt-versions/analytics/by-version/`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -149,8 +149,8 @@ async function activateVersion(versionId) {
             return;
         }
 
-        const response = await fetch(`${API_BASE}/prompt-versions/${versionId}/activate/`, {
-            method: 'PATCH',
+        const response = await fetch(`${API_BASE}/cases/prompt-versions/${versionId}/activate/`, {
+            method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -208,7 +208,7 @@ async function handleCreateVersion(event) {
             return;
         }
 
-        const response = await fetch(`${API_BASE}/prompt-versions/`, {
+        const response = await fetch(`${API_BASE}/cases/prompt-versions/`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
