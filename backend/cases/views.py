@@ -28,6 +28,9 @@ from .models import (
     CaseTemplateSectionContent,
     AIFeedbackRating,
     AIFeedbackDetailedRating,
+    PromptVersion,
+    FeedbackCache,
+    TokenUsageLog,
     TutoringSession,
     TutoringTurn,
     TutoringSessionStatusChoices,
@@ -46,6 +49,7 @@ from .serializers import (
     BulkCaseTemplateSectionContentUpdateSerializer,
     AIFeedbackRatingSerializer,
     AIFeedbackDetailedRatingSerializer,
+    PromptVersionSerializer,
     TutoringSessionSerializer,
     TutoringSessionCreateSerializer,
     TutoringTurnSerializer,
@@ -1364,6 +1368,189 @@ class AIFeedbackDetailedRatingViewSet(viewsets.ModelViewSet):
         cache_data = get_cache_performance(days=days)
 
         return Response(cache_data)
+
+
+class PromptVersionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing AI prompt versions with A/B testing support.
+
+    Enables version control, performance tracking, and data-driven optimization
+    of AI feedback prompts.
+
+    Endpoints:
+    - GET /api/prompt-versions/ - List all prompt versions (admin only)
+    - POST /api/prompt-versions/ - Create new version (admin only)
+    - GET /api/prompt-versions/{id}/ - Retrieve version details
+    - PUT/PATCH /api/prompt-versions/{id}/ - Update version (admin only)
+    - DELETE /api/prompt-versions/{id}/ - Delete version (admin only)
+    - POST /api/prompt-versions/{id}/activate/ - Activate version (admin only)
+    - GET /api/prompt-versions/analytics/by-version/ - Version analytics
+
+    Permissions:
+    - Read: All authenticated users (to see which version is active)
+    - Write: Admin only (creating/editing prompts)
+    """
+    serializer_class = PromptVersionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Return all prompt versions, ordered by creation date (newest first)."""
+        return PromptVersion.objects.select_related('created_by').order_by('-created_at')
+
+    def get_permissions(self):
+        """Admin-only for write operations, authenticated for read."""
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'activate']:
+            return [permissions.IsAdminUser()]
+        return [permissions.IsAuthenticated()]
+
+    def get_serializer_context(self):
+        """Add request to serializer context."""
+        return {'request': self.request, **super().get_serializer_context()}
+
+    def perform_create(self, serializer):
+        """Set created_by to current user when creating new version."""
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    @transaction.atomic
+    def activate(self, request, pk=None):
+        """
+        Activate a specific prompt version.
+
+        POST /api/prompt-versions/{id}/activate/
+
+        Deactivates all other versions and sets this one as active.
+        Sets activated_at timestamp.
+
+        Returns the activated version with updated status.
+        """
+        sid = transaction.savepoint()
+
+        try:
+            # Get the version to activate
+            version_to_activate = self.get_object()
+
+            # Check if already active
+            if version_to_activate.is_active:
+                return Response(
+                    {'status': 'already_active', 'message': 'This version is already active.'},
+                    status=status.HTTP_200_OK
+                )
+
+            # Deactivate all currently active versions
+            currently_active = PromptVersion.objects.filter(is_active=True)
+            for active_version in currently_active:
+                active_version.is_active = False
+                active_version.deactivated_at = timezone.now()
+                active_version.save(update_fields=['is_active', 'deactivated_at'])
+                logger.info(f"Deactivated prompt version {active_version.version_number}")
+
+            # Activate the selected version
+            version_to_activate.is_active = True
+            if not version_to_activate.activated_at:
+                version_to_activate.activated_at = timezone.now()
+            version_to_activate.save(update_fields=['is_active', 'activated_at'])
+
+            logger.info(
+                f"Activated prompt version {version_to_activate.version_number} "
+                f"by user {request.user.username}"
+            )
+
+            transaction.savepoint_commit(sid)
+
+            # Return the updated version
+            serializer = self.get_serializer(version_to_activate)
+            return Response(
+                {
+                    'status': 'activated',
+                    'message': f'Version {version_to_activate.version_number} is now active.',
+                    'version': serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            logger.error(f"Error activating prompt version: {str(e)}")
+            transaction.savepoint_rollback(sid)
+            return Response(
+                {'error': 'Failed to activate version. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['get'], url_path='analytics/by-version')
+    def analytics_by_version(self, request):
+        """
+        Get performance analytics for all prompt versions.
+
+        GET /api/prompt-versions/analytics/by-version/
+
+        Returns quality metrics, usage stats, and cost data for each version.
+        Used for A/B testing analysis and prompt optimization.
+
+        Admin only for detailed analytics.
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view detailed analytics.")
+
+        # Get all versions with their metrics
+        versions = PromptVersion.objects.all().order_by('-created_at')
+
+        analytics_data = []
+        for version in versions:
+            # Calculate derived metrics
+            usage_count = version.total_uses
+
+            # Calculate average cost per use
+            avg_cost = None
+            if usage_count > 0 and version.total_tokens_used > 0:
+                # Assuming Gemini 2.5 Flash pricing: ~$0.00001875 per 1K tokens (input+output)
+                avg_cost = (version.total_tokens_used / 1000) * 0.00001875 / usage_count
+
+            # Calculate cache savings estimate
+            cache_hits = FeedbackCache.objects.filter(
+                prompt_version=version
+            ).aggregate(
+                total_hits=models.Sum('hit_count')
+            )['total_hits'] or 0
+
+            # Estimated savings (cache hits * avg cost per request)
+            estimated_savings = cache_hits * avg_cost if avg_cost else 0
+
+            analytics_data.append({
+                'version_id': str(version.id),
+                'version_number': version.version_number,
+                'name': version.name,
+                'is_active': version.is_active,
+                'is_ab_test': version.is_ab_test,
+                'ab_test_weight': version.ab_test_weight,
+
+                # Usage metrics
+                'total_uses': usage_count,
+                'created_at': version.created_at.isoformat(),
+                'activated_at': version.activated_at.isoformat() if version.activated_at else None,
+                'deactivated_at': version.deactivated_at.isoformat() if version.deactivated_at else None,
+
+                # Quality metrics
+                'average_rating': round(version.average_rating, 2) if version.average_rating else None,
+                'average_accuracy': round(version.average_accuracy, 2) if version.average_accuracy else None,
+                'average_helpfulness': round(version.average_helpfulness, 2) if version.average_helpfulness else None,
+                'average_actionability': round(version.average_actionability, 2) if version.average_actionability else None,
+
+                # Cost metrics
+                'total_tokens_used': version.total_tokens_used,
+                'average_tokens_per_use': round(version.average_tokens_per_use, 1) if version.average_tokens_per_use else None,
+                'average_cost_per_use': round(avg_cost, 6) if avg_cost else None,
+
+                # Cache metrics
+                'cache_hits': cache_hits,
+                'estimated_savings_usd': round(estimated_savings, 4) if estimated_savings else 0,
+            })
+
+        return Response({
+            'versions': analytics_data,
+            'note': 'Use this for A/B testing analysis and cost optimization. Compare average_rating across versions to identify best performers.'
+        })
 
 
 # --- Tutoring Views ---

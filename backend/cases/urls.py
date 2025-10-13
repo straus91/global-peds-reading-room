@@ -6,6 +6,7 @@ from .views import (
     AIReportFeedbackView,
     AIFeedbackRatingCreateView,
     AIFeedbackDetailedRatingViewSet,
+    PromptVersionViewSet,
     TutoringSessionCreateView,
     TutoringSessionRetrieveView,
     TutoringTurnCreateView,
@@ -34,6 +35,11 @@ router.register(
     r"detailed-ratings",
     AIFeedbackDetailedRatingViewSet,
     basename="detailed-rating"
+)
+router.register(
+    r"prompt-versions",
+    PromptVersionViewSet,
+    basename="prompt-version"
 )
 
 

@@ -19,6 +19,9 @@ from .models import (
     CaseTemplateSectionContent,
     AIFeedbackRating,
     AIFeedbackDetailedRating,
+    PromptVersion,
+    FeedbackCache,
+    TokenUsageLog,
     TutoringSession,
     TutoringTurn,
     TutoringSessionStatusChoices,
@@ -964,3 +967,92 @@ class TutoringTurnCreateSerializer(serializers.Serializer):
         # Note: Actual turn creation with AI response will be handled in the view
         # This serializer just validates the input
         return validated_data
+
+
+# --- Phase 1 Analytics Serializers ---
+
+
+class PromptVersionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for PromptVersion model with analytics fields.
+
+    Enables A/B testing and data-driven prompt optimization by tracking
+    usage metrics, quality ratings, and token costs per prompt version.
+
+    Fields:
+    - id: UUID primary key
+    - version_number: Semantic version (e.g., 'v1.2.3')
+    - name: Human-readable name
+    - description: Changelog entry describing changes
+    - prompt_template: Full prompt text with placeholders
+    - is_active: Whether this version is currently in use
+    - is_ab_test: Whether part of A/B testing
+    - ab_test_weight: Traffic percentage for A/B testing (0-100)
+    - Analytics (read-only):
+      - total_uses: How many times this prompt was used
+      - average_rating: Avg overall rating from detailed ratings
+      - average_accuracy: Avg accuracy rating
+      - average_helpfulness: Avg helpfulness rating
+      - average_actionability: Avg actionability rating
+      - total_tokens_used: Total tokens consumed
+      - average_tokens_per_use: Avg tokens per generation
+    """
+    created_by_name = serializers.StringRelatedField(source='created_by', read_only=True)
+    usage_count = serializers.IntegerField(source='total_uses', read_only=True)
+
+    class Meta:
+        model = PromptVersion
+        fields = [
+            'id', 'version_number', 'name', 'description',
+            'prompt_template', 'is_active', 'is_ab_test', 'ab_test_weight',
+            'total_uses', 'average_rating', 'average_accuracy',
+            'average_helpfulness', 'average_actionability',
+            'total_tokens_used', 'average_tokens_per_use',
+            'created_at', 'activated_at', 'deactivated_at',
+            'created_by', 'created_by_name', 'usage_count'
+        ]
+        read_only_fields = [
+            'id', 'total_uses', 'average_rating', 'average_accuracy',
+            'average_helpfulness', 'average_actionability',
+            'total_tokens_used', 'average_tokens_per_use',
+            'created_at', 'activated_at', 'deactivated_at'
+        ]
+
+    def validate(self, attrs):
+        """
+        Validate prompt version data.
+
+        Business Rules:
+        - Only one prompt version can be active at a time
+        - A/B test weights must be between 0 and 100
+        - Version numbers should be unique
+        """
+        # Validate only one active prompt
+        if attrs.get('is_active') and not self.instance:
+            # Only check on creation, not updates
+            if PromptVersion.objects.filter(is_active=True).exists():
+                raise serializers.ValidationError({
+                    'is_active': 'Only one prompt version can be active at a time. '
+                                 'Deactivate the current active version first.'
+                })
+
+        # Validate A/B test weight
+        if attrs.get('is_ab_test'):
+            weight = attrs.get('ab_test_weight', 0)
+            if not 0 <= weight <= 100:
+                raise serializers.ValidationError({
+                    'ab_test_weight': 'Weight must be between 0 and 100.'
+                })
+
+        # Validate version number uniqueness
+        version_number = attrs.get('version_number')
+        if version_number:
+            qs = PromptVersion.objects.filter(version_number=version_number)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({
+                    'version_number': f'Version number "{version_number}" already exists.'
+                })
+
+        return attrs
