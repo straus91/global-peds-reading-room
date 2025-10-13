@@ -18,6 +18,9 @@ from .models import (
     CaseTemplate,
     CaseTemplateSectionContent,
     AIFeedbackRating,
+    TutoringSession,
+    TutoringTurn,
+    TutoringSessionStatusChoices,
 )
 
 # Attempt to import UserSerializer, but provide a fallback if it's not there
@@ -689,3 +692,178 @@ class AIFeedbackRatingSerializer(serializers.ModelSerializer):
             report=report_instance, user=self.context["request"].user, **validated_data
         )
         return rating
+
+
+# --- Tutoring Serializers ---
+
+
+class TutoringTurnSerializer(serializers.ModelSerializer):
+    """
+    Serializer for individual tutoring conversation turns.
+
+    Read-only for GET requests. Turn creation handled via session endpoint.
+    """
+    class Meta:
+        model = TutoringTurn
+        fields = [
+            "id",
+            "turn_number",
+            "user_message",
+            "ai_response",
+            "tools_used",
+            "image_references",
+            "created_at",
+            "response_time_ms",
+        ]
+        read_only_fields = fields  # All fields read-only
+
+
+class TutoringSessionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for tutoring sessions with nested turns.
+
+    Used for GET requests to retrieve session details.
+    """
+    user = UserSerializer(read_only=True)
+    report_id = serializers.IntegerField(source="report.id", read_only=True)
+    case_identifier = serializers.CharField(source="report.case.case_identifier", read_only=True)
+    turns = TutoringTurnSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TutoringSession
+        fields = [
+            "id",
+            "report",
+            "report_id",
+            "case_identifier",
+            "user",
+            "turns_count",
+            "max_turns",
+            "status",
+            "created_at",
+            "last_turn_at",
+            "turns",
+        ]
+        read_only_fields = [
+            "id",
+            "report",
+            "report_id",
+            "case_identifier",
+            "user",
+            "turns_count",
+            "created_at",
+            "last_turn_at",
+            "turns",
+        ]
+
+
+class TutoringSessionCreateSerializer(serializers.Serializer):
+    """
+    Serializer for creating a new tutoring session.
+
+    POST /api/tutoring/sessions/
+    Body: {"report_id": 123}
+
+    Returns: Full TutoringSessionSerializer response
+    """
+    report_id = serializers.IntegerField(
+        help_text="ID of the report to start tutoring conversation about."
+    )
+
+    def validate_report_id(self, value):
+        """Validate that report exists and belongs to requesting user."""
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
+
+        try:
+            report = Report.objects.select_related("case").get(pk=value)
+        except Report.DoesNotExist:
+            raise serializers.ValidationError("Report not found.")
+
+        # Check that report belongs to requesting user
+        if report.user != request.user:
+            raise serializers.ValidationError("You can only create tutoring sessions for your own reports.")
+
+        # Check for existing active session
+        existing_active = TutoringSession.objects.filter(
+            report=report,
+            user=request.user,
+            status=TutoringSessionStatusChoices.ACTIVE
+        ).exists()
+
+        if existing_active:
+            raise serializers.ValidationError(
+                "You already have an active tutoring session for this report. "
+                "Please complete or abandon it before starting a new one."
+            )
+
+        return value
+
+    def create(self, validated_data):
+        """Create new tutoring session."""
+        request = self.context["request"]
+        report = Report.objects.get(pk=validated_data["report_id"])
+
+        # Check daily session limit (3 per day)
+        from django.utils import timezone
+        from datetime import timedelta
+
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        sessions_today = TutoringSession.objects.filter(
+            user=request.user,
+            created_at__gte=today_start
+        ).count()
+
+        if sessions_today >= 3:
+            raise serializers.ValidationError(
+                "You have reached the maximum of 3 tutoring sessions per day. "
+                "Please try again tomorrow."
+            )
+
+        session = TutoringSession.objects.create(
+            report=report,
+            user=request.user,
+            status=TutoringSessionStatusChoices.ACTIVE,
+            turns_count=0,
+            max_turns=10
+        )
+
+        return session
+
+    def to_representation(self, instance):
+        """Return full session details."""
+        return TutoringSessionSerializer(instance, context=self.context).data
+
+
+class TutoringTurnCreateSerializer(serializers.Serializer):
+    """
+    Serializer for creating a new turn in an existing session.
+
+    POST /api/tutoring/sessions/{session_id}/turn/
+    Body: {"user_message": "Why did I miss the pneumothorax in series 5 image 35?"}
+
+    Returns: TutoringTurnSerializer response with AI's answer
+    """
+    user_message = serializers.CharField(
+        max_length=5000,
+        trim_whitespace=True,
+        help_text="User's question or message for the AI tutor."
+    )
+
+    def validate_user_message(self, value):
+        """Validate user message is not empty."""
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError("User message cannot be empty.")
+        return value
+
+    def create(self, validated_data):
+        """
+        Create new turn and generate AI response.
+
+        This will be called by the view after session validation.
+        The actual AI response generation happens in tutoring_service.py
+        """
+        # Note: Actual turn creation with AI response will be handled in the view
+        # This serializer just validates the input
+        return validated_data

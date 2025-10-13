@@ -27,6 +27,9 @@ from .models import (
     CaseTemplate,
     CaseTemplateSectionContent,
     AIFeedbackRating,
+    TutoringSession,
+    TutoringTurn,
+    TutoringSessionStatusChoices,
 )
 
 # Updated serializer imports
@@ -41,6 +44,10 @@ from .serializers import (
     AdminCaseTemplateSetupSerializer,
     BulkCaseTemplateSectionContentUpdateSerializer,
     AIFeedbackRatingSerializer,
+    TutoringSessionSerializer,
+    TutoringSessionCreateSerializer,
+    TutoringTurnSerializer,
+    TutoringTurnCreateSerializer,
 )
 
 from .llm_feedback_service import get_feedback_from_llm
@@ -982,3 +989,231 @@ class AIFeedbackRatingCreateView(generics.CreateAPIView):
     queryset = AIFeedbackRating.objects.all()
     serializer_class = AIFeedbackRatingSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+# --- Tutoring Views ---
+
+
+class TutoringSessionCreateView(generics.CreateAPIView):
+    """
+    Create a new tutoring session for a user's report.
+
+    POST /api/tutoring/sessions/
+    Body: {"report_id": 123}
+
+    Returns: Full session object with empty turns array
+    """
+    serializer_class = TutoringSessionCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_context(self):
+        return {"request": self.request, **super().get_serializer_context()}
+
+
+class TutoringSessionRetrieveView(generics.RetrieveAPIView):
+    """
+    Retrieve a specific tutoring session with all its turns.
+
+    GET /api/tutoring/sessions/{session_id}/
+
+    Returns: Full session object with nested turns
+    """
+    serializer_class = TutoringSessionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        # Only allow users to retrieve their own sessions
+        return TutoringSession.objects.filter(
+            user=self.request.user
+        ).select_related(
+            "report",
+            "report__case",
+            "user"
+        ).prefetch_related("turns")
+
+    def get_serializer_context(self):
+        return {"request": self.request, **super().get_serializer_context()}
+
+
+class TutoringTurnCreateView(APIView):
+    """
+    Create a new turn in an existing tutoring session.
+
+    POST /api/tutoring/sessions/{session_id}/turn/
+    Body: {"user_message": "Why did I miss the pneumothorax?"}
+
+    Returns: Full turn object with AI response
+
+    Note: AI response generation will be implemented in Phase 2 (tutoring_service.py)
+    For now, this creates a placeholder turn.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, session_id, format=None):
+        sid = transaction.savepoint()
+
+        try:
+            # Get the session
+            try:
+                session = TutoringSession.objects.select_related(
+                    "report",
+                    "report__case",
+                    "user"
+                ).get(id=session_id, user=request.user)
+            except TutoringSession.DoesNotExist:
+                return Response(
+                    {"error": "Tutoring session not found or you do not have permission to access it."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Check if session is still active
+            if session.status != TutoringSessionStatusChoices.ACTIVE:
+                return Response(
+                    {"error": f"This tutoring session is {session.status}. Cannot add more turns."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if turn limit reached
+            if session.turns_count >= session.max_turns:
+                # Mark session as completed
+                session.status = TutoringSessionStatusChoices.COMPLETED
+                session.save(update_fields=["status"])
+
+                return Response(
+                    {"error": f"Maximum {session.max_turns} turns reached for this session. Session has been marked as completed."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate user message
+            serializer = TutoringTurnCreateSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            user_message = serializer.validated_data["user_message"]
+
+            # TODO: In Phase 2, call tutoring_service.py to generate AI response
+            # For now, create a placeholder response
+            import time
+            start_time = time.time()
+
+            ai_response = (
+                "Thank you for your question. This is a placeholder response. "
+                "In Phase 2, the tutoring service will analyze your question, "
+                "use appropriate tools (case context, expert comparison, image analysis, etc.), "
+                "and provide a helpful educational response."
+            )
+
+            response_time_ms = int((time.time() - start_time) * 1000)
+
+            # Create the turn
+            from django.db.models import F
+
+            turn = TutoringTurn.objects.create(
+                session=session,
+                turn_number=session.turns_count + 1,
+                user_message=user_message,
+                ai_response=ai_response,
+                tools_used=[],  # Will be populated by tutoring_service.py in Phase 2
+                image_references=[],  # Will be detected by tutoring_service.py in Phase 2
+                response_time_ms=response_time_ms
+            )
+
+            # Increment session turn count (atomic update to prevent race conditions)
+            TutoringSession.objects.filter(id=session.id).update(
+                turns_count=F("turns_count") + 1
+            )
+
+            # Refresh session to get updated count
+            session.refresh_from_db()
+
+            logger.info(
+                f"Created turn {turn.turn_number} in session {session.id} "
+                f"for user {request.user.id}"
+            )
+
+            transaction.savepoint_commit(sid)
+
+            # Return the turn
+            turn_serializer = TutoringTurnSerializer(turn)
+            return Response(turn_serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Error creating tutoring turn: {str(e)}")
+            transaction.savepoint_rollback(sid)
+            return Response(
+                {"error": "An error occurred while processing your question. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class TutoringSessionExportView(APIView):
+    """
+    Export a tutoring session transcript as plain text.
+
+    GET /api/tutoring/sessions/{session_id}/export/
+
+    Returns: Plain text transcript of the entire conversation
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, session_id, format=None):
+        try:
+            # Get the session
+            session = TutoringSession.objects.select_related(
+                "report",
+                "report__case",
+                "user"
+            ).prefetch_related("turns").get(id=session_id, user=request.user)
+        except TutoringSession.DoesNotExist:
+            return Response(
+                {"error": "Tutoring session not found or you do not have permission to access it."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Generate transcript
+        from django.http import HttpResponse
+
+        transcript = []
+        transcript.append("=" * 80)
+        transcript.append("TUTORING SESSION TRANSCRIPT")
+        transcript.append("=" * 80)
+        transcript.append("")
+        transcript.append(f"Session ID: {session.id}")
+        transcript.append(f"Case: {session.report.case.case_identifier}")
+        transcript.append(f"Report ID: {session.report.id}")
+        transcript.append(f"User: {session.user.username}")
+        transcript.append(f"Started: {session.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+        transcript.append(f"Status: {session.status}")
+        transcript.append(f"Turns: {session.turns_count}/{session.max_turns}")
+        transcript.append("")
+        transcript.append("=" * 80)
+        transcript.append("")
+
+        # Add each turn
+        for turn in session.turns.all():
+            transcript.append(f"--- Turn {turn.turn_number} ---")
+            transcript.append(f"Time: {turn.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            transcript.append("")
+            transcript.append(f"USER: {turn.user_message}")
+            transcript.append("")
+            transcript.append(f"AI TUTOR: {turn.ai_response}")
+            transcript.append("")
+            if turn.tools_used:
+                transcript.append(f"Tools used: {', '.join(turn.tools_used)}")
+                transcript.append("")
+            if turn.image_references:
+                transcript.append(f"Images referenced: {turn.image_references}")
+                transcript.append("")
+            transcript.append("-" * 80)
+            transcript.append("")
+
+        transcript.append("=" * 80)
+        transcript.append("END OF TRANSCRIPT")
+        transcript.append("=" * 80)
+
+        # Return as plain text file
+        response = HttpResponse("\n".join(transcript), content_type="text/plain")
+        response["Content-Disposition"] = f'attachment; filename="tutoring_session_{session.id}.txt"'
+        return response

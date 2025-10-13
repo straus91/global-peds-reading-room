@@ -5,7 +5,11 @@ from . import views  # Import views from the current directory
 from .views import (
     AIReportFeedbackView,
     AIFeedbackRatingCreateView,
-)  # UPDATED: Import AIFeedbackRatingCreateView
+    TutoringSessionCreateView,
+    TutoringSessionRetrieveView,
+    TutoringTurnCreateView,
+    TutoringSessionExportView,
+)
 
 # Create a router and register our viewsets with it.
 router = DefaultRouter()
@@ -44,5 +48,26 @@ urlpatterns = [
         "ai-feedback-ratings/",
         AIFeedbackRatingCreateView.as_view(),
         name="ai-feedback-rating-create",
+    ),
+    # Tutoring API endpoints
+    path(
+        "tutoring/sessions/",
+        TutoringSessionCreateView.as_view(),
+        name="tutoring-session-create",
+    ),
+    path(
+        "tutoring/sessions/<uuid:id>/",
+        TutoringSessionRetrieveView.as_view(),
+        name="tutoring-session-retrieve",
+    ),
+    path(
+        "tutoring/sessions/<uuid:session_id>/turn/",
+        TutoringTurnCreateView.as_view(),
+        name="tutoring-turn-create",
+    ),
+    path(
+        "tutoring/sessions/<uuid:session_id>/export/",
+        TutoringSessionExportView.as_view(),
+        name="tutoring-session-export",
     ),
 ]

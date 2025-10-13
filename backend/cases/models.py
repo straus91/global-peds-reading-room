@@ -474,3 +474,145 @@ class AIFeedbackRating(models.Model):
         unique_together = ("report", "user")
         verbose_name = "AI Feedback Rating"
         verbose_name_plural = "AI Feedback Ratings"
+
+
+class TutoringSessionStatusChoices(models.TextChoices):
+    ACTIVE = "active", _("Active")
+    COMPLETED = "completed", _("Completed")
+    ABANDONED = "abandoned", _("Abandoned")
+
+
+class TutoringSession(models.Model):
+    """
+    Interactive tutoring conversation session for a user's report.
+
+    A session allows multi-turn Q&A between user and AI tutor about their report,
+    with access to case context, expert comparison, terminology, literature, and
+    visual analysis via VLM.
+
+    Business Rules:
+    - One active session per (report, user) - enforced by unique constraint
+    - Maximum 10 turns per session by default
+    - User can have up to 3 sessions per day (enforced in API)
+    - Sessions cascade delete when Report is deleted
+    """
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique session identifier (UUID)."
+    )
+    report = models.ForeignKey(
+        Report,
+        on_delete=models.CASCADE,
+        related_name="tutoring_sessions",
+        help_text="The user report this tutoring session is about."
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tutoring_sessions",
+        help_text="The user engaging in this tutoring session."
+    )
+    turns_count = models.IntegerField(
+        default=0,
+        help_text="Current number of conversation turns in this session."
+    )
+    max_turns = models.IntegerField(
+        default=10,
+        help_text="Maximum allowed turns for this session."
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=TutoringSessionStatusChoices.choices,
+        default=TutoringSessionStatusChoices.ACTIVE,
+        help_text="Current status of the tutoring session."
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this session was created."
+    )
+    last_turn_at = models.DateTimeField(
+        auto_now=True,
+        help_text="When the last turn was created in this session."
+    )
+
+    def __str__(self):
+        return f"Tutoring Session {self.id} for {self.user.username} (Report: {self.report.id})"
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Tutoring Session"
+        verbose_name_plural = "Tutoring Sessions"
+        indexes = [
+            models.Index(fields=["report"], name="tutoring_report_idx"),
+            models.Index(fields=["user", "created_at"], name="tutoring_user_created_idx"),
+            models.Index(fields=["status"], name="tutoring_status_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["report", "user"],
+                condition=models.Q(status=TutoringSessionStatusChoices.ACTIVE),
+                name="unique_active_session_per_report_user"
+            )
+        ]
+
+
+class TutoringTurn(models.Model):
+    """
+    A single conversation turn in a tutoring session.
+
+    Each turn contains:
+    - User's question/message
+    - AI tutor's response
+    - Tools used (e.g., fetch_image, vlm_analysis, literature_search)
+    - Image references (if user mentioned specific images)
+    - Response time for monitoring
+
+    Ordering: By turn_number within session (chronological)
+    """
+    session = models.ForeignKey(
+        TutoringSession,
+        on_delete=models.CASCADE,
+        related_name="turns",
+        help_text="The tutoring session this turn belongs to."
+    )
+    turn_number = models.IntegerField(
+        help_text="Sequential turn number within this session (1, 2, 3, ...)."
+    )
+    user_message = models.TextField(
+        help_text="The user's question or message in this turn."
+    )
+    ai_response = models.TextField(
+        help_text="The AI tutor's response to the user's message."
+    )
+    tools_used = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of tool names used to generate this response (e.g., ['fetch_image', 'vlm_analysis'])."
+    )
+    image_references = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of image references detected in user message (e.g., [{'series': 5, 'image': 35}])."
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this turn was created."
+    )
+    response_time_ms = models.IntegerField(
+        help_text="Time taken to generate AI response in milliseconds."
+    )
+
+    def __str__(self):
+        return f"Turn {self.turn_number} in Session {self.session.id}"
+
+    class Meta:
+        ordering = ["turn_number"]
+        unique_together = [["session", "turn_number"]]
+        verbose_name = "Tutoring Turn"
+        verbose_name_plural = "Tutoring Turns"
+        indexes = [
+            models.Index(fields=["session", "turn_number"], name="tutoring_turn_session_num_idx"),
+            models.Index(fields=["created_at"], name="tutoring_turn_created_idx"),
+        ]
