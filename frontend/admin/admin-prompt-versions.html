@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Versions Dashboard - Admin</title>
+    <link rel="stylesheet" href="/app/css/styles.css">
+    <link rel="stylesheet" href="/app/css/admin.css">
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="/app/assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="/app/index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="/app/assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <div class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="/app/admin/dashboard.html">
+                            <span class="menu-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="/app/admin/admin-feedback-dashboard.html">
+                            <span class="menu-icon">⭐</span>
+                            AI Feedback Quality
+                        </a>
+                        <a href="/app/admin/admin-cost-dashboard.html">
+                            <span class="menu-icon">💰</span>
+                            AI Cost Tracking
+                        </a>
+                        <a href="/app/admin/admin-prompt-versions.html" class="active">
+                            <span class="menu-icon">📝</span>
+                            Prompt Versions
+                        </a>
+                        <a href="/app/admin/manage-cases.html">
+                            <span class="menu-icon">📁</span>
+                            Manage Cases
+                        </a>
+                        <a href="/app/admin/add-case.html">
+                            <span class="menu-icon">➕</span>
+                            Add New Case
+                        </a>
+                        <a href="/app/admin/manage-users.html">
+                            <span class="menu-icon">👥</span>
+                            Manage Users
+                        </a>
+                        <a href="/app/admin/manage-templates.html">
+                            <span class="menu-icon">📋</span>
+                            Manage Templates
+                        </a>
+                        <a href="/app/admin/settings.html">
+                            <span class="menu-icon">⚙️</span>
+                            Settings
+                        </a>
+                    </div>
+                </div>
+
+                <div class="admin-content">
+                    <div class="admin-header">
+                        <h1>Prompt Versions Dashboard</h1>
+                        <p>Manage AI feedback prompt versions and A/B testing</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingState" style="text-align: center; padding: 40px;">
+                        <p style="font-size: 18px; color: #666;">Loading prompt versions...</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div id="errorState" style="display: none; text-align: center; padding: 40px;">
+                        <p style="font-size: 18px; color: #e06666;">Failed to load prompt versions. Please try again.</p>
+                        <button onclick="location.reload()" class="btn btn-primary">Reload</button>
+                    </div>
+
+                    <!-- Dashboard Content -->
+                    <div id="dashboardContent" style="display: none;">
+                        <!-- Prompt Versions Table -->
+                        <div class="dashboard-section" style="margin-bottom: 30px;">
+                            <div class="section-header">
+                                <h2>All Prompt Versions</h2>
+                                <button id="createNewBtn" class="btn btn-primary">Create New Version</button>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow-x: auto;">
+                                <table class="admin-table" id="versionsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Version</th>
+                                            <th>Name</th>
+                                            <th>Status</th>
+                                            <th>Uses</th>
+                                            <th>Avg Rating</th>
+                                            <th>Accuracy</th>
+                                            <th>Helpfulness</th>
+                                            <th>Actionability</th>
+                                            <th>Avg Tokens</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="versionsTableBody">
+                                        <tr>
+                                            <td colspan="11" style="text-align: center; padding: 20px; color: #888;">
+                                                Loading versions...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Create New Version Form (Initially Hidden) -->
+                        <div id="createFormSection" class="dashboard-section" style="display: none; margin-bottom: 30px;">
+                            <div class="section-header">
+                                <h2>Create New Prompt Version</h2>
+                                <button id="cancelCreateBtn" class="btn btn-secondary">Cancel</button>
+                            </div>
+                            <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <form id="createVersionForm">
+                                    <div class="form-group" style="margin-bottom: 20px;">
+                                        <label for="versionNumber" style="display: block; margin-bottom: 5px; font-weight: bold;">Version Number *</label>
+                                        <input type="text" id="versionNumber" name="versionNumber" required
+                                               placeholder="e.g., v2.1.0"
+                                               style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <small style="color: #888;">Semantic version format recommended</small>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 20px;">
+                                        <label for="versionName" style="display: block; margin-bottom: 5px; font-weight: bold;">Name *</label>
+                                        <input type="text" id="versionName" name="versionName" required
+                                               placeholder="e.g., Improved Specificity"
+                                               style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 20px;">
+                                        <label for="versionDescription" style="display: block; margin-bottom: 5px; font-weight: bold;">Description *</label>
+                                        <textarea id="versionDescription" name="versionDescription" required rows="3"
+                                                  placeholder="Describe what changed and why..."
+                                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 20px;">
+                                        <label for="promptTemplate" style="display: block; margin-bottom: 5px; font-weight: bold;">Prompt Template *</label>
+                                        <textarea id="promptTemplate" name="promptTemplate" required rows="10"
+                                                  placeholder="Full prompt template with placeholders..."
+                                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 20px;">
+                                        <label style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="isActive" name="isActive" style="margin-right: 10px;">
+                                            <span>Set as active (will deactivate other versions)</span>
+                                        </label>
+                                    </div>
+
+                                    <div style="display: flex; gap: 10px;">
+                                        <button type="submit" class="btn btn-primary">Create Version</button>
+                                        <button type="button" id="cancelCreateBtn2" class="btn btn-secondary">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Version Comparison (Placeholder for Future) -->
+                        <div class="dashboard-section">
+                            <div class="section-header">
+                                <h2>Quick Stats</h2>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                                    <div style="text-align: center;">
+                                        <h3 style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Total Versions</h3>
+                                        <div style="font-size: 32px; font-weight: bold; color: #4a86e8;" id="totalVersions">0</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <h3 style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Active Version</h3>
+                                        <div style="font-size: 24px; font-weight: bold; color: #6aa84f;" id="activeVersion">None</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <h3 style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Best Rating</h3>
+                                        <div style="font-size: 32px; font-weight: bold; color: #f1c232;" id="bestRating">-</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <h3 style="margin: 0 0 5px 0; font-size: 14px; color: #666;">A/B Tests</h3>
+                                        <div style="font-size: 32px; font-weight: bold; color: #e06666;" id="abTestCount">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content-simplified">
+                <ul class="footer-links-combined">
+                    <li><a href="/app/index.html">Main Site</a></li>
+                    <li><a href="mailto:mst@ad.unc.edu">Contact</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/app/js/admin-prompt-versions.js"></script>
+</body>
+</html>

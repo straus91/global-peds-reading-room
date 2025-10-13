@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Feedback Quality Dashboard - Admin</title>
+    <link rel="stylesheet" href="/app/css/styles.css">
+    <link rel="stylesheet" href="/app/css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="/app/assets/img/logo.png" alt="Logo" style="height: 40px; width: auto;">
+                    <h1>Global Peds Reading Room</h1>
+                </div>
+                <div class="nav-links">
+                    <a href="/app/index.html">Return to Main Site</a>
+                    <div class="user-menu">
+                        <img src="/app/assets/img/user-default.png" alt="User" style="width: 35px; height: 35px; border-radius: 50%;">
+                        <span>Administrator</span>
+                        <div class="dropdown-content">
+                            <a href="#" id="profileLink">My Profile</a>
+                            <a href="#" id="logoutLink">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="admin-layout">
+                <div class="admin-sidebar">
+                    <div class="admin-menu">
+                        <a href="/app/admin/dashboard.html">
+                            <span class="menu-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="/app/admin/admin-feedback-dashboard.html" class="active">
+                            <span class="menu-icon">⭐</span>
+                            AI Feedback Quality
+                        </a>
+                        <a href="/app/admin/admin-cost-dashboard.html">
+                            <span class="menu-icon">💰</span>
+                            AI Cost Tracking
+                        </a>
+                        <a href="/app/admin/admin-prompt-versions.html">
+                            <span class="menu-icon">📝</span>
+                            Prompt Versions
+                        </a>
+                        <a href="/app/admin/manage-cases.html">
+                            <span class="menu-icon">📁</span>
+                            Manage Cases
+                        </a>
+                        <a href="/app/admin/add-case.html">
+                            <span class="menu-icon">➕</span>
+                            Add New Case
+                        </a>
+                        <a href="/app/admin/manage-users.html">
+                            <span class="menu-icon">👥</span>
+                            Manage Users
+                        </a>
+                        <a href="/app/admin/manage-templates.html">
+                            <span class="menu-icon">📋</span>
+                            Manage Templates
+                        </a>
+                        <a href="/app/admin/settings.html">
+                            <span class="menu-icon">⚙️</span>
+                            Settings
+                        </a>
+                    </div>
+                </div>
+
+                <div class="admin-content">
+                    <div class="admin-header">
+                        <h1>AI Feedback Quality Dashboard</h1>
+                        <p>Monitor AI feedback performance with multi-dimensional quality metrics</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingState" style="text-align: center; padding: 40px;">
+                        <p style="font-size: 18px; color: #666;">Loading dashboard data...</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div id="errorState" style="display: none; text-align: center; padding: 40px;">
+                        <p style="font-size: 18px; color: #e06666;">Failed to load dashboard data. Please try again.</p>
+                        <button onclick="location.reload()" class="btn btn-primary">Reload</button>
+                    </div>
+
+                    <!-- Dashboard Content -->
+                    <div id="dashboardContent" style="display: none;">
+                        <!-- Overall Metrics Cards -->
+                        <div class="dashboard-stats" style="margin-bottom: 30px;">
+                            <div class="stat-card">
+                                <div class="stat-icon">🎯</div>
+                                <div class="stat-info">
+                                    <h3>Accuracy</h3>
+                                    <div class="stat-value" id="avgAccuracy">-</div>
+                                    <small id="accuracyCount">0 ratings</small>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">💡</div>
+                                <div class="stat-info">
+                                    <h3>Helpfulness</h3>
+                                    <div class="stat-value" id="avgHelpfulness">-</div>
+                                    <small id="helpfulnessCount">0 ratings</small>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">🔧</div>
+                                <div class="stat-info">
+                                    <h3>Actionability</h3>
+                                    <div class="stat-value" id="avgActionability">-</div>
+                                    <small id="actionabilityCount">0 ratings</small>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">⭐</div>
+                                <div class="stat-info">
+                                    <h3>Overall</h3>
+                                    <div class="stat-value" id="avgOverall">-</div>
+                                    <small id="overallCount">0 ratings</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trend Chart -->
+                        <div class="dashboard-section" style="margin-bottom: 30px;">
+                            <div class="section-header">
+                                <h2>30-Day Quality Trend</h2>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <canvas id="trendChart" height="80"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- By Difficulty Breakdown -->
+                        <div class="dashboard-section" style="margin-bottom: 30px;">
+                            <div class="section-header">
+                                <h2>Quality by Case Difficulty</h2>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <table class="admin-table" id="difficultyTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Difficulty</th>
+                                            <th>Accuracy</th>
+                                            <th>Helpfulness</th>
+                                            <th>Actionability</th>
+                                            <th>Overall</th>
+                                            <th>Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="difficultyTableBody">
+                                        <tr>
+                                            <td colspan="6" style="text-align: center; padding: 20px; color: #888;">
+                                                Loading data...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- False Positives -->
+                        <div class="dashboard-section">
+                            <div class="section-header">
+                                <h2>False Positives</h2>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <div>
+                                        <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #666;">False Positive Rate</h3>
+                                        <div style="font-size: 32px; font-weight: bold; color: #e06666;" id="fpRate">-</div>
+                                        <p style="margin: 5px 0 0 0; color: #888;" id="fpCount">0 of 0 ratings</p>
+                                    </div>
+                                    <div>
+                                        <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #666;">Recent Examples</h3>
+                                        <ul id="fpExamples" style="margin: 0; padding-left: 20px; color: #666;">
+                                            <li>Loading...</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content-simplified">
+                <ul class="footer-links-combined">
+                    <li><a href="/app/index.html">Main Site</a></li>
+                    <li><a href="mailto:mst@ad.unc.edu">Contact</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/app/js/admin-feedback-dashboard.js"></script>
+</body>
+</html>
