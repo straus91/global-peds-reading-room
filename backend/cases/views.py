@@ -397,41 +397,55 @@ class AIReportFeedbackView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-            # If the LLM response indicates an error, return the error message to the user
-            if ai_feedback_text.startswith(
-                "Sorry, an error occurred"
-            ) or ai_feedback_text.startswith("AI feedback service"):
-                logger.error(f"LLM service returned an error: {ai_feedback_text}")
-                transaction.savepoint_rollback(sid)
-                return Response(
-                    {"error": ai_feedback_text},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+            # Check if feedback is dict (new parsed format) or string (error/legacy)
+            if isinstance(ai_feedback_text, str):
+                # Legacy format or error message
+                if ai_feedback_text.startswith(
+                    "Sorry, an error occurred"
+                ) or ai_feedback_text.startswith("AI feedback service"):
+                    logger.error(f"LLM service returned an error: {ai_feedback_text}")
+                    transaction.savepoint_rollback(sid)
+                    return Response(
+                        {"error": ai_feedback_text},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
 
-            # Parse the LLM feedback text
-            try:
-                structured_llm_feedback = self._parse_llm_feedback_text(
-                    ai_feedback_text, identical_section_names
-                )
-            except Exception as e:
-                logger.error(f"Error parsing LLM feedback text: {str(e)}")
-                transaction.savepoint_rollback(sid)
-                return Response(
-                    {
-                        "error": "An error occurred while processing the AI feedback. Please try again later."
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                # Legacy string response - should not happen with new get_feedback_with_caching
+                logger.warning("Received legacy string feedback format")
+                structured_llm_feedback = {
+                    'raw_feedback': ai_feedback_text,
+                    'overall_assessment': '',
+                    'critical_discrepancies': [],
+                    'non_critical_discrepancies': [],
+                    'section_feedback': [],
+                    'parse_success': False,
+                    'parse_errors': ['Legacy format']
+                }
+            else:
+                # New parsed format (dict) from get_feedback_with_caching
+                structured_llm_feedback = ai_feedback_text
+
+                # Check if parsing failed
+                if not structured_llm_feedback.get('parse_success', True):
+                    logger.warning(
+                        f"Feedback parsing had errors: {structured_llm_feedback.get('parse_errors', [])}"
+                    )
 
             # Save the generated AI feedback to the Report instance
             try:
-                user_report.ai_feedback_content = {
-                    "raw_llm_feedback": ai_feedback_text,
-                    "structured_feedback": structured_llm_feedback,
+                # structured_llm_feedback already contains raw_feedback, parsed fields, and metadata
+                # Add generation timestamp
+                feedback_to_save = {
+                    **structured_llm_feedback,
                     "generated_at": timezone.now().isoformat(),
                 }
+
+                user_report.ai_feedback_content = feedback_to_save
                 user_report.save()
-                logger.info(f"Successfully saved AI feedback for report {report_id}")
+                logger.info(
+                    f"Successfully saved AI feedback for report {report_id} "
+                    f"(parse_success: {structured_llm_feedback.get('parse_success', True)})"
+                )
 
                 # Commit the transaction
                 transaction.savepoint_commit(sid)

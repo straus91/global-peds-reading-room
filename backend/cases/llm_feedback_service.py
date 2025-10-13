@@ -500,13 +500,14 @@ def get_feedback_with_caching(
     identical_section_ids=None,
 ):
     """
-    Enhanced version of get_feedback_from_llm with caching and token tracking.
+    Enhanced version of get_feedback_from_llm with caching, token tracking, and parsing.
 
     This function:
     1. Generates cache key from report content
     2. Checks cache for existing feedback
     3. If cache miss, calls LLM and stores result
-    4. Logs token usage for cost analytics
+    4. Parses raw LLM response into structured format
+    5. Logs token usage for cost analytics
 
     Args:
         Same as get_feedback_from_llm, plus:
@@ -514,12 +515,28 @@ def get_feedback_with_caching(
         report: Report instance (for token logging)
 
     Returns:
-        dict: Structured feedback with raw_feedback and metadata
+        dict: Parsed feedback with structure:
+        {
+            'raw_feedback': str,
+            'overall_assessment': str,
+            'critical_discrepancies': List[str],
+            'non_critical_discrepancies': List[str],
+            'section_feedback': List[Dict],
+            'parse_success': bool,
+            'parse_errors': List[str],
+            'metadata': {
+                'model_name': str,
+                'response_time_ms': int,
+                'token_usage': Dict,
+                'was_cached': bool
+            }
+        }
     """
     # Import utilities (avoid circular imports at module level)
     from cases.cache_utils import generate_cache_key, get_cached_feedback, store_in_cache
     from cases.token_utils import calculate_cost, log_token_usage
     from cases.models import PromptVersion
+    from cases.feedback_parser import parse_ai_feedback
 
     # 1. Generate cache key
     case_context = {
@@ -558,7 +575,30 @@ def get_feedback_with_caching(
             was_cached=True
         )
 
-        return cached_feedback
+        # Parse cached feedback if it's stored as raw text
+        if isinstance(cached_feedback, dict) and 'parsed_feedback' in cached_feedback:
+            # Already parsed and structured
+            return cached_feedback['parsed_feedback']
+        elif isinstance(cached_feedback, dict) and 'raw_feedback' in cached_feedback:
+            # Has raw feedback, need to parse
+            parsed = parse_ai_feedback(cached_feedback['raw_feedback'])
+            parsed['metadata'] = {
+                'model_name': cached_feedback.get('model_name', 'cache'),
+                'response_time_ms': 0,
+                'token_usage': cached_feedback.get('token_usage', {}),
+                'was_cached': True
+            }
+            return parsed
+        else:
+            # Old format - just raw text, parse it
+            parsed = parse_ai_feedback(cached_feedback)
+            parsed['metadata'] = {
+                'model_name': 'cache',
+                'response_time_ms': 0,
+                'token_usage': {},
+                'was_cached': True
+            }
+            return parsed
 
     # 3. Cache MISS - call LLM
     logger.info(f"❌ Cache MISS for case {case.case_identifier} - calling LLM API")
@@ -635,9 +675,38 @@ def get_feedback_with_caching(
         f"${costs['total_cost']} (${costs['input_cost']} input + ${costs['output_cost']} output)"
     )
 
-    # 7. Structure the feedback for caching
-    structured_feedback = {
+    # 7. Parse the feedback into structured format
+    parsed_feedback = parse_ai_feedback(ai_feedback_text)
+
+    if not parsed_feedback['parse_success']:
+        logger.warning(
+            f"⚠️ Feedback parsing had errors: {parsed_feedback['parse_errors']}"
+        )
+    else:
+        logger.info(
+            f"✅ Feedback parsed successfully: "
+            f"{len(parsed_feedback['critical_discrepancies'])} critical, "
+            f"{len(parsed_feedback['non_critical_discrepancies'])} non-critical, "
+            f"{len(parsed_feedback['section_feedback'])} sections"
+        )
+
+    # 8. Add metadata to parsed feedback
+    parsed_feedback['metadata'] = {
+        'model_name': model_name,
+        'response_time_ms': response_time_ms,
+        'token_usage': {
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens,
+            'total_tokens': total_tokens,
+            'cost_usd': str(costs['total_cost'])
+        },
+        'was_cached': False
+    }
+
+    # 9. Structure the feedback for caching
+    cache_data = {
         'raw_feedback': ai_feedback_text,
+        'parsed_feedback': parsed_feedback,
         'model_name': model_name,
         'generated_at': time.time(),
         'response_time_ms': response_time_ms,
@@ -649,11 +718,11 @@ def get_feedback_with_caching(
         }
     }
 
-    # 8. Store in cache
+    # 10. Store in cache
     try:
         store_in_cache(
             cache_key=cache_key,
-            feedback_content=structured_feedback,
+            feedback_content=cache_data,
             case=case,
             prompt_version=prompt_version,
             ttl_days=30
@@ -663,7 +732,7 @@ def get_feedback_with_caching(
         logger.warning(f"Failed to store feedback in cache: {e}")
         # Continue anyway - caching failure shouldn't block feedback delivery
 
-    # 9. Update prompt version metrics (if available)
+    # 11. Update prompt version metrics (if available)
     if prompt_version:
         prompt_version.total_uses += 1
         prompt_version.total_tokens_used += total_tokens
@@ -678,7 +747,7 @@ def get_feedback_with_caching(
         ])
         logger.info(f"📊 Updated prompt version {prompt_version.version_number} metrics")
 
-    return ai_feedback_text  # Return raw text for backward compatibility
+    return parsed_feedback  # Return parsed structured feedback
 
 
 # Example Usage (for testing this service directly if needed):
