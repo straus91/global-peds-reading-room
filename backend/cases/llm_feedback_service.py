@@ -8,6 +8,7 @@ from google.api_core.exceptions import GoogleAPIError
 import traceback
 from functools import lru_cache
 from django.conf import settings
+from decimal import Decimal
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -480,6 +481,204 @@ Reason: Your impression of a normal chest aligns with the expert's conclusion.
         # Don't expose internal error details to end users
         error_type = type(e).__name__
         return f"Sorry, an unexpected error ({error_type}) occurred. Please try again later or contact support if this persists."
+
+
+def get_feedback_with_caching(
+    user_report_sections,
+    expert_report_sections,
+    programmatic_pre_analysis_summary,
+    case,  # Case instance
+    report,  # Report instance
+    case_identifier_for_llm="",
+    case_patient_age="",
+    case_patient_sex="",
+    case_clinical_history="",
+    case_expert_key_findings="",
+    case_expert_diagnosis="",
+    case_expert_discussion="",
+    case_difficulty="",
+    identical_section_ids=None,
+):
+    """
+    Enhanced version of get_feedback_from_llm with caching and token tracking.
+
+    This function:
+    1. Generates cache key from report content
+    2. Checks cache for existing feedback
+    3. If cache miss, calls LLM and stores result
+    4. Logs token usage for cost analytics
+
+    Args:
+        Same as get_feedback_from_llm, plus:
+        case: Case instance (for caching and analytics)
+        report: Report instance (for token logging)
+
+    Returns:
+        dict: Structured feedback with raw_feedback and metadata
+    """
+    # Import utilities (avoid circular imports at module level)
+    from cases.cache_utils import generate_cache_key, get_cached_feedback, store_in_cache
+    from cases.token_utils import calculate_cost, log_token_usage
+    from cases.models import PromptVersion
+
+    # 1. Generate cache key
+    case_context = {
+        'diagnosis': case.diagnosis or '',
+        'key_findings': case.key_findings or ''
+    }
+
+    cache_key = generate_cache_key(
+        user_report_sections,
+        expert_report_sections,
+        case_context
+    )
+
+    logger.info(f"Generated cache key for case {case.case_identifier}: {cache_key[:16]}...")
+
+    # 2. Check cache
+    cached_feedback = get_cached_feedback(cache_key)
+    if cached_feedback:
+        logger.info(f"✅ Cache HIT for case {case.case_identifier} - returning cached feedback")
+
+        # Log as cached request (zero cost)
+        log_token_usage(
+            report=report,
+            case=case,
+            prompt_version=None,  # Could retrieve from cache entry if needed
+            token_data={
+                'input_tokens': 0,
+                'output_tokens': 0,
+                'total_tokens': 0,
+                'input_cost': Decimal('0.000000'),
+                'output_cost': Decimal('0.000000'),
+                'total_cost': Decimal('0.000000'),
+                'model_name': 'cache'
+            },
+            response_time_ms=0,
+            was_cached=True
+        )
+
+        return cached_feedback
+
+    # 3. Cache MISS - call LLM
+    logger.info(f"❌ Cache MISS for case {case.case_identifier} - calling LLM API")
+
+    # Get active prompt version (for future A/B testing)
+    prompt_version = PromptVersion.objects.filter(is_active=True).first()
+
+    start_time = time.time()
+
+    # Call existing LLM function
+    ai_feedback_text = get_feedback_from_llm(
+        user_report_sections=user_report_sections,
+        expert_report_sections=expert_report_sections,
+        programmatic_pre_analysis_summary=programmatic_pre_analysis_summary,
+        case_identifier_for_llm=case_identifier_for_llm,
+        case_patient_age=case_patient_age,
+        case_patient_sex=case_patient_sex,
+        case_clinical_history=case_clinical_history,
+        case_expert_key_findings=case_expert_key_findings,
+        case_expert_diagnosis=case_expert_diagnosis,
+        case_expert_discussion=case_expert_discussion,
+        case_difficulty=case_difficulty,
+        identical_section_ids=identical_section_ids,
+    )
+
+    response_time_ms = int((time.time() - start_time) * 1000)
+
+    # 4. Extract token usage from model (if available)
+    # Note: We need to modify get_feedback_from_llm to return this info
+    # For now, estimate based on prompt length (rough approximation)
+    model_name = 'gemini-2.5-flash'
+
+    # Try to get actual token usage from last API response
+    # This is a placeholder - ideally we'd return this from get_feedback_from_llm
+    try:
+        model = get_gemini_model()
+        # In production, we'd need to capture usage_metadata from the response
+        # For now, use rough estimates
+        estimated_input_tokens = len(ai_feedback_text.split()) * 2  # Rough estimate
+        estimated_output_tokens = len(ai_feedback_text.split())
+
+        input_tokens = estimated_input_tokens
+        output_tokens = estimated_output_tokens
+        total_tokens = input_tokens + output_tokens
+    except Exception as e:
+        logger.warning(f"Could not estimate token usage: {e}")
+        input_tokens = 0
+        output_tokens = 0
+        total_tokens = 0
+
+    # 5. Calculate costs
+    costs = calculate_cost(input_tokens, output_tokens, model_name)
+
+    # 6. Log token usage
+    log_token_usage(
+        report=report,
+        case=case,
+        prompt_version=prompt_version,
+        token_data={
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens,
+            'total_tokens': total_tokens,
+            'input_cost': costs['input_cost'],
+            'output_cost': costs['output_cost'],
+            'total_cost': costs['total_cost'],
+            'model_name': model_name
+        },
+        response_time_ms=response_time_ms,
+        was_cached=False
+    )
+
+    logger.info(
+        f"💰 Token usage logged: {total_tokens} tokens, "
+        f"${costs['total_cost']} (${costs['input_cost']} input + ${costs['output_cost']} output)"
+    )
+
+    # 7. Structure the feedback for caching
+    structured_feedback = {
+        'raw_feedback': ai_feedback_text,
+        'model_name': model_name,
+        'generated_at': time.time(),
+        'response_time_ms': response_time_ms,
+        'token_usage': {
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens,
+            'total_tokens': total_tokens,
+            'cost_usd': str(costs['total_cost'])
+        }
+    }
+
+    # 8. Store in cache
+    try:
+        store_in_cache(
+            cache_key=cache_key,
+            feedback_content=structured_feedback,
+            case=case,
+            prompt_version=prompt_version,
+            ttl_days=30
+        )
+        logger.info(f"✅ Feedback stored in cache with 30-day TTL")
+    except Exception as e:
+        logger.warning(f"Failed to store feedback in cache: {e}")
+        # Continue anyway - caching failure shouldn't block feedback delivery
+
+    # 9. Update prompt version metrics (if available)
+    if prompt_version:
+        prompt_version.total_uses += 1
+        prompt_version.total_tokens_used += total_tokens
+        if prompt_version.total_uses > 0:
+            prompt_version.average_tokens_per_use = (
+                float(prompt_version.total_tokens_used) / prompt_version.total_uses
+            )
+        prompt_version.save(update_fields=[
+            'total_uses',
+            'total_tokens_used',
+            'average_tokens_per_use'
+        ])
+        logger.info(f"📊 Updated prompt version {prompt_version.version_number} metrics")
+
+    return ai_feedback_text  # Return raw text for backward compatibility
 
 
 # Example Usage (for testing this service directly if needed):

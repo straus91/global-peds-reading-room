@@ -50,7 +50,7 @@ from .serializers import (
     TutoringTurnCreateSerializer,
 )
 
-from .llm_feedback_service import get_feedback_from_llm
+from .llm_feedback_service import get_feedback_from_llm, get_feedback_with_caching
 from .utils import generate_report_comparison_summary
 
 # --- ViewSets ---
@@ -364,12 +364,14 @@ class AIReportFeedbackView(APIView):
                 f"Found {len(identical_section_ids)} sections that are identical to expert report"
             )
 
-            # Get AI feedback from LLM
+            # Get AI feedback from LLM (with caching and token tracking)
             try:
-                ai_feedback_text = get_feedback_from_llm(
+                ai_feedback_text = get_feedback_with_caching(
                     user_report_sections=user_report_sections_for_llm,
                     expert_report_sections=expert_report_sections_for_llm,
                     programmatic_pre_analysis_summary=programmatic_pre_analysis,
+                    case=case_instance,  # ADD: Case instance for caching
+                    report=user_report,  # ADD: Report instance for token logging
                     case_identifier_for_llm=case_instance.case_identifier
                     or f"Case ID {case_instance.id}",
                     case_patient_age=(
