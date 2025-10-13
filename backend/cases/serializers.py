@@ -18,6 +18,7 @@ from .models import (
     CaseTemplate,
     CaseTemplateSectionContent,
     AIFeedbackRating,
+    AIFeedbackDetailedRating,
     TutoringSession,
     TutoringTurn,
     TutoringSessionStatusChoices,
@@ -691,6 +692,102 @@ class AIFeedbackRatingSerializer(serializers.ModelSerializer):
         rating = AIFeedbackRating.objects.create(
             report=report_instance, user=self.context["request"].user, **validated_data
         )
+        return rating
+
+
+class AIFeedbackDetailedRatingSerializer(serializers.ModelSerializer):
+    """
+    Serializer for multi-dimensional AI feedback quality ratings.
+
+    Enables detailed tracking of accuracy, helpfulness, and actionability
+    for data-driven prompt optimization.
+    """
+    user = UserSerializer(read_only=True)
+    report_id = serializers.IntegerField(
+        write_only=True,
+        help_text="ID of the report for which AI feedback is being rated."
+    )
+
+    # Display fields
+    report_case_identifier = serializers.CharField(
+        source="report.case.case_identifier",
+        read_only=True
+    )
+
+    class Meta:
+        model = AIFeedbackDetailedRating
+        fields = [
+            "id",
+            "report",
+            "report_id",
+            "report_case_identifier",
+            "user",
+            "accuracy_rating",
+            "helpfulness_rating",
+            "actionability_rating",
+            "overall_rating",
+            "has_false_positives",
+            "false_positive_details",
+            "comment",
+            "rated_at",
+        ]
+        read_only_fields = ("id", "user", "report", "report_case_identifier", "rated_at")
+
+    def validate_report_id(self, value):
+        """Validate that report exists and belongs to requesting user."""
+        request = self.context.get("request")
+        try:
+            report = Report.objects.get(pk=value)
+        except Report.DoesNotExist:
+            raise serializers.ValidationError("Report not found.")
+
+        # Verify report belongs to user
+        if report.user != request.user:
+            raise serializers.ValidationError("You can only rate feedback for your own reports.")
+
+        # Check if report has AI feedback
+        if not report.ai_feedback_content:
+            raise serializers.ValidationError("This report does not have AI feedback to rate.")
+
+        return value
+
+    def validate(self, data):
+        """Validate rating scale and false positive consistency."""
+        # Ensure all ratings are in 1-5 range (model choices enforce this, but double-check)
+        rating_fields = ['accuracy_rating', 'helpfulness_rating', 'actionability_rating', 'overall_rating']
+        for field in rating_fields:
+            if field in data and (data[field] < 1 or data[field] > 5):
+                raise serializers.ValidationError({field: "Rating must be between 1 and 5."})
+
+        # If has_false_positives is True, require details
+        if data.get('has_false_positives', False) and not data.get('false_positive_details'):
+            raise serializers.ValidationError({
+                'false_positive_details': "Please provide details about false positives."
+            })
+
+        return data
+
+    def create(self, validated_data):
+        """Create detailed rating with uniqueness check."""
+        report_id = validated_data.pop("report_id")
+        report_instance = Report.objects.get(pk=report_id)
+
+        # Check for existing rating (unique constraint on report + user)
+        if AIFeedbackDetailedRating.objects.filter(
+            report=report_instance,
+            user=self.context["request"].user
+        ).exists():
+            raise serializers.ValidationError({
+                "detail": "You have already submitted a detailed rating for this report's feedback."
+            })
+
+        # Create rating
+        rating = AIFeedbackDetailedRating.objects.create(
+            report=report_instance,
+            user=self.context["request"].user,
+            **validated_data
+        )
+
         return rating
 
 

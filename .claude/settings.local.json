@@ -8,7 +8,18 @@
       "Bash(git config:*)",
       "Bash(ls:*)",
       "Bash(python:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(git push:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(git commit:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(flake8:*)",
+      "Bash(black:*)",
+      "Bash(find:*)",
+      "Read(//home/straus91/.ssh/**)",
+      "Bash(cat:*)"
     ],
     "deny": []
   },

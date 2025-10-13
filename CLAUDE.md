@@ -140,6 +140,14 @@ python manage.py test cases.tests.TestClass.test_method   # Specific method
 - Secret management & rotation
 - Incident response procedures
 
+**@.claude/docs/DEPLOYMENT.md** 🚀
+- Beta Droplet server configuration (IP, users, paths)
+- GitHub Actions automated deployment workflow
+- Manual verification procedures
+- root vs deploy user guidance
+- Common deployment issues & solutions
+- Quick command reference for troubleshooting
+
 ---
 
 ## 🏗️ Architecture Overview

@@ -5,6 +5,7 @@ from . import views  # Import views from the current directory
 from .views import (
     AIReportFeedbackView,
     AIFeedbackRatingCreateView,
+    AIFeedbackDetailedRatingViewSet,
     TutoringSessionCreateView,
     TutoringSessionRetrieveView,
     TutoringTurnCreateView,
@@ -28,6 +29,11 @@ router.register(
 )
 router.register(
     r"admin/case-templates", views.CaseTemplateViewSet, basename="admin-case-template"
+)
+router.register(
+    r"detailed-ratings",
+    AIFeedbackDetailedRatingViewSet,
+    basename="detailed-rating"
 )
 
 

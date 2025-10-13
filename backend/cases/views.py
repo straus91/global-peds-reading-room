@@ -27,6 +27,7 @@ from .models import (
     CaseTemplate,
     CaseTemplateSectionContent,
     AIFeedbackRating,
+    AIFeedbackDetailedRating,
     TutoringSession,
     TutoringTurn,
     TutoringSessionStatusChoices,
@@ -44,6 +45,7 @@ from .serializers import (
     AdminCaseTemplateSetupSerializer,
     BulkCaseTemplateSectionContentUpdateSerializer,
     AIFeedbackRatingSerializer,
+    AIFeedbackDetailedRatingSerializer,
     TutoringSessionSerializer,
     TutoringSessionCreateSerializer,
     TutoringTurnSerializer,
@@ -1005,6 +1007,286 @@ class AIFeedbackRatingCreateView(generics.CreateAPIView):
     queryset = AIFeedbackRating.objects.all()
     serializer_class = AIFeedbackRatingSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+class AIFeedbackDetailedRatingViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for multi-dimensional AI feedback quality ratings.
+
+    Provides CRUD operations for detailed ratings with analytics support.
+
+    Endpoints:
+    - POST /api/detailed-ratings/ - Submit a new detailed rating
+    - GET /api/detailed-ratings/ - List user's own ratings
+    - GET /api/detailed-ratings/{id}/ - Retrieve a specific rating
+    - PUT/PATCH /api/detailed-ratings/{id}/ - Update rating
+    - DELETE /api/detailed-ratings/{id}/ - Delete rating (admin only)
+
+    Permissions:
+    - Users can only view/edit their own ratings
+    - Admins can view all ratings for analytics
+    """
+    serializer_class = AIFeedbackDetailedRatingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Return only ratings by the current user, unless admin."""
+        user = self.request.user
+
+        if user.is_staff:
+            # Admins can see all ratings for analytics
+            return AIFeedbackDetailedRating.objects.select_related(
+                'user', 'report', 'report__case'
+            ).order_by('-rated_at')
+        else:
+            # Regular users only see their own ratings
+            return AIFeedbackDetailedRating.objects.filter(
+                user=user
+            ).select_related(
+                'report', 'report__case'
+            ).order_by('-rated_at')
+
+    def get_serializer_context(self):
+        """Add request to serializer context for validation."""
+        return {'request': self.request, **super().get_serializer_context()}
+
+    def perform_destroy(self, instance):
+        """Only allow admins to delete ratings."""
+        if not self.request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can delete ratings.")
+        instance.delete()
+
+    @action(detail=False, methods=['get'], url_path='by-report/(?P<report_id>[^/.]+)')
+    def by_report(self, request, report_id=None):
+        """
+        Get all ratings for a specific report.
+
+        GET /api/detailed-ratings/by-report/{report_id}/
+
+        Returns ratings for a report (user's own if not admin).
+        """
+        try:
+            report = Report.objects.get(pk=report_id)
+        except Report.DoesNotExist:
+            return Response(
+                {'error': 'Report not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check permissions
+        if report.user != request.user and not request.user.is_staff:
+            return Response(
+                {'error': 'You do not have permission to view ratings for this report.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get ratings for this report
+        ratings = AIFeedbackDetailedRating.objects.filter(
+            report=report
+        ).select_related('user')
+
+        serializer = self.get_serializer(ratings, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def analytics(self, request):
+        """
+        Get analytics summary for detailed ratings.
+
+        GET /api/detailed-ratings/analytics/
+
+        Returns aggregated statistics (admin only).
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view analytics.")
+
+        from django.db.models import Avg, Count, Q
+
+        # Get all ratings
+        ratings = AIFeedbackDetailedRating.objects.all()
+
+        # Calculate averages
+        analytics_data = {
+            'total_ratings': ratings.count(),
+            'average_accuracy': ratings.aggregate(Avg('accuracy_rating'))['accuracy_rating__avg'],
+            'average_helpfulness': ratings.aggregate(Avg('helpfulness_rating'))['helpfulness_rating__avg'],
+            'average_actionability': ratings.aggregate(Avg('actionability_rating'))['actionability_rating__avg'],
+            'average_overall': ratings.aggregate(Avg('overall_rating'))['overall_rating__avg'],
+            'false_positive_count': ratings.filter(has_false_positives=True).count(),
+            'false_positive_percentage': (
+                (ratings.filter(has_false_positives=True).count() / ratings.count() * 100)
+                if ratings.count() > 0 else 0
+            ),
+            'ratings_with_comments': ratings.exclude(
+                Q(comment='') | Q(comment__isnull=True)
+            ).count(),
+        }
+
+        # Round averages to 2 decimal places
+        for key in ['average_accuracy', 'average_helpfulness', 'average_actionability', 'average_overall']:
+            if analytics_data[key] is not None:
+                analytics_data[key] = round(analytics_data[key], 2)
+
+        analytics_data['false_positive_percentage'] = round(
+            analytics_data['false_positive_percentage'], 1
+        )
+
+        return Response(analytics_data)
+
+    @action(detail=False, methods=['get'], url_path='analytics/by-difficulty')
+    def analytics_by_difficulty(self, request):
+        """
+        Get detailed rating analytics broken down by case difficulty.
+
+        GET /api/detailed-ratings/analytics/by-difficulty/
+
+        Returns average ratings for each difficulty level (admin only).
+        Useful for identifying if AI feedback quality varies by case complexity.
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view analytics.")
+
+        from django.db.models import Avg, Count
+
+        # Get ratings grouped by case difficulty
+        difficulty_data = AIFeedbackDetailedRating.objects.values(
+            'report__case__difficulty'
+        ).annotate(
+            count=Count('id'),
+            avg_accuracy=Avg('accuracy_rating'),
+            avg_helpfulness=Avg('helpfulness_rating'),
+            avg_actionability=Avg('actionability_rating'),
+            avg_overall=Avg('overall_rating'),
+            false_positives=Count('id', filter=models.Q(has_false_positives=True))
+        ).order_by('report__case__difficulty')
+
+        # Format results
+        results = []
+        for item in difficulty_data:
+            results.append({
+                'difficulty': item['report__case__difficulty'],
+                'rating_count': item['count'],
+                'average_accuracy': round(item['avg_accuracy'], 2) if item['avg_accuracy'] else None,
+                'average_helpfulness': round(item['avg_helpfulness'], 2) if item['avg_helpfulness'] else None,
+                'average_actionability': round(item['avg_actionability'], 2) if item['avg_actionability'] else None,
+                'average_overall': round(item['avg_overall'], 2) if item['avg_overall'] else None,
+                'false_positive_count': item['false_positives'],
+                'false_positive_percentage': round(
+                    (item['false_positives'] / item['count'] * 100) if item['count'] > 0 else 0,
+                    1
+                )
+            })
+
+        return Response({
+            'by_difficulty': results,
+            'note': 'Use this to identify if AI feedback quality varies by case complexity.'
+        })
+
+    @action(detail=False, methods=['get'], url_path='analytics/trends')
+    def analytics_trends(self, request):
+        """
+        Get time-based trends for detailed ratings.
+
+        GET /api/detailed-ratings/analytics/trends/?days=30
+
+        Query parameters:
+        - days (int): Number of days to look back (default: 30)
+
+        Returns weekly aggregated ratings to track quality over time (admin only).
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view analytics.")
+
+        from django.db.models import Avg, Count
+        from django.db.models.functions import TruncWeek
+        from datetime import timedelta
+
+        # Get days parameter (default 30, max 365)
+        days = int(request.GET.get('days', 30))
+        if days > 365:
+            days = 365
+
+        cutoff_date = timezone.now() - timedelta(days=days)
+
+        # Get ratings grouped by week
+        weekly_data = AIFeedbackDetailedRating.objects.filter(
+            rated_at__gte=cutoff_date
+        ).annotate(
+            week=TruncWeek('rated_at')
+        ).values('week').annotate(
+            count=Count('id'),
+            avg_accuracy=Avg('accuracy_rating'),
+            avg_helpfulness=Avg('helpfulness_rating'),
+            avg_actionability=Avg('actionability_rating'),
+            avg_overall=Avg('overall_rating'),
+            false_positives=Count('id', filter=models.Q(has_false_positives=True))
+        ).order_by('week')
+
+        # Format results
+        results = []
+        for item in weekly_data:
+            results.append({
+                'week_start': item['week'].isoformat() if item['week'] else None,
+                'rating_count': item['count'],
+                'average_accuracy': round(item['avg_accuracy'], 2) if item['avg_accuracy'] else None,
+                'average_helpfulness': round(item['avg_helpfulness'], 2) if item['avg_helpfulness'] else None,
+                'average_actionability': round(item['avg_actionability'], 2) if item['avg_actionability'] else None,
+                'average_overall': round(item['avg_overall'], 2) if item['avg_overall'] else None,
+                'false_positive_count': item['false_positives']
+            })
+
+        return Response({
+            'period_days': days,
+            'weekly_trends': results,
+            'note': 'Monitor for quality degradation after prompt changes.'
+        })
+
+    @action(detail=False, methods=['get'], url_path='analytics/false-positives')
+    def analytics_false_positives(self, request):
+        """
+        Get detailed analysis of false positive reports.
+
+        GET /api/detailed-ratings/analytics/false-positives/
+
+        Returns list of ratings with false positives including details (admin only).
+        Use this to identify specific AI feedback issues.
+        """
+        if not request.user.is_staff:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can view analytics.")
+
+        # Get ratings with false positives
+        false_positive_ratings = AIFeedbackDetailedRating.objects.filter(
+            has_false_positives=True
+        ).select_related(
+            'report__case', 'user'
+        ).order_by('-rated_at')
+
+        # Format results
+        results = []
+        for rating in false_positive_ratings:
+            results.append({
+                'rating_id': rating.id,
+                'report_id': rating.report.id,
+                'case_identifier': rating.report.case.case_identifier,
+                'case_difficulty': rating.report.case.difficulty,
+                'user_id': rating.user.id,
+                'username': rating.user.username,
+                'rated_at': rating.rated_at.isoformat(),
+                'false_positive_details': rating.false_positive_details,
+                'overall_rating': rating.overall_rating,
+                'comment': rating.comment
+            })
+
+        return Response({
+            'false_positive_count': len(results),
+            'false_positives': results,
+            'note': 'Review these to improve AI feedback prompt accuracy.'
+        })
 
 
 # --- Tutoring Views ---
