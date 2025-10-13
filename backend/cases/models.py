@@ -476,6 +476,428 @@ class AIFeedbackRating(models.Model):
         verbose_name_plural = "AI Feedback Ratings"
 
 
+# --- Phase 1: Foundation Improvements Models ---
+
+
+class AIFeedbackDetailedRating(models.Model):
+    """
+    Multi-dimensional rating for AI feedback quality.
+
+    Replaces simple star rating with category-specific scoring to enable
+    data-driven prompt optimization.
+
+    Business Rules:
+    - One rating per user per report (enforced by unique constraint)
+    - All ratings on 1-5 scale
+    - False positive tracking for quality monitoring
+    - Indexed for analytics query performance
+    """
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique rating identifier (UUID)."
+    )
+
+    # Relationships
+    report = models.ForeignKey(
+        Report,
+        on_delete=models.CASCADE,
+        related_name="detailed_feedback_ratings",
+        help_text="The user report being rated."
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="detailed_feedback_ratings_given",
+        help_text="The user providing the rating."
+    )
+
+    # Multi-dimensional ratings (1-5 scale)
+    accuracy_rating = models.IntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+        help_text="How accurate was the AI feedback? (1=Very Inaccurate, 5=Very Accurate)"
+    )
+    helpfulness_rating = models.IntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+        help_text="How helpful was the feedback for learning? (1=Not Helpful, 5=Very Helpful)"
+    )
+    actionability_rating = models.IntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+        help_text="How actionable/specific were the suggestions? (1=Too Vague, 5=Very Specific)"
+    )
+    overall_rating = models.IntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+        help_text="Overall satisfaction with AI feedback (1=Very Dissatisfied, 5=Very Satisfied)"
+    )
+
+    # False positive tracking
+    has_false_positives = models.BooleanField(
+        default=False,
+        help_text="Did AI incorrectly flag issues that were actually correct?"
+    )
+    false_positive_details = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Details about false positives if any (what was incorrectly flagged?)"
+    )
+
+    # Optional comment
+    comment = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional textual comment about the AI feedback quality."
+    )
+
+    # Timestamp
+    rated_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this rating was submitted."
+    )
+
+    def __str__(self):
+        return f"Detailed Rating for Report {self.report.id} by {self.user.username}: Overall {self.overall_rating}/5"
+
+    class Meta:
+        ordering = ["-rated_at"]
+        unique_together = [["report", "user"]]
+        verbose_name = "AI Feedback Detailed Rating"
+        verbose_name_plural = "AI Feedback Detailed Ratings"
+        indexes = [
+            models.Index(fields=["rated_at"], name="detailed_rating_date_idx"),
+            models.Index(fields=["accuracy_rating"], name="detailed_rating_accuracy_idx"),
+            models.Index(fields=["helpfulness_rating"], name="detailed_rating_helpful_idx"),
+            models.Index(fields=["actionability_rating"], name="detailed_rating_action_idx"),
+            models.Index(fields=["has_false_positives"], name="detailed_rating_fp_idx"),
+        ]
+
+
+class FeedbackCache(models.Model):
+    """
+    Cache for AI-generated feedback based on report content hash.
+
+    Reduces API costs by serving cached feedback for identical reports.
+    Cache key is SHA256 hash of (user_sections + expert_sections + case_context).
+
+    Business Rules:
+    - Cache expires after 30 days or when prompt version changes
+    - Hit count tracks cache effectiveness
+    - Indexed for O(1) cache lookup performance
+    """
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique cache entry identifier (UUID)."
+    )
+
+    # Cache key (hash of report content)
+    content_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="SHA256 hash of normalized report content (user + expert + case context)."
+    )
+
+    # Cached data
+    feedback_content = models.JSONField(
+        help_text="Cached AI feedback response (structured JSON format)."
+    )
+
+    # Metadata
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name="feedback_caches",
+        help_text="Case for which feedback was generated (for analytics)."
+    )
+    prompt_version = models.ForeignKey(
+        "PromptVersion",  # Forward reference since defined below
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cached_feedbacks",
+        help_text="Prompt version used to generate this cached feedback."
+    )
+
+    # Usage tracking
+    hit_count = models.IntegerField(
+        default=0,
+        help_text="Number of times this cache entry was served."
+    )
+    last_hit_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last time this cache was hit."
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this cache entry was created."
+    )
+    expires_at = models.DateTimeField(
+        help_text="Cache expiration timestamp (invalidate after prompt changes)."
+    )
+
+    def __str__(self):
+        return f"Cache {self.content_hash[:8]}... (hits: {self.hit_count}, case: {self.case.case_identifier})"
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Feedback Cache Entry"
+        verbose_name_plural = "Feedback Cache Entries"
+        indexes = [
+            models.Index(fields=["content_hash"], name="cache_hash_idx"),
+            models.Index(fields=["case", "created_at"], name="cache_case_date_idx"),
+            models.Index(fields=["expires_at"], name="cache_expires_idx"),
+            models.Index(fields=["hit_count"], name="cache_hits_idx"),
+        ]
+
+
+class PromptVersion(models.Model):
+    """
+    Version control for AI feedback prompts.
+
+    Enables A/B testing, performance tracking, and easy rollback.
+    Tracks quality metrics and costs per version for data-driven optimization.
+
+    Business Rules:
+    - Only one version can be active at a time (enforced in code)
+    - A/B testing uses weighted random selection
+    - Metrics updated when ratings received
+    - Indexed for prompt selection performance
+    """
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique version identifier (UUID)."
+    )
+
+    # Version metadata
+    version_number = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="Semantic version (e.g., 'v1.2.3', 'v2.0.0')."
+    )
+    name = models.CharField(
+        max_length=200,
+        help_text="Human-readable name (e.g., 'Improved Specificity v2')."
+    )
+    description = models.TextField(
+        help_text="What changed in this version and why (changelog entry)."
+    )
+
+    # Prompt content
+    prompt_template = models.TextField(
+        help_text="Full prompt template with placeholders for context variables."
+    )
+
+    # Status
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Is this version currently in use? (only one can be true)"
+    )
+    is_ab_test = models.BooleanField(
+        default=False,
+        help_text="Is this version part of an A/B test?"
+    )
+    ab_test_weight = models.IntegerField(
+        default=0,
+        help_text="Weight for A/B testing (0-100, higher = more traffic). Total weights should sum to 100."
+    )
+
+    # Performance tracking (calculated fields)
+    total_uses = models.IntegerField(
+        default=0,
+        help_text="Number of times this prompt was used to generate feedback."
+    )
+    average_rating = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Average overall rating for feedback from this prompt (calculated from ratings)."
+    )
+    average_accuracy = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Average accuracy rating for this prompt version."
+    )
+    average_helpfulness = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Average helpfulness rating for this prompt version."
+    )
+    average_actionability = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Average actionability rating for this prompt version."
+    )
+
+    # Cost tracking
+    total_tokens_used = models.BigIntegerField(
+        default=0,
+        help_text="Total tokens consumed by this prompt version."
+    )
+    average_tokens_per_use = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Average tokens per feedback generation (for cost estimation)."
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this version was created."
+    )
+    activated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this version was first activated."
+    )
+    deactivated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this version was deactivated."
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prompt_versions_created",
+        help_text="Admin user who created this prompt version."
+    )
+
+    def __str__(self):
+        status = "ACTIVE" if self.is_active else ("A/B TEST" if self.is_ab_test else "INACTIVE")
+        return f"{self.version_number} - {self.name} ({status})"
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Prompt Version"
+        verbose_name_plural = "Prompt Versions"
+        indexes = [
+            models.Index(fields=["version_number"], name="prompt_version_num_idx"),
+            models.Index(fields=["is_active"], name="prompt_is_active_idx"),
+            models.Index(fields=["is_ab_test", "ab_test_weight"], name="prompt_ab_test_idx"),
+            models.Index(fields=["average_rating"], name="prompt_avg_rating_idx"),
+            models.Index(fields=["created_at"], name="prompt_created_idx"),
+        ]
+
+
+class TokenUsageLog(models.Model):
+    """
+    Log of token usage for each AI feedback generation.
+
+    Enables cost tracking, budget monitoring, and optimization.
+    Tracks both cached and uncached requests for ROI analysis.
+
+    Business Rules:
+    - Created for every feedback generation (cached or not)
+    - Cost calculated based on current Gemini pricing
+    - Indexed for time-series and cost analytics
+    """
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique log entry identifier (UUID)."
+    )
+
+    # Request context
+    report = models.ForeignKey(
+        Report,
+        on_delete=models.CASCADE,
+        related_name="token_usage_logs",
+        help_text="Report for which feedback was generated."
+    )
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name="token_usage_logs",
+        help_text="Case associated with this request (for cost per case analytics)."
+    )
+    prompt_version = models.ForeignKey(
+        PromptVersion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="token_usage_logs",
+        help_text="Prompt version used for this request."
+    )
+
+    # Token metrics
+    input_tokens = models.IntegerField(
+        help_text="Tokens in prompt (input to LLM)."
+    )
+    output_tokens = models.IntegerField(
+        help_text="Tokens in response (output from LLM)."
+    )
+    total_tokens = models.IntegerField(
+        help_text="input_tokens + output_tokens."
+    )
+
+    # Cost calculation (USD, 6 decimal places for precision)
+    input_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        help_text="Cost for input tokens in USD (based on model pricing)."
+    )
+    output_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        help_text="Cost for output tokens in USD (based on model pricing)."
+    )
+    total_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        help_text="Total cost for this request in USD."
+    )
+
+    # Performance metrics
+    response_time_ms = models.IntegerField(
+        help_text="Time to receive response in milliseconds (for monitoring)."
+    )
+
+    # Cache status
+    was_cached = models.BooleanField(
+        default=False,
+        help_text="Was this served from cache? (if true, tokens/costs are 0)"
+    )
+
+    # Model details
+    model_name = models.CharField(
+        max_length=100,
+        help_text="AI model used (e.g., 'gemini-2.5-flash', 'gemini-1.5-flash')."
+    )
+
+    # Timestamp
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this request was made."
+    )
+
+    def __str__(self):
+        cached_str = " (CACHED)" if self.was_cached else ""
+        return f"Token Log {self.created_at.strftime('%Y-%m-%d %H:%M')} - ${self.total_cost:.4f}{cached_str}"
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Token Usage Log"
+        verbose_name_plural = "Token Usage Logs"
+        indexes = [
+            models.Index(fields=["created_at"], name="token_log_date_idx"),
+            models.Index(fields=["case", "created_at"], name="token_log_case_date_idx"),
+            models.Index(fields=["was_cached"], name="token_log_cached_idx"),
+            models.Index(fields=["total_cost"], name="token_log_cost_idx"),
+            models.Index(fields=["prompt_version", "created_at"], name="token_log_version_idx"),
+        ]
+
+
+# --- Tutoring Session Models ---
+
+
 class TutoringSessionStatusChoices(models.TextChoices):
     ACTIVE = "active", _("Active")
     COMPLETED = "completed", _("Completed")
