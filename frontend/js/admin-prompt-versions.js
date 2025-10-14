@@ -89,7 +89,7 @@ function renderVersionsTable(versions) {
 
         const activateButton = version.is_active ?
             `<button class="btn btn-sm btn-secondary" disabled>Active</button>` :
-            `<button class="btn btn-sm btn-primary" onclick="activateVersion('${version.prompt_version_id}')">Activate</button>`;
+            `<button class="btn btn-sm btn-primary" onclick="activateVersion('${version.version_id}')">Activate</button>`;
 
         return `
             <tr>
@@ -106,7 +106,7 @@ function renderVersionsTable(versions) {
                 <td>
                     <div style="display: flex; gap: 5px;">
                         ${activateButton}
-                        <button class="btn btn-sm btn-secondary" onclick="viewVersion('${version.prompt_version_id}')">View</button>
+                        <button class="btn btn-sm btn-secondary" onclick="viewVersion('${version.version_id}')">View</button>
                     </div>
                 </td>
             </tr>
