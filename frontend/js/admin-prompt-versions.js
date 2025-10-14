@@ -239,8 +239,11 @@ async function initDashboard() {
     showLoading();
 
     try {
-        const versions = await fetchPromptVersions();
-        if (!versions) return;
+        const response = await fetchPromptVersions();
+        if (!response) return;
+
+        // Extract versions array from response
+        const versions = response.versions || [];
 
         renderVersionsTable(versions);
         renderQuickStats(versions);
