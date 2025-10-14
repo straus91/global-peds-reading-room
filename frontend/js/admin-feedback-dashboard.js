@@ -34,7 +34,7 @@ async function fetchAnalytics() {
             return null;
         }
 
-        const response = await fetch(`${API_BASE}/detailed-ratings/analytics/`, {
+        const response = await fetch(`${API_BASE}/cases/detailed-ratings/analytics/`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
