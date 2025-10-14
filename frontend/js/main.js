@@ -987,7 +987,7 @@ async function requestAIFeedback(reportId) {
         feedbackBtn.disabled = true;
         feedbackBtn.textContent = "Checking...";
 
-        const savedResponse = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`, { method: 'GET' });
+        const savedResponse = await apiRequest(`/api/cases/reports/${reportId}/ai-feedback/`, { method: 'GET' });
         
         console.log("Saved AI feedback retrieved:", savedResponse);
         if (savedResponse) {
@@ -1064,7 +1064,7 @@ async function generateNewAIReportFeedback(reportId) {
 
     try {
         console.log(`Generating new AI feedback for report ID: ${reportId}`);
-        const response = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`, { method: 'POST' });
+        const response = await apiRequest(`/api/cases/reports/${reportId}/ai-feedback/`, { method: 'POST' });
         
         if (response) {
             console.log("New AI feedback generated and saved:", response);
@@ -1109,6 +1109,41 @@ async function generateNewAIReportFeedback(reportId) {
     }
 }
 
+
+// Function to submit AI feedback rating
+async function submitAIFeedbackRating(reportId, starRating, comment) {
+    try {
+        const payload = {
+            report_id: reportId,
+            star_rating: starRating,
+            comment: comment || ''
+        };
+
+        console.log('Submitting rating:', payload);
+        const response = await apiRequest('/api/cases/ai-feedback-ratings/', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        console.log('Rating submitted successfully:', response);
+        showToast('Thank you for rating the AI feedback!', 'success');
+
+        // Disable the rating form after successful submission
+        const ratingSection = document.getElementById('aiFeedbackRatingSection');
+        if (ratingSection) {
+            ratingSection.innerHTML = `
+                <div style="padding: 10px; background: #e6f9ed; border-radius: 5px; text-align: center;">
+                    <p style="margin: 0; color: #28a745;">✓ Thank you for your rating!</p>
+                </div>`;
+        }
+
+        return response;
+    } catch (error) {
+        console.error('Failed to submit rating:', error);
+        showToast(`Error submitting rating: ${error.message || 'Unknown error'}`, 'error');
+        throw error;
+    }
+}
 
 // Helper to display AI response content into the AI Feedback tab
 function displayAIResponseBody(response, targetElement) {
@@ -1206,8 +1241,95 @@ function displayAIResponseBody(response, targetElement) {
         .feedback-section li {
             margin-bottom: 8px;
         }
+        .stars span {
+            font-size: 24px;
+            cursor: pointer;
+            color: #ddd;
+            transition: color 0.2s;
+        }
+        .stars span:hover,
+        .stars span.selected {
+            color: #ffc107;
+        }
     `;
     targetElement.appendChild(style);
+
+    // Setup rating functionality
+    setupRatingInteraction();
+}
+
+// Setup interactive star rating and submission
+function setupRatingInteraction() {
+    const ratingSection = document.getElementById('aiFeedbackRatingSection');
+    if (!ratingSection) return;
+
+    const stars = ratingSection.querySelectorAll('.stars span');
+    const commentTextarea = ratingSection.querySelector('textarea');
+    const submitButton = ratingSection.querySelector('button');
+
+    let selectedRating = 0;
+
+    // Star click/hover functionality
+    stars.forEach((star, index) => {
+        star.addEventListener('click', () => {
+            selectedRating = index + 1;
+            updateStarDisplay(selectedRating);
+        });
+
+        star.addEventListener('mouseenter', () => {
+            updateStarDisplay(index + 1);
+        });
+    });
+
+    // Reset stars on mouse leave from the star container
+    ratingSection.querySelector('.stars').addEventListener('mouseleave', () => {
+        updateStarDisplay(selectedRating);
+    });
+
+    function updateStarDisplay(rating) {
+        stars.forEach((star, index) => {
+            if (index < rating) {
+                star.textContent = '★';
+                star.classList.add('selected');
+            } else {
+                star.textContent = '☆';
+                star.classList.remove('selected');
+            }
+        });
+    }
+
+    // Submit button
+    if (submitButton) {
+        submitButton.addEventListener('click', async () => {
+            if (selectedRating === 0) {
+                showToast('Please select a star rating before submitting', 'warning');
+                return;
+            }
+
+            // Get report ID from the feedback button
+            const feedbackBtn = document.querySelector('.get-ai-feedback-btn');
+            const reportId = feedbackBtn ? feedbackBtn.dataset.reportId : null;
+
+            if (!reportId) {
+                showToast('Error: Could not determine report ID', 'error');
+                return;
+            }
+
+            const comment = commentTextarea ? commentTextarea.value.trim() : '';
+
+            // Disable button during submission
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+
+            try {
+                await submitAIFeedbackRating(reportId, selectedRating, comment);
+            } catch (error) {
+                // Re-enable button if submission failed
+                submitButton.disabled = false;
+                submitButton.textContent = 'Submit Rating';
+            }
+        });
+    }
 }
 
 // Helper function to format discrepancy content
