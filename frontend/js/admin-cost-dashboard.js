@@ -3,6 +3,8 @@
  * Fetches token usage and cost metrics, renders visualizations
  */
 
+console.log('🔧 Dashboard Version: 2025-01-14-fix-v1');
+
 const API_BASE = '/api';
 let costChart = null;
 
@@ -34,7 +36,7 @@ async function fetchCostTrends() {
             return null;
         }
 
-        const response = await fetch(`${API_BASE}/detailed-ratings/analytics/cost-trends/?days=30`, {
+        const response = await fetch(`${API_BASE}/cases/detailed-ratings/analytics/cost-trends/?days=30`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -65,7 +67,7 @@ async function fetchCachePerformance() {
             return null;
         }
 
-        const response = await fetch(`${API_BASE}/detailed-ratings/analytics/cache-performance/?days=30`, {
+        const response = await fetch(`${API_BASE}/cases/detailed-ratings/analytics/cache-performance/?days=30`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'

@@ -3,6 +3,8 @@
  * Fetches AI feedback quality metrics and renders visualizations
  */
 
+console.log('🔧 Dashboard Version: 2025-01-14-fix-v1');
+
 const API_BASE = '/api';
 let trendChart = null;
 
@@ -25,7 +27,7 @@ function showDashboard() {
     document.getElementById('dashboardContent').style.display = 'block';
 }
 
-// Fetch analytics data
+// Fetch analytics data from multiple endpoints
 async function fetchAnalytics() {
     try {
         const token = localStorage.getItem('accessToken');
@@ -34,23 +36,53 @@ async function fetchAnalytics() {
             return null;
         }
 
-        const response = await fetch(`${API_BASE}/cases/detailed-ratings/analytics/`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
 
-        if (response.status === 401) {
+        // Fetch from 4 specialized endpoints in parallel
+        const [overallResponse, difficultyResponse, trendsResponse, falsePosResponse] = await Promise.all([
+            fetch(`${API_BASE}/cases/detailed-ratings/analytics/`, { headers }),
+            fetch(`${API_BASE}/cases/detailed-ratings/analytics/by-difficulty/`, { headers }),
+            fetch(`${API_BASE}/cases/detailed-ratings/analytics/trends/?days=30`, { headers }),
+            fetch(`${API_BASE}/cases/detailed-ratings/analytics/false-positives/`, { headers })
+        ]);
+
+        // Check for auth errors
+        if (overallResponse.status === 401) {
             window.location.href = '/app/login.html';
             return null;
         }
 
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+        // Check all responses ok
+        if (!overallResponse.ok || !difficultyResponse.ok || !trendsResponse.ok || !falsePosResponse.ok) {
+            throw new Error(`API error: ${overallResponse.status}`);
         }
 
-        return await response.json();
+        // Parse all responses
+        const [overall, difficulty, trends, falsePos] = await Promise.all([
+            overallResponse.json(),
+            difficultyResponse.json(),
+            trendsResponse.json(),
+            falsePosResponse.json()
+        ]);
+
+        // Transform into expected structure for render functions
+        return {
+            overall_metrics: {
+                average_accuracy: overall.average_accuracy,
+                average_helpfulness: overall.average_helpfulness,
+                average_actionability: overall.average_actionability,
+                average_overall: overall.average_overall,
+                total_ratings: overall.total_ratings,
+                false_positive_count: overall.false_positive_count,
+                false_positive_rate: overall.false_positive_percentage ? overall.false_positive_percentage / 100 : null
+            },
+            by_difficulty: difficulty.by_difficulty || [],
+            trend_last_30_days: trends.weekly_trends || [],
+            false_positive_examples: falsePos.false_positives || []
+        };
     } catch (error) {
         console.error('Failed to fetch analytics:', error);
         throw error;
@@ -63,31 +95,31 @@ function renderMetrics(data) {
 
     // Accuracy
     document.getElementById('avgAccuracy').textContent =
-        overall_metrics.average_accuracy !== null ?
+        (overall_metrics.average_accuracy != null) ?
         `${overall_metrics.average_accuracy.toFixed(1)}/5.0` : 'N/A';
     document.getElementById('accuracyCount').textContent =
-        `${overall_metrics.total_ratings} ratings`;
+        `${overall_metrics.total_ratings || 0} ratings`;
 
     // Helpfulness
     document.getElementById('avgHelpfulness').textContent =
-        overall_metrics.average_helpfulness !== null ?
+        (overall_metrics.average_helpfulness != null) ?
         `${overall_metrics.average_helpfulness.toFixed(1)}/5.0` : 'N/A';
     document.getElementById('helpfulnessCount').textContent =
-        `${overall_metrics.total_ratings} ratings`;
+        `${overall_metrics.total_ratings || 0} ratings`;
 
     // Actionability
     document.getElementById('avgActionability').textContent =
-        overall_metrics.average_actionability !== null ?
+        (overall_metrics.average_actionability != null) ?
         `${overall_metrics.average_actionability.toFixed(1)}/5.0` : 'N/A';
     document.getElementById('actionabilityCount').textContent =
-        `${overall_metrics.total_ratings} ratings`;
+        `${overall_metrics.total_ratings || 0} ratings`;
 
     // Overall
     document.getElementById('avgOverall').textContent =
-        overall_metrics.average_overall !== null ?
+        (overall_metrics.average_overall != null) ?
         `${overall_metrics.average_overall.toFixed(1)}/5.0` : 'N/A';
     document.getElementById('overallCount').textContent =
-        `${overall_metrics.total_ratings} ratings`;
+        `${overall_metrics.total_ratings || 0} ratings`;
 }
 
 // Render trend chart
@@ -101,8 +133,42 @@ function renderTrendChart(data) {
         trendChart.destroy();
     }
 
-    const dates = trend_last_30_days.map(item => item.date);
-    const overallRatings = trend_last_30_days.map(item => item.avg_overall || 0);
+    if (!trend_last_30_days || trend_last_30_days.length === 0) {
+        // No data - show empty chart with message
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Overall Rating',
+                    data: [],
+                    borderColor: '#4a86e8',
+                    backgroundColor: 'rgba(74, 134, 232, 0.1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    title: {
+                        display: true,
+                        text: 'No trend data available yet'
+                    }
+                }
+            }
+        });
+        return;
+    }
+
+    // Backend returns week_start and average_overall
+    const dates = trend_last_30_days.map(item => {
+        const date = new Date(item.week_start);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const overallRatings = trend_last_30_days.map(item =>
+        (item.average_overall != null) ? item.average_overall : 0
+    );
 
     trendChart = new Chart(ctx, {
         type: 'line',
@@ -149,7 +215,7 @@ function renderTrendChart(data) {
                 x: {
                     title: {
                         display: true,
-                        text: 'Date'
+                        text: 'Week Starting'
                     }
                 }
             }
@@ -175,11 +241,11 @@ function renderDifficultyTable(data) {
 
     tbody.innerHTML = by_difficulty.map(item => {
         const difficulty = item.difficulty || 'Unknown';
-        const accuracy = item.avg_accuracy !== null ? item.avg_accuracy.toFixed(1) : 'N/A';
-        const helpfulness = item.avg_helpfulness !== null ? item.avg_helpfulness.toFixed(1) : 'N/A';
-        const actionability = item.avg_actionability !== null ? item.avg_actionability.toFixed(1) : 'N/A';
-        const overall = item.avg_overall !== null ? item.avg_overall.toFixed(1) : 'N/A';
-        const count = item.count || 0;
+        const accuracy = (item.average_accuracy != null) ? item.average_accuracy.toFixed(1) : 'N/A';
+        const helpfulness = (item.average_helpfulness != null) ? item.average_helpfulness.toFixed(1) : 'N/A';
+        const actionability = (item.average_actionability != null) ? item.average_actionability.toFixed(1) : 'N/A';
+        const overall = (item.average_overall != null) ? item.average_overall.toFixed(1) : 'N/A';
+        const count = item.rating_count || 0;
 
         return `
             <tr>
@@ -199,7 +265,7 @@ function renderFalsePositives(data) {
     const { overall_metrics, false_positive_examples } = data;
 
     // False positive rate
-    const fpRate = overall_metrics.false_positive_rate !== null ?
+    const fpRate = (overall_metrics.false_positive_rate != null) ?
         `${(overall_metrics.false_positive_rate * 100).toFixed(1)}%` : 'N/A';
     document.getElementById('fpRate').textContent = fpRate;
 
@@ -207,14 +273,17 @@ function renderFalsePositives(data) {
     const totalRatings = overall_metrics.total_ratings || 0;
     document.getElementById('fpCount').textContent = `${fpCount} of ${totalRatings} ratings`;
 
-    // Recent examples
+    // Recent examples - backend returns array with case_identifier, false_positive_details
     const examplesList = document.getElementById('fpExamples');
     if (!false_positive_examples || false_positive_examples.length === 0) {
         examplesList.innerHTML = '<li style="color: #888;">No false positives reported yet</li>';
     } else {
-        examplesList.innerHTML = false_positive_examples.slice(0, 5).map(example =>
-            `<li style="margin-bottom: 8px;">${example.case_identifier || 'Unknown case'}: "${example.details ? example.details.substring(0, 80) + '...' : 'No details'}"</li>`
-        ).join('');
+        examplesList.innerHTML = false_positive_examples.slice(0, 5).map(example => {
+            const caseId = example.case_identifier || 'Unknown case';
+            const details = example.false_positive_details || 'No details provided';
+            const truncated = details.length > 80 ? details.substring(0, 80) + '...' : details;
+            return `<li style="margin-bottom: 8px;"><strong>${caseId}</strong>: "${truncated}"</li>`;
+        }).join('');
     }
 }
 

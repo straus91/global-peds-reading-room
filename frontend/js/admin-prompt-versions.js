@@ -3,6 +3,8 @@
  * Manage AI feedback prompt versions and A/B testing
  */
 
+console.log('🔧 Dashboard Version: 2025-01-14-fix-v1');
+
 const API_BASE = '/api';
 
 // Show/hide states
@@ -76,11 +78,11 @@ function renderVersionsTable(versions) {
             '<span style="background: #6aa84f; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">ACTIVE</span>' :
             '<span style="background: #e0e0e0; color: #666; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Inactive</span>';
 
-        const avgRating = version.avg_overall !== null ? version.avg_overall.toFixed(2) : 'N/A';
-        const accuracy = version.avg_accuracy !== null ? version.avg_accuracy.toFixed(2) : 'N/A';
-        const helpfulness = version.avg_helpfulness !== null ? version.avg_helpfulness.toFixed(2) : 'N/A';
-        const actionability = version.avg_actionability !== null ? version.avg_actionability.toFixed(2) : 'N/A';
-        const avgTokens = version.average_tokens_per_use !== null ?
+        const avgRating = (version.avg_overall != null) ? version.avg_overall.toFixed(2) : 'N/A';
+        const accuracy = (version.avg_accuracy != null) ? version.avg_accuracy.toFixed(2) : 'N/A';
+        const helpfulness = (version.avg_helpfulness != null) ? version.avg_helpfulness.toFixed(2) : 'N/A';
+        const actionability = (version.avg_actionability != null) ? version.avg_actionability.toFixed(2) : 'N/A';
+        const avgTokens = (version.average_tokens_per_use != null) ?
             Math.round(version.average_tokens_per_use).toLocaleString() : 'N/A';
 
         const createdDate = new Date(version.created_at).toLocaleDateString();
