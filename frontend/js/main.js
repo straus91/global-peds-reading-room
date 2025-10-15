@@ -920,10 +920,18 @@ async function displayUserSubmittedReport(userReportData, targetContainerElement
         targetContainerElement.innerHTML = html;
 
         // Add event listener for AI Feedback button
+        // FIX (2025-10-14): Changed from requestAIFeedback() to generateNewAIReportFeedback()
+        // REASON: requestAIFeedback() only does GET request to check for cached feedback,
+        //         but for newly submitted reports or "Get/Refresh" button, we need POST to generate.
+        // ISSUE: The old code created an arrow function listener that couldn't be removed by
+        //        removeEventListener() in requestAIFeedback error handler (line 1034), causing
+        //        button to only do GET→404 loop without ever triggering POST generation.
+        // SOLUTION: Direct call to generateNewAIReportFeedback() ensures POST request fires,
+        //           which calls Gemini API to generate new AI feedback.
         const aiFeedbackBtn = targetContainerElement.querySelector(`.get-ai-feedback-btn[data-report-id="${userReportData.id}"]`);
         if (aiFeedbackBtn) {
             aiFeedbackBtn.addEventListener('click', () => {
-                requestAIFeedback(userReportData.id);
+                generateNewAIReportFeedback(userReportData.id);  // Changed: was requestAIFeedback()
                 document.querySelector('.info-tab-button[data-tab-target="#aiFeedbackTabContent"]')?.click();
             });
         }
@@ -1150,8 +1158,8 @@ function displayAIResponseBody(response, targetElement) {
     let feedbackHtml = '';
     
     // Extract raw feedback and format for clean display
-    if (response.raw_llm_feedback) {
-        const rawFeedback = response.raw_llm_feedback;
+    if (response.raw_feedback) {
+        const rawFeedback = response.raw_feedback;
         
         // Look for the sections we want to display
         const criticalPattern = /1\.\s*CRITICAL\s+DISCREPANCIES:(.*?)(?=2\.\s*NON-CRITICAL|SECTION SEVERITY ASSESSMENT:|$)/is;
