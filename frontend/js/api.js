@@ -58,7 +58,7 @@ async function refreshAccessToken() {
 
     try {
         console.log('[refreshAccessToken] Attempting to refresh token');
-        const response = await fetch(`${APP_CONFIG.api.getBaseUrl()}/api/auth/login/refresh/`, {
+        const response = await fetch(`${APP_CONFIG.api.getBaseUrl()}/auth/login/refresh/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
