@@ -38,6 +38,36 @@ This file provides essential guidance for Claude Code when working with this rep
 
 ---
 
+## 🚨 CRITICAL: Frontend API Development
+
+**Before making ANY frontend API changes**, you MUST:
+
+1. 📖 **Read**: @.claude/docs/FRONTEND_API_PATTERNS.md (MANDATORY)
+2. 🔍 **Search**: Find existing similar API calls - DO NOT GUESS!
+3. ✅ **Copy**: Use exact pattern from working code
+4. ❌ **NEVER**: Add `/api/` prefix to `apiRequest()` calls
+5. ✓ **Verify**: Test in browser, check Network tab for single `/api/` prefix
+
+**Why This Matters**:
+- `apiRequest()` automatically prepends `/api/` to all endpoints
+- Adding `/api/` in your call causes double-prefix: `/api/api/...` → 404 ERROR
+- This is the #1 cause of recurring "fixing-breaking" issues
+
+**Example**:
+```javascript
+// ❌ WRONG - Double prefix
+apiRequest('/api/cases/reports/6/ai-feedback/')
+// Becomes: /api/api/cases/reports/6/ai-feedback/ → 404
+
+// ✅ CORRECT - Single prefix
+apiRequest('/cases/reports/6/ai-feedback/')
+// Becomes: /api/cases/reports/6/ai-feedback/ → SUCCESS
+```
+
+**Checklist**: @.claude/FRONTEND_CHECKLIST.md
+
+---
+
 ## 🚀 Quick Start Commands
 
 ### 1️⃣ Backend Setup
@@ -147,6 +177,22 @@ python manage.py test cases.tests.TestClass.test_method   # Specific method
 - root vs deploy user guidance
 - Common deployment issues & solutions
 - Quick command reference for troubleshooting
+
+**@.claude/docs/FRONTEND_API_PATTERNS.md** 🌐 **[MANDATORY FOR FRONTEND]**
+- How `apiRequest()` automatically prepends `/api/`
+- Correct vs incorrect API call patterns
+- Backend URL verification guide
+- Quick reference table for all endpoints
+- Debugging 404 errors (double-prefix issues)
+- Historical context and lessons learned
+
+**@.claude/FRONTEND_CHECKLIST.md** ✅ **[PRE-COMMIT REQUIRED]**
+- Pre-commit checklist for frontend changes
+- Pattern research steps
+- Browser testing procedures
+- Common mistakes to avoid
+- Red flags that indicate problems
+- Git diff verification
 
 ---
 

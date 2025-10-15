@@ -688,12 +688,247 @@ Update all references to use `patient_age_text`.
 
 ---
 
+## 6️⃣ Modifying Frontend API Calls
+
+### Scenario
+Adding new API calls or fixing existing ones in the frontend JavaScript.
+
+### Step-by-Step Workflow
+
+#### Step 1: Read FRONTEND_API_PATTERNS.md ⚠️
+
+**MANDATORY**: Read `.claude/docs/FRONTEND_API_PATTERNS.md` BEFORE making ANY frontend API changes.
+
+**Key Concepts to Understand**:
+- How `apiRequest()` automatically prepends `/api/`
+- Why you should NEVER add `/api/` prefix to endpoints
+- How to verify backend URL patterns
+
+**Location**: `frontend/js/api.js` (line 119-212)
+
+**Base URL Configuration**: `frontend/js/config.js` (line 22-29)
+- Production: `/api`
+- Development: `http://127.0.0.1:8000/api`
+
+#### Step 2: Search for Existing Pattern
+
+**DO NOT GUESS!** Always search for similar working API calls:
+
+```bash
+# Search for existing patterns
+grep -n "apiRequest.*cases" frontend/js/main.js
+grep -n "apiRequest.*users" frontend/js/main.js
+grep -n "apiRequest.*feedback" frontend/js/main.js
+```
+
+**Example Output**:
+```
+131:    const userData = await apiRequest('/users/me/');
+485:    const myReportsResponse = await apiRequest('/cases/my-reports/');
+1575:   const response = await apiRequest('/cases/reports/', {...});
+```
+
+**Pattern Identified**: ✅ Use `/cases/...` (NOT `/api/cases/...`)
+
+#### Step 3: Copy Exact Pattern
+
+**Copy from working code**:
+
+```javascript
+// ✅ CORRECT (from line 485)
+apiRequest('/cases/my-reports/')
+
+// ✅ CORRECT (from line 1575)
+apiRequest('/cases/reports/', { method: 'POST', ... })
+
+// ✅ CORRECT Pattern for new call
+apiRequest('/cases/reports/6/ai-feedback/', { method: 'GET' })
+```
+
+**❌ DO NOT DO THIS**:
+```javascript
+// ❌ WRONG - Adding /api/ prefix
+apiRequest('/api/cases/reports/6/ai-feedback/')
+// Becomes: /api + /api/cases/... = /api/api/cases/... → 404 ERROR
+```
+
+#### Step 4: Verify Backend URL
+
+Check `backend/cases/urls.py` to confirm endpoint exists:
+
+```python
+# backend/cases/urls.py (line 54-57)
+path(
+    "reports/<int:report_id>/ai-feedback/",
+    AIReportFeedbackView.as_view(),
+    name="report-ai-feedback",
+),
+```
+
+**Full URL Construction**:
+1. Django routing: `/api/cases/` (from api/urls.py)
+2. Pattern: `reports/<int:report_id>/ai-feedback/`
+3. **Final URL**: `/api/cases/reports/6/ai-feedback/`
+
+**Frontend Must Match**:
+```javascript
+// Frontend call
+apiRequest('/cases/reports/6/ai-feedback/')
+
+// apiRequest() adds /api/ automatically
+// Result: /api + /cases/reports/6/ai-feedback/
+//       = /api/cases/reports/6/ai-feedback/ ✅
+```
+
+#### Step 5: Implement the API Call
+
+```javascript
+// Example: Retrieve AI feedback
+async function getAIFeedback(reportId) {
+    try {
+        // ✅ CORRECT - No /api/ prefix
+        const response = await apiRequest(
+            `/cases/reports/${reportId}/ai-feedback/`,
+            { method: 'GET' }
+        );
+        return response;
+    } catch (error) {
+        console.error('Error retrieving AI feedback:', error);
+        throw error;
+    }
+}
+
+// Example: Submit AI feedback rating
+async function submitRating(reportId, rating, comment) {
+    try {
+        // ✅ CORRECT - No /api/ prefix
+        const response = await apiRequest('/cases/ai-feedback-ratings/', {
+            method: 'POST',
+            body: JSON.stringify({
+                report_id: reportId,
+                star_rating: rating,
+                comment: comment
+            })
+        });
+        return response;
+    } catch (error) {
+        console.error('Error submitting rating:', error);
+        throw error;
+    }
+}
+```
+
+#### Step 6: Test in Browser Console
+
+**Before deploying, test in browser**:
+
+```javascript
+// 1. Check base URL
+console.log(APP_CONFIG.api.getBaseUrl());
+// Production: "/api"
+// Development: "http://127.0.0.1:8000/api"
+
+// 2. Test your API call
+// Open browser console and trigger the function
+// Watch Network tab for actual URL called
+```
+
+**In Browser DevTools → Network Tab**:
+- ✅ **Correct**: `/api/cases/reports/6/ai-feedback/` (200 OK)
+- ❌ **Wrong**: `/api/api/cases/reports/6/ai-feedback/` (404 Not Found)
+
+#### Step 7: Complete Pre-Commit Checklist
+
+**Before committing**, complete `.claude/FRONTEND_CHECKLIST.md`:
+
+- [ ] Read FRONTEND_API_PATTERNS.md
+- [ ] Searched for existing patterns
+- [ ] Copied exact pattern from working code
+- [ ] Verified backend endpoint exists
+- [ ] Did NOT add `/api/` prefix to apiRequest
+- [ ] Tested in browser (no 404 errors)
+- [ ] Checked Network tab (single `/api/` prefix)
+- [ ] Reviewed `git diff` (only intended changes)
+
+#### Step 8: Common Mistakes to Avoid
+
+**Mistake 1: Adding `/api/` Prefix**
+```javascript
+// ❌ WRONG
+apiRequest('/api/cases/reports/6/ai-feedback/')
+// Result: /api/api/cases/... → 404
+
+// ✅ CORRECT
+apiRequest('/cases/reports/6/ai-feedback/')
+// Result: /api/cases/... → 200
+```
+
+**Mistake 2: Guessing Instead of Searching**
+```javascript
+// ❌ WRONG Approach
+"I think it should be /cases/ai-feedback/..."
+
+// ✅ CORRECT Approach
+grep -n "apiRequest.*feedback" frontend/js/main.js
+// Copy exact pattern from working code
+```
+
+**Mistake 3: Not Checking Backend**
+```javascript
+// ❌ WRONG
+// Frontend calls /cases/feedback/ but backend has /cases/reports/6/ai-feedback/
+
+// ✅ CORRECT
+// Check backend/cases/urls.py FIRST
+// Then match pattern in frontend
+```
+
+**Mistake 4: Not Testing Before Committing**
+```javascript
+// ❌ WRONG
+git commit → git push → "Hope it works"
+
+// ✅ CORRECT
+Code → Test in browser → Verify Network tab → git commit
+```
+
+#### Step 9: Debug 404 Errors
+
+**If you see 404 errors**:
+
+1. **Check URL in Network Tab**:
+   - Does it have `/api/api/...`? → Remove `/api/` from frontend call
+   - Does it have single `/api/...`? → Check backend endpoint exists
+
+2. **Verify apiRequest() Call**:
+   ```javascript
+   // ❌ If you have this
+   apiRequest('/api/cases/...')
+
+   // ✅ Change to this
+   apiRequest('/cases/...')
+   ```
+
+3. **Check Backend Endpoint**:
+   ```bash
+   cat backend/cases/urls.py | grep -A 3 "ai-feedback"
+   ```
+
+4. **Test Base URL**:
+   ```javascript
+   console.log(APP_CONFIG.api.getBaseUrl()); // Should be "/api"
+   ```
+
+---
+
 ## 📚 Related Documentation
 
 - @.claude/docs/RISK_ASSESSMENT.md - Complete risk assessment framework
 - @.claude/docs/DATA_MODELS.md - Understanding model relationships
 - @.claude/docs/TESTING.md - Testing your changes
 - @.claude/docs/MONITORING.md - Post-deployment monitoring
+- @.claude/docs/FRONTEND_API_PATTERNS.md - Frontend API call patterns (MANDATORY for frontend changes)
+- @.claude/FRONTEND_CHECKLIST.md - Pre-commit checklist for frontend changes
 
 ---
 

@@ -987,7 +987,7 @@ async function requestAIFeedback(reportId) {
         feedbackBtn.disabled = true;
         feedbackBtn.textContent = "Checking...";
 
-        const savedResponse = await apiRequest(`/api/cases/reports/${reportId}/ai-feedback/`, { method: 'GET' });
+        const savedResponse = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`, { method: 'GET' });
         
         console.log("Saved AI feedback retrieved:", savedResponse);
         if (savedResponse) {
@@ -1064,7 +1064,7 @@ async function generateNewAIReportFeedback(reportId) {
 
     try {
         console.log(`Generating new AI feedback for report ID: ${reportId}`);
-        const response = await apiRequest(`/api/cases/reports/${reportId}/ai-feedback/`, { method: 'POST' });
+        const response = await apiRequest(`/cases/reports/${reportId}/ai-feedback/`, { method: 'POST' });
         
         if (response) {
             console.log("New AI feedback generated and saved:", response);
@@ -1120,7 +1120,7 @@ async function submitAIFeedbackRating(reportId, starRating, comment) {
         };
 
         console.log('Submitting rating:', payload);
-        const response = await apiRequest('/api/cases/ai-feedback-ratings/', {
+        const response = await apiRequest('/cases/ai-feedback-ratings/', {
             method: 'POST',
             body: JSON.stringify(payload)
         });
